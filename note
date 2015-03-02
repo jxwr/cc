@@ -1,0 +1,283 @@
+
+
+main() {
+    manager.SetSpectator(spectator)
+    manager.SetStateMachine(stateMachine)
+
+    sepectator.SetPrimaryManagerAddress()
+
+    go spectator.Run()
+    go stateMachine.Run()
+    
+    go manager.StartFrontEnd()
+    go manager.StartZkHandler() // zk
+}
+
+spectator:
+    topo = BuildTopoSnapshot
+    SendMessage(topo)
+
+frontend:
+    wait http request
+
+    /status
+    /topo
+    /topo/snapshot
+    /ctrl/build
+    /ctrl/failover
+    /ctrl/safemode
+    /ctrl/rebalance
+    /ctrl/migrate
+    /temp/server
+    /temp/server
+
+    stats -> return directly (spectator, fsm, manager)
+    log -> fsm trans log, http request log
+
+handleTopoSnapshot() {
+    topo = Unmarshal(req)
+
+    if topo.HasFailure() {
+        cmd := state.NewCommandServerDead()
+        manager.StateMachine.PushCommand(cmd)
+        result := cmd.GetResult()
+    }
+
+    ss := manager.Spectator.CurrentTopo.FindDisabledSlaves() {
+        enable(ss)
+    }
+}
+
+hanldeMigrating
+
+func (*cmd) GetResult() {
+    select {
+    case output := <-cmd.OutputChan:
+        return output
+    case <-TickChan
+        return TimeoutResult
+    }
+}
+
+state/build/build.go
+
+type Command interface {
+    Name() CommandType
+    GetResult() Result
+}
+
+type Result interface {
+    String() string
+    Json() string
+}
+
+type State interface {
+    SubState() string
+    Status() string
+    Run()
+}
+
+Run() {
+    cmd = fsm.PullCommand()
+    cmd.OutputChan <- result
+}
+
+Result
+Transition
+
+
+如果链接不上zk，自动进入safemode，从safemode出来之后要判断自己是否是leader，不是的话，重置状态机
+
+迁移过程中，如果机器挂了，迁移前的MigPlan的信息就错了，需要得到新主的信息重新设置标记才能继续
+所以迁移和Failover是有交叉逻辑的，而且Failover的优先级比较高，在Failover之后，还要能回到之前的状态
+
+所以状态机实际上是类似中断处理函数
+
+迁移过程中每迁移一个slot或遇到错误时，检查是否有消息
+
+migrate
+
+failover
+
+event, command
+
+SlaveDieEvent
+SlaveRecoverEvent
+MasterDieEvent
+MasterRecoverEvent
+ZkConnLostEvent
+ZkMasterChangeEvent
+
+
+MigrateCommand
+FailoverCommand
+ReelectCommand
+SetMasterCommand
+EnterSafeModeCommand
+LeaveSafeModeCommand
+
+case MigrateCommand:
+if m.TopState().Name() == "RUNNING" {
+    m.State == state.MIGRATING
+    m.PushState(MigrateTask)
+}
+case 
+
+
+StateManager
+
+MigrateState
+FailoverState
+
+故障类型：
+1. 单机故障
+2. 机房故障
+3. 地域链路故障
+4. 压力过大
+
+如果是写入压力（比如网卡打爆导致严重丢包）过大导致的FAIL判定：
+1. 停写
+2. 迁移
+3. 开启写入
+
+如果是从读压力过大导致：
+1. 判断是否是单key问题
+2. 如果单key热点，加从或等待
+3. 如果非单key热点，
+
+
+核心功能是Failover和扩容缩容，其他功能如集群搭建、日常处理（集群迁移、每日备份、封禁某台机器、换Master地域等）是非核心功能，我们考虑可能性，但不急于实现。
+
+首先，集群主要有三种状态，正常运行、数据迁移、故障处理。优先级为：正常运行 < 数据迁移 < 故障处理，在处于这三种状态时，系统还可以接受请求处理其他逻辑，包括查询状态（拓扑、统计数据等）、封禁读写、甚至数据迁移。
+官方Redis的Failover做法很单一，即重新选主，这种方式无法处理压力过大引起的问题——换主之后可能仍然会打爆。妥善的做法是在决定采取何种措施之前，搞清楚Failure的原因。
+
+到底状态该放在哪个粒度进行呢？是整个集群一个？是每个分片一个？是每个Server一个？最初想法是整个集群一个，但是仔细推敲状态变换后可以发现，当出现一个以上节点挂掉的情况，状态机就很难理清了，尤其当故障发生时还处于迁移状态。迁移过程中，某个节点故障需要中断迁移，就需要考虑故障节点与正在迁移的节点是否关系：有关系如何处理？没关系如何处理？处理完迁移是否继续？是否能继续？如果节点故障是由于写压力太大把网卡打爆丢包严重导致，可能我们还需要先短暂停止Master的写入，迁移热点数据到其他节点，然后等待恢复，那么恢复之后呢，之前未完成的迁移操作怎么办？如果有Slot迁移到一半怎么办？如果正在迁移的Slot的目标或源节点挂了换了主怎么办？
+
+不同节点的状态揉在一起问题很复杂，将状态都维护在节点粒度呢，每个节点一个独立的状态机。状态有三种：RUNNING,MIGRATING,WAIT_FAILOVER。三者可互相转换。迁移操作按源节点聚合，因为是节点粒度做迁移，可以并发，不同源节点向同一个目标节点迁移数据，看起来很合理。当节点故障时，Failover该节点即可，因为状态机是节点粒度的，也就不需要考虑其他节点故障对自己的影响了。
+
+看起来是这样，但问题要复杂一些。考虑一种场景，同一分片，A是Master，B是Slave，A挂了，进行FAILOVER，选择B为新主，此时发现B挂了（注意故障发现类似中断，随时可能发生），由于B不知道A将其选择为新主了，所以就自行Failover了，对于从故障一般是封禁读流量，B处理结束后，A选择B为新Master，但此时B已经挂了，该FAILOVER会失败，需要管理员重新发起Failover操作，但是如果B并不是真的挂了，请求可以发送过去呢，则会造成这个新主的读流量被封禁，不过，如果是假死，过一段时间读会恢复，所以这个场景没有问题。
+
+如果某个源节点正在迁移，此时该节点挂了，迁移暂停，状态由MIGRATING切换到WAIT_FAILOVER，管理员确认进行Failover，选择新节点B为Master，Failover结束后，需要将迁移操作转移给B继续才对，如何进行？有两种方案：(1)显式将迁移任务转移给B，切换B到MAIGRATING状态。(2)将迁移任务设置为分片(ReplicaSet)粒度，同一个分片只有一个迁移任务，转移只是设置B为该分片的Master，迁移任务仅仅取Master进行迁移操作即可。两个方案都有些细节问题：方案1可能有竞争状态，方案2的MIGRATING状态维护是个问题。对于方案1，如果将迁移状态转移给B时，发现B处于WAIT_FAILOVER状态，此时问题变成处于WAIT_FAILOVER状态的节点，收到MIGRATE消息时该如何处理，如果迁移可以正常结束，则切换回RUNNING状态，如果节点仍然异常，会再次进入WAIT_FAILOVER状态，问题是如果迁移失败怎么办，该进入哪个状态？迁移失败的可能性很多，可能是源节点挂了，可能是目标节点挂了，也可能是临时性的失败。
+
+迁移任务失败解决思路：迁移失败一律回到RUNNING状态，由另一个定时任务定期检查是否是否还有未完成的迁移，仅当MigPlan不空且状态为RUNNING时才会切换到MIGRATING状态。对于上面提到的场景，处于WAIT_FAILOVER状态后又发起迁移操作进入MIGRATING状态，当迁移失败后，不会回到WAIT_FAILOVER状态，而是回到RUNNING状态，由于节点仍未恢复，会重新进入WAIT_FAILOVER状态。
+
+迁移与Failover真的需要耦合在一起吗。不可以同时处于迁移状态也处于WAIT_FAILOVER状态吗，迁移只做迁移，当节点挂了，自然迁移就失败等待重试，同时会进入WAIT_FAILOVER状态。如果目标节点挂了，同样会失败等待重试，重试时会检查目标是否有变更，以便正确迁移。迁移可以Cancel，可以Pause，可以Reset，Reset(newPlan)用于替换现有迁移任务，如果有的slot进行到一半，需要将其与新任务合并。
+
+每个节点的运行状态简化为：RUNNING, WAITING_FAILOVER, SWITCHING_MASTER。每个ReplicaSet有一个迁移任务，迁移任务在相关节点进行SWITCHING_MASTER过程中处于暂停状态，结束后继续。
+
+MigrateTask:
+Start()
+Pause()
+Resume()
+Reset()
+Cancel()
+ReplaceSource()
+ReplaceTarget()
+
+状态有：
+RUNNING
+MIGRATING
+WAITING_SLAVE_FAILOVER
+WAITING_MASTER_FAILOVER
+SAFEMODE
+
+简单场景1:
+1. 正在扩容，数据迁移中
+2. 某台主机挂掉了
+处理方案：
+1. 人工确认进行AutoFailover
+当Failover结束后，继续之前未完成的迁移，正常情况下会出现如下StateStack。但注意，之前的MigPlan已经无效了，因为故障节点就包含在其中，此时我们希望取消迁移。有两种情形需要考虑：
+1. 如果Migrate被打断在slot迁移之间，可以直接结束。
+2. 如果Migrate被打断在slot迁移之内，且该slot与故障节点无关，我们需要继续将该slot迁移完成，因为redis上还设置着迁移状态标记，并且同一个slot的数据分散在两台机器上。
+3. 如果Migrate被打断在slot迁移之内，且该slot与故障节点有关，且故障节点是主，我们需要更新Plan继续该slot迁移。（如果这个过程中又挂了怎么办？）
+(a)RUNNING
+(a)RUNNING -> (b)MIGRATING
+(a)RUNNING -> (b)MIGRATING -> (c)WAITING_MASTER_FAILOVER
+(a)RUNNING -> (b)MIGRATING
+(a)RUNNING
+
+复杂场景1:
+1. 正在扩容，数据迁移中
+2. 某一台主机被写打爆了
+处理方案：
+1. 修改数据迁移方案，将那台机器上一部分热点slot迁移过去
+2. 等待恢复
+思考：
+当压力降下来，服务恢复后，(b)状态就该取消了，因为之前建立的MigPlan已经被修改了，所以该结束迁移等待重新发起，就会出现这样的StateStack：
+(a)RUNNING
+(a)RUNNING -> (b)MIGRATING
+(a)RUNNING -> (b)MIGRATING -> (c)WAITING_MASTER_FAILOVER -> (d)MIGRATING
+(a)RUNNING -> (b)MIGRATING -> (c)WAITING_MASTER_FAILOVER
+(a)RUNNING -> (b)MIGRATING(Resume后直接退出)
+(a)RUNNING
+
+复杂场景2:
+1. 正在扩容，数据迁移中
+2. 某一台主机被写打爆了
+3. 我们加了一台机器，做热点迁移
+4. 迁移过程中，另一台机器挂了
+处理方案：
+1. 恢复新机器，重新选主，继续迁移
+说明：
+(a)RUNNING
+(a)RUNNING -> (b)MIGRATING
+(a)RUNNING -> (b)MIGRATING -> (c)WAITING_MASTER_FAILOVER -> (d)MIGRATING
+(a)RUNNING -> (b)MIGRATING -> (c)WAITING_MASTER_FAILOVER -> (d)MIGRATING -> (e)WAITING_MASTER_FAILOVER
+(a)RUNNING -> (b)MIGRATING -> (c)WAITING_MASTER_FAILOVER -> (d)MIGRATING
+(a)RUNNING -> (b)MIGRATING -> (c)WAITING_MASTER_FAILOVER
+(a)RUNNING -> (b)MIGRATING(Resume后直接退出)
+(a)RUNNING
+
+复杂场景3，如果复杂场景2反过来呢:
+1. 一台机器挂了，进入WAIT_FAILOVER状态
+2. 另一台主机主机被打爆了
+思考：
+如果短时间内同时挂了两个节点，我们需要按先后顺序处理吗，可以同时处理吗？所以状态是整个集群的，还是每个节点的，似乎更像是节点粒度的？
+
+(a)RUNNING
+(a)RUNNING -> (b)WAIT_MASTER_FAILOVER
+
+== 节点粒度状态
+简单场景1:
+1. 正在扩容，数据迁移中
+2. 某台主机挂掉了
+处理方案：
+1. 人工确认进行AutoFailover
+当Failover结束后，继续之前未完成的迁移，正常情况下会出现如下StateStack。但注意，之前的MigPlan已经无效了，因为故障节点就包含在其中，此时我们希望取消迁移。有两种情形需要考虑：
+1. 如果Migrate被打断在slot迁移之间，可以直接结束。
+2. 如果Migrate被打断在slot迁移之内，且该slot与故障节点无关，我们需要继续将该slot迁移完成，因为redis上还设置着迁移状态标记，并且同一个slot的数据分散在两台机器上。
+3. 如果Migrate被打断在slot迁移之内，且该slot与故障节点有关，且故障节点是主，我们需要更新Plan继续该slot迁移。（如果这个过程中又挂了怎么办？）
+(a)RUNNING
+(a)RUNNING -> (b)MIGRATING
+(a)RUNNING -> (b)MIGRATING -> (c)WAITING_MASTER_FAILOVER
+(a)RUNNING -> (b)MIGRATING
+(a)RUNNING
+
+系统有一个ID->ServerState的结构，Server维护当前所有Server的状态，包括迁移状态和Failover状态，默认处于Running状态，除此还有一些其他标记状态。该结构与topo结构独立。
+消息按Server粒度发送，如发现某个节点FAIL了，则想该ID发送消息。状态控制也是向ServerState发送。这样一来统一时间可能有多个Server处于WAIT_FAILOVER状态，管理员可以根据自己的判断选择优先处理哪个。
+迁移可以按source并行化，系统中同时有多个MigrateTask多个FailoverTask，每个Server一个。
+
+对于每个Server:
+1. 如果处于RUNNING状态，收到migrate请求，进入MIGRATING状态，创建一个Migrate任务，进行迁移
+2. 如果处于RUNNING状态，收到failure信息，进入WAIT_FAILOVER状态
+3. 如果处于MIGRATING状态，收到failure信息，停止Migrate任务，进入WAIT_FAILOVER状态
+4. 如果处于WAIT_FAILOVER状态，收到failover信息，则创建Failover任务进行处理，处理完回到RUNNING状态
+5. 如果处于WAIT_FAILOVER状态，收到migrate请求，则创建Failover任务进行处理
+
+"RUNNING",       MSG_MIGRATE,       "MIGRATING"
+"RUNNING",       MSG_FAILURE,       "WAIT_FAILOVER"
+"MIGRATING",     MSG_FAILOVER,      "WAIT_FAILOVER"
+"MIGRATING",     MSG_MIGRATE_CACEL, "RUNNING"
+"WAIT_FAILOVER", MSG_MIGRATE,       "MIGRATING"
+"WAIT_FAILOVER", MSG_FAILOVER,      "RUNNING"
+"ANY",           MSG_DISABLE_READ
+"ANY",           MSG_DISABLE_WRITE
+"ANY",           MSG_DISABLE_READWRITE
+
+同一ReplicaSet：
+1. 主(A)先挂了，选择(B)为新主
+2. 从(B)后挂了
+
+A -> WAIT_FAILOVER -> FAILOVER选择B为新主
+B -> WAIT_FAILOVER -> 自动处理，但此时他认为自己是从
+

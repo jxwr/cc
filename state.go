@@ -17,6 +17,10 @@ const (
 	StateManualRebalancing                         // 正在进行人工Rebalance
 )
 
+//type StateInput
+//type StateOutput
+//type StateTransition
+
 type ClusterState int
 type TransFunc func(*ClusterStateMachine)
 
