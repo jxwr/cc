@@ -1,90 +1,4 @@
-
-
-main() {
-    manager.SetSpectator(spectator)
-    manager.SetStateMachine(stateMachine)
-
-    sepectator.SetPrimaryManagerAddress()
-
-    go spectator.Run()
-    go stateMachine.Run()
-    
-    go manager.StartFrontEnd()
-    go manager.StartZkHandler() // zk
-}
-
-spectator:
-    topo = BuildTopoSnapshot
-    SendMessage(topo)
-
-frontend:
-    wait http request
-
-    /status
-    /topo
-    /topo/snapshot
-    /ctrl/build
-    /ctrl/failover
-    /ctrl/safemode
-    /ctrl/rebalance
-    /ctrl/migrate
-    /temp/server
-    /temp/server
-
-    stats -> return directly (spectator, fsm, manager)
-    log -> fsm trans log, http request log
-
-handleTopoSnapshot() {
-    topo = Unmarshal(req)
-
-    if topo.HasFailure() {
-        cmd := state.NewCommandServerDead()
-        manager.StateMachine.PushCommand(cmd)
-        result := cmd.GetResult()
-    }
-
-    ss := manager.Spectator.CurrentTopo.FindDisabledSlaves() {
-        enable(ss)
-    }
-}
-
-hanldeMigrating
-
-func (*cmd) GetResult() {
-    select {
-    case output := <-cmd.OutputChan:
-        return output
-    case <-TickChan
-        return TimeoutResult
-    }
-}
-
-state/build/build.go
-
-type Command interface {
-    Name() CommandType
-    GetResult() Result
-}
-
-type Result interface {
-    String() string
-    Json() string
-}
-
-type State interface {
-    SubState() string
-    Status() string
-    Run()
-}
-
-Run() {
-    cmd = fsm.PullCommand()
-    cmd.OutputChan <- result
-}
-
-Result
-Transition
-
+# 2015/02/28
 
 如果链接不上zk，自动进入safemode，从safemode出来之后要判断自己是否是leader，不是的话，重置状态机
 
@@ -95,19 +9,12 @@ Transition
 
 迁移过程中每迁移一个slot或遇到错误时，检查是否有消息
 
-migrate
-
-failover
-
-event, command
-
 SlaveDieEvent
 SlaveRecoverEvent
 MasterDieEvent
 MasterRecoverEvent
 ZkConnLostEvent
 ZkMasterChangeEvent
-
 
 MigrateCommand
 FailoverCommand
@@ -121,8 +28,6 @@ if m.TopState().Name() == "RUNNING" {
     m.State == state.MIGRATING
     m.PushState(MigrateTask)
 }
-case 
-
 
 StateManager
 
@@ -145,7 +50,6 @@ FailoverState
 2. 如果单key热点，加从或等待
 3. 如果非单key热点，
 
-
 核心功能是Failover和扩容缩容，其他功能如集群搭建、日常处理（集群迁移、每日备份、封禁某台机器、换Master地域等）是非核心功能，我们考虑可能性，但不急于实现。
 
 首先，集群主要有三种状态，正常运行、数据迁移、故障处理。优先级为：正常运行 < 数据迁移 < 故障处理，在处于这三种状态时，系统还可以接受请求处理其他逻辑，包括查询状态（拓扑、统计数据等）、封禁读写、甚至数据迁移。
@@ -164,6 +68,29 @@ FailoverState
 迁移与Failover真的需要耦合在一起吗。不可以同时处于迁移状态也处于WAIT_FAILOVER状态吗，迁移只做迁移，当节点挂了，自然迁移就失败等待重试，同时会进入WAIT_FAILOVER状态。如果目标节点挂了，同样会失败等待重试，重试时会检查目标是否有变更，以便正确迁移。迁移可以Cancel，可以Pause，可以Reset，Reset(newPlan)用于替换现有迁移任务，如果有的slot进行到一半，需要将其与新任务合并。
 
 每个节点的运行状态简化为：RUNNING, WAITING_FAILOVER, SWITCHING_MASTER。每个ReplicaSet有一个迁移任务，迁移任务在相关节点进行SWITCHING_MASTER过程中处于暂停状态，结束后继续。
+
+### RUNNING状态
+(a) Dead消息：
+1. 判断是主还是从
+2. 如果是从，判断是否可以（CanFailoverSlave）进行自动处理（封禁），如果可以就调用封禁任务。如果不行则进入WAIT_FAILOVER状态。
+3. 如果是主，检查是否可以自动Failover（CanFailoverMaster），如果可以则进入SWITCHING_MASTER状态，否则进入WAIT_FAILOVER状态。
+(b) Alive消息：
+1. 获取Server的读写状态
+2. 如果是从，且不可读，检查读封禁列表，如果不在其中，则开启读，否则不操作。
+3. 如果是主，且不可读，检查读封禁列表，如果不在其中，则开启读，否则不操作；如果不可写，检查写封禁列表，如果不再其中，则开启写。
+(c) SetAsMaster消息：
+1. 进入SwitchingMaster状态
+
+### WAIT_FAILOVER状态
+(a) Failover消息
+检查角色和CanFailoverRole()，如果可以则进行FAILOVER，如果是从则封禁，如果是主，进入SwitchingMaster状态
+(b) Dead消息，忽略
+(c) Alive消息，转移状态到RUNNING
+(d) SetAsMaster消息，报错
+
+### SWITCHING_MASTER状态
+忽略所有消息，检查是否进行完
+
 
 MigrateTask:
 Start()
@@ -211,7 +138,7 @@ SAFEMODE
 (a)RUNNING -> (b)MIGRATING(Resume后直接退出)
 (a)RUNNING
 
-复杂场景2:
+2复杂场景2:
 1. 正在扩容，数据迁移中
 2. 某一台主机被写打爆了
 3. 我们加了一台机器，做热点迁移
@@ -281,3 +208,66 @@ SAFEMODE
 A -> WAIT_FAILOVER -> FAILOVER选择B为新主
 B -> WAIT_FAILOVER -> 自动处理，但此时他认为自己是从
 
+# 2015/03/02
+
+## 场景
+
+### 做迁移
+- 向/api/migrate发送POST请求，传递SourceId, TargetId, SlotStart, SlotEnd
+- 如果当前Controller不是Leader，返回错误（写一个gin中间件）
+- 请求由FrontEnd.handleMigrate处理
+- task := MigrateManager.FindMigrateTaskBySource(serverId string)
+- 如果task不为空，表示有正在运行的迁移任务，返回迁移ID和迁移任务状态（RUNNING,PAUSED,STOP）
+- 如果task没有正在运行，则创建一个：task := MigrateManager.CreateMigrateTask(migId, sourceId, targetId string , start, end int)
+- 启动该task.Start()
+
+```
+POST /api/migrate/create
+POST /api/migrate/canel
+POST /api/migrate/reset
+POST /api/migrate/pause
+POST /api/migrate/autorebanlance
+GET  /api/migrate/search?type=sourceid&id=$id
+```
+
+```golang
+ type MigrateRequest struct {
+      SourceId  string `json:"SourceId"`
+      TargetId  string `json:"TargetId"`
+      SlotStart int    `json:"SlotStart"`
+      SlotEnd   int    `json:"SlotEnd"`
+ }
+```
+
+### 迁移中Source节点挂了
+- RemoteSpectator向/api/topo/snapshot发送region粒度的topo信息，其中包含有故障节点（某台Server状态是FAIL）
+- 对于RegionToplogoy.AllServers()中的每个Server
+- 判断Server状态，如果是FAIL状态server.Dead()，向StatManager.SendMessage(MSG_DEAD)
+- 如果是非FAIL状态，向StatManager.SendMessage(MSG_ALIVE)
+
+CASE 1:
+1. 需要扩容，节点Ａ向节点Ｂ迁移数据
+2. 正在扩容，（迁移任务Ｍ0）
+3. 节点Ａ挂了
+
+1. 查看迁移任务是否存在，不存在则创建，存在则返回失败
+2. 发现存在，发送迁移取消命令取消Ｍ0
+3. 再次创建迁移任务Ｍ1
+4. 观察者发现Ａ处于FAIL状态
+5. 将BAD状态告知Controller
+6. 如果当前处于RUNNING状态，检查主从，和是否可以自动进行Failover，不可以的化，进入WAIT_FAILOVER状态
+7. 自动Failover失败，进入WAIT_FAILOVER状态
+8. 观察者持续发送FAIL状态，因为处于WAIT_FAILOVER_BEGIN状态，直接返回
+9. 此时又出现NOT_BAD消息，设置状态为RUNNING，返回
+10. 再次发现FAIL，发送BAD消息，进入WAIT_FAILOVER_BEGIN状态
+11. 管理员发送FAILOVER消息，路由消息到该Server
+12. 发现处于WAIT_FAILOVER状态，检查主从，执行Failover任务，进入WAIT_FAILOVER_END状态
+13. FAILOVER状态仅当收到NOT_BAD消息才会回到RUNNING状态
+
+BAD和NOT_BAD状态的定义，并非Server处于FAIL状态就是BAD，当Server处于FAIL状态，但已经被封禁了，其实此时是NOT_BAD状态
+
+状态：迁移中，读封禁，写封禁，读写封禁，切换，正常
+
+# 2015/03/03
+
+(READ,WRITE,FAIL,ROLE,CMD)
