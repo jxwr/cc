@@ -1,8 +1,11 @@
 package state
 
 import (
+	"fmt"
 	"log"
 	"testing"
+
+	"github.com/jxwr/cc/topo"
 )
 
 var (
@@ -61,10 +64,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateRunning,
 		To:         StateOffline,
-		Input:      Msg{F, F, ANY, ANY, ANY},
+		Input:      Input{F, F, ANY, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -73,10 +76,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateRunning,
 		To:         StateWaitFailoverBegin,
-		Input:      Msg{T, ANY, FAIL, ANY, ANY},
+		Input:      Input{T, ANY, FAIL, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -85,10 +88,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateRunning,
 		To:         StateWaitFailoverBegin,
-		Input:      Msg{ANY, T, FAIL, ANY, ANY},
+		Input:      Input{ANY, T, FAIL, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -97,10 +100,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateRunning,
 		To:         StateWaitFailoverEnd,
-		Input:      Msg{T, ANY, FAIL, ANY, ANY},
+		Input:      Input{T, ANY, FAIL, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -109,10 +112,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateRunning,
 		To:         StateWaitFailoverEnd,
-		Input:      Msg{ANY, T, FAIL, ANY, ANY},
+		Input:      Input{ANY, T, FAIL, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -123,34 +126,32 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateWaitFailoverBegin,
 		To:         StateRunning,
-		Input:      Msg{ANY, ANY, FINE, ANY, ANY},
+		Input:      Input{ANY, ANY, FINE, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
 
-	// WAIT_FAILOVER_BEGIN >>>(*,*,FAIL,M,CMD_FAILOVER)>>> WAIT_FAILOVER_END
 	model.AddTransition(&Transition{
 		From:       StateWaitFailoverBegin,
 		To:         StateWaitFailoverEnd,
-		Input:      Msg{ANY, ANY, FAIL, M, CMD_FAILOVER},
+		Input:      Input{ANY, ANY, FAIL, M, CMD_FAILOVER_BEGIN_SIGNAL},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
 
-	// WAIT_FAILOVER_BEGIN >>>(*,*,FAIL,S,CMD_FAILOVER)>>> WAIT_FAILOVER_END
 	model.AddTransition(&Transition{
 		From:       StateWaitFailoverBegin,
 		To:         StateWaitFailoverEnd,
-		Input:      Msg{ANY, ANY, FAIL, S, CMD_FAILOVER},
+		Input:      Input{ANY, ANY, FAIL, S, CMD_FAILOVER_BEGIN_SIGNAL},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -158,10 +159,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateWaitFailoverBegin,
 		To:         StateOffline,
-		Input:      Msg{ANY, ANY, FAIL, S, ANY},
+		Input:      Input{ANY, ANY, FAIL, S, ANY},
 		Priority:   1,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -171,10 +172,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateWaitFailoverEnd,
 		To:         StateOffline,
-		Input:      Msg{ANY, ANY, ANY, ANY, CMD_FAILOVER_EXIT},
+		Input:      Input{ANY, ANY, ANY, ANY, CMD_FAILOVER_END_SIGNAL},
 		Priority:   1,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -184,10 +185,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateOffline,
 		To:         StateRunning,
-		Input:      Msg{T, ANY, ANY, ANY, ANY},
+		Input:      Input{T, ANY, ANY, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -195,10 +196,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateOffline,
 		To:         StateRunning,
-		Input:      Msg{ANY, T, ANY, ANY, ANY},
+		Input:      Input{ANY, T, ANY, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -206,10 +207,10 @@ func TestAddTransition(t *testing.T) {
 	model.AddTransition(&Transition{
 		From:       StateOffline,
 		To:         StateWaitFailoverBegin,
-		Input:      Msg{F, F, FAIL, M, ANY},
+		Input:      Input{F, F, FAIL, M, ANY},
 		Priority:   0,
 		Constraint: nil,
-		Apply: func() {
+		Apply: func(node *NodeState, cs *ClusterState) {
 			log.Println("apply")
 		},
 	})
@@ -220,26 +221,56 @@ func TestAddTransition(t *testing.T) {
 
 	log.Println(fsm.CurrentState())
 
-	msgQueue := []Msg{
-		Msg{T, T, FAIL, M, CMD_NONE},
-		Msg{T, T, FAIL, M, CMD_NONE},
-		Msg{T, T, FAIL, M, CMD_FAILOVER},
-		Msg{T, T, FAIL, M, CMD_FAILOVER},
-		Msg{T, T, FAIL, M, CMD_FAILOVER_EXIT},
-		Msg{T, T, FAIL, M, CMD_FAILOVER_EXIT},
-		Msg{T, T, FAIL, M, CMD_FAILOVER_EXIT},
-		Msg{T, T, FAIL, M, CMD_FAILOVER_EXIT},
-		Msg{F, F, FAIL, S, CMD_NONE},
-		Msg{F, F, FAIL, S, CMD_NONE},
-		Msg{F, F, FAIL, M, CMD_NONE},
-		Msg{F, F, FINE, M, CMD_NONE},
-		Msg{F, F, FINE, M, CMD_NONE},
-		Msg{F, F, FINE, M, CMD_NONE},
+	inputQueue := []Input{
+		Input{T, T, FAIL, M, CMD_NONE},
+		Input{T, T, FAIL, M, CMD_NONE},
+		Input{T, T, FAIL, M, CMD_FAILOVER_BEGIN_SIGNAL},
+		Input{T, T, FAIL, M, CMD_FAILOVER_BEGIN_SIGNAL},
+		Input{T, T, FAIL, M, CMD_FAILOVER_END_SIGNAL},
+		Input{T, T, FAIL, M, CMD_FAILOVER_END_SIGNAL},
+		Input{T, T, FAIL, M, CMD_FAILOVER_END_SIGNAL},
+		Input{T, T, FAIL, M, CMD_FAILOVER_END_SIGNAL},
+		Input{F, F, FAIL, S, CMD_NONE},
+		Input{F, F, FAIL, S, CMD_NONE},
+		Input{F, F, FAIL, M, CMD_NONE},
+		Input{F, F, FINE, M, CMD_NONE},
+		Input{F, F, FINE, M, CMD_NONE},
+		Input{F, F, FINE, M, CMD_NONE},
 	}
 
-	for _, msg := range msgQueue {
-		fsm.Next(msg)
+	for _, input := range inputQueue {
+		fsm.Advance(nil, nil, input)
 	}
 
 	model.DumpTransitions()
+}
+
+func TestClusterUpdateRegionNodes(t *testing.T) {
+	cs := NewClusterState()
+
+	ss := []*topo.Server{
+		topo.NewServer("127.0.0.1", 7000).SetId("7000").SetRegion("bj").SetRole("master"),
+		topo.NewServer("127.0.0.1", 7001).SetId("7001").SetRegion("bj").SetRole("slave"),
+	}
+	cs.UpdateRegionNodes("bj", ss)
+
+	cmds := []InputField{
+		CMD_NONE,
+		CMD_FAILOVER_BEGIN_SIGNAL,
+		CMD_NONE,
+		CMD_NONE,
+		CMD_FAILOVER_BEGIN_SIGNAL,
+		CMD_NONE,
+		CMD_NONE,
+		CMD_FAILOVER_END_SIGNAL,
+	}
+
+	for _, cmd := range cmds {
+		for _, s := range ss {
+			node := cs.FindNode(s.Id())
+			node.AdvanceFSM(cs, cmd)
+		}
+		fmt.Println("========= Handle", cmd)
+		cs.DebugDump()
+	}
 }

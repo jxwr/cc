@@ -43,6 +43,81 @@ func ClusterNodes(addr string) (string, error) {
 	return resp, nil
 }
 
+func DisableRead(addr, id string) (string, error) {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "chmod", "-r", id))
+	if err != nil {
+		return "", err
+	}
+
+	return resp, nil
+}
+
+func EnableRead(addr, id string) (string, error) {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "chmod", "+r", id))
+	if err != nil {
+		return "", err
+	}
+
+	return resp, nil
+}
+
+func DisableWrite(addr, id string) (string, error) {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "chmod", "-w", id))
+	if err != nil {
+		return "", err
+	}
+
+	return resp, nil
+}
+
+func EnableWrite(addr, id string) (string, error) {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "chmod", "+w", id))
+	if err != nil {
+		return "", err
+	}
+
+	return resp, nil
+}
+
+func ClusterFailover(addr string) (string, error) {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "failover", "force"))
+	if err != nil {
+		return "", err
+	}
+
+	return resp, nil
+}
+
 type RedisInfo map[string]string
 
 func FetchInfo(addr string) (*RedisInfo, error) {

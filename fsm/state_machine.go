@@ -1,4 +1,4 @@
-package state
+package fsm
 
 import (
 	"errors"
@@ -6,10 +6,29 @@ import (
 )
 
 var (
-	ErrEmptyStateModel     = errors.New("state_machine: empty state model")
-	ErrEmptyStateTrasition = errors.New("state_machine: empty state transition")
-	ErrStateNotExist       = errors.New("state_machine: state not exist")
+	ErrEmptyStateModel     = errors.New("fsm: empty state model")
+	ErrEmptyStateTrasition = errors.New("fsm: empty state transition")
+	ErrStateNotExist       = errors.New("fsm: state not exist")
 )
+
+type State struct {
+	Name    string
+	OnEnter func(ctx interface{})
+	OnLeave func(ctx interface{})
+}
+
+type Transition struct {
+	From       string
+	To         string
+	Input      Input
+	Priority   int
+	Constraint func(ctx interface{}) bool
+	Apply      func(ctx interface{})
+}
+
+type Input interface {
+	Eq(Input) bool
+}
 
 /// StateModel
 
@@ -50,7 +69,7 @@ func (m *StateModel) AddTransition(t *Transition) {
 			break
 		}
 	}
-	// insert at right pos
+	// insert
 	m.TransTable[t.From] = append(ts[:pos], append([]*Transition{t}, ts[pos:]...)...)
 }
 
@@ -75,6 +94,7 @@ func NewStateMachine(initalState string, model *StateModel) *StateMachine {
 		model:   model,
 		current: initalState,
 	}
+
 	return m
 }
 
@@ -82,13 +102,13 @@ func (m *StateMachine) CurrentState() string {
 	return m.current
 }
 
-func (m *StateMachine) Next(msg Msg) (string, error) {
+func (m *StateMachine) Advance(ctx interface{}, input Input) (string, error) {
 	model := m.model
 	if model == nil {
 		return "", ErrEmptyStateModel
 	}
 
-	curr := m.current
+	curr := m.CurrentState()
 	_, ok := m.model.States[curr]
 	if !ok {
 		return "", ErrStateNotExist
@@ -99,15 +119,20 @@ func (m *StateMachine) Next(msg Msg) (string, error) {
 		return "", ErrEmptyStateTrasition
 	}
 
+	// 按状态转换函数的优先级，顺序检查是否可进行状态变换
 	for _, t := range ts {
-		if t.Input.Eq(msg) && (t.Constraint == nil || t.Constraint()) {
-			m.model.States[t.From].OnLeave()
+		if t.Input.Eq(input) && (t.Constraint == nil || t.Constraint(ctx)) {
+			// 状态转换
+			m.model.States[t.From].OnLeave(ctx)
 			m.current = t.To
-			m.model.States[t.To].OnEnter()
-			t.Apply()
+			m.model.States[t.To].OnEnter(ctx)
+
+			if t.Apply != nil {
+				t.Apply(ctx)
+			}
 			return m.CurrentState(), nil
 		}
 	}
 
-	return "", nil
+	return m.CurrentState(), nil
 }

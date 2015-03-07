@@ -55,6 +55,10 @@ func (self *Cluster) FindServer(id string) *Server {
 	return self.idTable[id]
 }
 
+func (self *Cluster) Region() string {
+	return self.region
+}
+
 func (self *Cluster) FailureServers() []*Server {
 	ss := []*Server{}
 	for _, s := range self.regionServers {

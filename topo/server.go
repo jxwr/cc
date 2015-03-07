@@ -76,56 +76,63 @@ func (s *Server) Id() string {
 	return s.id
 }
 
-func (s *Server) SetId(id string) {
+func (s *Server) SetId(id string) *Server {
 	s.id = id
+	return s
 }
 
 func (s *Server) ParentId() string {
 	return s.parentid
 }
 
-func (s *Server) SetParentId(pid string) {
+func (s *Server) SetParentId(pid string) *Server {
 	s.parentid = pid
+	return s
 }
 
 func (s *Server) Migrating() bool {
 	return s.migrating
 }
 
-func (s *Server) SetMigrating(val bool) {
+func (s *Server) SetMigrating(val bool) *Server {
 	s.migrating = val
+	return s
 }
 
 func (s *Server) Readable() bool {
 	return s.readable
 }
 
-func (s *Server) SetReadable(val bool) {
+func (s *Server) SetReadable(val bool) *Server {
 	s.readable = val
+	return s
 }
 
 func (s *Server) Writable() bool {
 	return s.writable
 }
 
-func (s *Server) SetWritable(val bool) {
+func (s *Server) SetWritable(val bool) *Server {
 	s.writable = val
+	return s
 }
 
 func (s *Server) PFail() bool {
 	return s.pfail
 }
 
-func (s *Server) SetPFail(val bool) {
+func (s *Server) SetPFail(val bool) *Server {
 	s.pfail = val
+	return s
 }
 
 func (s *Server) Fail() bool {
 	return s.fail
 }
 
-func (s *Server) SetFail(val bool) {
+func (s *Server) SetFail(val bool) *Server {
 	s.fail = val
+	return s
 }
 
 func (s *Server) PFailCount() int {
@@ -140,40 +147,49 @@ func (s *Server) IsMaster() bool {
 	return s.role == "master"
 }
 
-func (s *Server) SetRole(val string) {
+func (s *Server) SetRole(val string) *Server {
 	s.role = val
+	return s
+}
+
+func (s *Server) Role() string {
+	return s.role
 }
 
 func (s *Server) Tag() string {
 	return s.tag
 }
 
-func (s *Server) SetTag(val string) {
+func (s *Server) SetTag(val string) *Server {
 	s.tag = val
+	return s
 }
 
 func (s *Server) Region() string {
 	return s.region
 }
 
-func (s *Server) SetRegion(val string) {
+func (s *Server) SetRegion(val string) *Server {
 	s.region = val
+	return s
 }
 
 func (s *Server) Zone() string {
 	return s.zone
 }
 
-func (s *Server) SetZone(val string) {
+func (s *Server) SetZone(val string) *Server {
 	s.zone = val
+	return s
 }
 
 func (s *Server) Room() string {
 	return s.room
 }
 
-func (s *Server) SetRoom(val string) {
+func (s *Server) SetRoom(val string) *Server {
 	s.room = val
+	return s
 }
 
 func (s *Server) Ranges() []Range {

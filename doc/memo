@@ -271,3 +271,38 @@ BAD和NOT_BAD状态的定义，并非Server处于FAIL状态就是BAD，当Server
 # 2015/03/03
 
 (READ,WRITE,FAIL,ROLE,CMD)
+
+# 2015/03/05
+
+处理迁移任务，迁移只能针对Master进行，当节点角色变化时，需要更新迁移任务，因为迁移可能正处在中间状态（Slot内部）
+
+消息
+
+- MIGRATE_CREATE     POST /migrate
+- MIGRATE_CANCEL     
+- MIGRATE_PAUSE      
+- MIGRATE_RESUME     
+- MIGRATE_RESET      
+- MIGRATE_CANCEL_ALL 
+
+- SetAsMaster      POST /node/
+- DisableRead       
+- EnableRead        
+- DisableWrite      
+- EnableWrite
+- Failover
+
+# 2015/03/06
+一个从在FAILOVER后，进入OFFLINE状态，如果重新启动起来，并不会自动进入RUNNING状态，因为rw是封禁的。一方面是由于我们可以手动做server的封禁，所以实际上我们允许出现正常运行的节点不对外提供服务，另一方面，一个server启动起来后在数据同步完之前，实际上是不应该提供服务的。
+这是一个管理上的注意事项。
+
+go func() { c <- controller.ProcessCommand(cmd) }
+
+select {
+    case output := <-c:
+    case <-timeout:
+}
+
+
+Controller同时是RoleSwitchListener和FailoverStateChangeListener
+
