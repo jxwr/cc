@@ -1,8 +1,8 @@
 package topo
 
 type ReplicaSet struct {
-	master *Server
-	slaves []*Server
+	master *Node
+	slaves []*Node
 }
 
 func NewReplicaSet() *ReplicaSet {
@@ -10,18 +10,18 @@ func NewReplicaSet() *ReplicaSet {
 	return rs
 }
 
-func (s *ReplicaSet) SetMaster(server *Server) {
-	s.master = server
+func (s *ReplicaSet) SetMaster(node *Node) {
+	s.master = node
 }
 
-func (s *ReplicaSet) Master() *Server {
+func (s *ReplicaSet) Master() *Node {
 	return s.master
 }
 
-func (s *ReplicaSet) AddSlave(server *Server) {
-	s.slaves = append(s.slaves, server)
+func (s *ReplicaSet) AddSlave(node *Node) {
+	s.slaves = append(s.slaves, node)
 }
 
-func (s *ReplicaSet) Slaves() []*Server {
+func (s *ReplicaSet) Slaves() []*Node {
 	return s.slaves
 }

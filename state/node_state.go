@@ -9,25 +9,25 @@ import (
 
 type NodeState struct {
 	version int64
-	server  *topo.Server
+	node    *topo.Node
 	fsm     *fsm.StateMachine
 }
 
-func NewNodeState(server *topo.Server, version int64) *NodeState {
+func NewNodeState(node *topo.Node, version int64) *NodeState {
 	ns := &NodeState{
 		version: version,
-		server:  server,
+		node:    node,
 		fsm:     fsm.NewStateMachine(StateRunning, RedisNodeStateModel),
 	}
 	return ns
 }
 
 func (ns *NodeState) Addr() string {
-	return ns.server.Addr()
+	return ns.node.Addr()
 }
 
 func (ns *NodeState) Id() string {
-	return ns.server.Id()
+	return ns.node.Id()
 }
 
 func (ns *NodeState) CurrentState() string {
@@ -36,7 +36,7 @@ func (ns *NodeState) CurrentState() string {
 
 func (ns *NodeState) AdvanceFSM(cs *ClusterState, cmd InputField) error {
 	// 构造Input五元组
-	s := ns.server
+	s := ns.node
 	r := F
 	if s.Readable() {
 		r = T
@@ -67,7 +67,7 @@ func (ns *NodeState) AdvanceFSM(cs *ClusterState, cmd InputField) error {
 }
 
 func (ns *NodeState) DebugDump() {
-	s := ns.server
+	s := ns.node
 	fmt.Printf("%s %d %s %v (%v,%v,%v,%v))\n",
 		s.Id(), ns.version, s.Addr(), ns.fsm.CurrentState(),
 		s.Readable(), s.Writable(), s.Fail(), s.Role())

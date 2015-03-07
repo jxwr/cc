@@ -14,10 +14,10 @@ import (
 func TestUpdateRegion(t *testing.T) {
 	c := controller.NewController()
 
-	s0 := topo.NewServer("127.0.0.1", 7000)
-	s1 := topo.NewServer("127.0.0.1", 7002)
+	s0 := topo.NewNode("127.0.0.1", 7000)
+	s1 := topo.NewNode("127.0.0.1", 7002)
 
-	sp := spectator.NewSpectator([]*topo.Server{s0, s1})
+	sp := spectator.NewSpectator([]*topo.Node{s0, s1})
 
 	go func() {
 		cmd := &command.FailoverBeginCommand{"8e05f3ec5ab3b21da8337bb6519124847a93fc3f"}
@@ -33,7 +33,7 @@ func TestUpdateRegion(t *testing.T) {
 			fmt.Println(err)
 			continue
 		}
-		ss := clusterTopo.RegionServers()
+		ss := clusterTopo.RegionNodes()
 		fmt.Println("=================", clusterTopo.Region())
 		for _, s := range ss {
 			fmt.Println(s.Id(), s.Addr(), s.Fail(), s.Readable(), s.Writable(), s.Role())

@@ -13,7 +13,7 @@ type Range struct {
 	Right int
 }
 
-type Server struct {
+type Node struct {
 	ip        string
 	port      int
 	id        string
@@ -33,7 +33,7 @@ type Server struct {
 	hostname  string
 }
 
-func NewServerFromString(addr string) *Server {
+func NewNodeFromString(addr string) *Node {
 	xs := strings.Split(addr, ":")
 	if len(xs) != 2 {
 		return nil
@@ -42,10 +42,10 @@ func NewServerFromString(addr string) *Server {
 	if err != nil {
 		return nil
 	}
-	return NewServer(xs[0], port)
+	return NewNode(xs[0], port)
 }
 
-func NewServer(ip string, port int) *Server {
+func NewNode(ip string, port int) *Node {
 	matched, _ := regexp.MatchString("\\d+\\.\\d+\\.\\d+\\.\\d+", ip)
 	if !matched {
 		// 'ip' is a hostname
@@ -56,151 +56,151 @@ func NewServer(ip string, port int) *Server {
 		ip = ips[0].String()
 	}
 
-	server := Server{ip: ip, port: port, ranges: []Range{}}
-	return &server
+	node := Node{ip: ip, port: port, ranges: []Range{}}
+	return &node
 }
 
-func (s *Server) Addr() string {
+func (s *Node) Addr() string {
 	return fmt.Sprintf("%s:%d", s.ip, s.port)
 }
 
-func (s *Server) Ip() string {
+func (s *Node) Ip() string {
 	return s.ip
 }
 
-func (s *Server) Port() int {
+func (s *Node) Port() int {
 	return s.port
 }
 
-func (s *Server) Id() string {
+func (s *Node) Id() string {
 	return s.id
 }
 
-func (s *Server) SetId(id string) *Server {
+func (s *Node) SetId(id string) *Node {
 	s.id = id
 	return s
 }
 
-func (s *Server) ParentId() string {
+func (s *Node) ParentId() string {
 	return s.parentid
 }
 
-func (s *Server) SetParentId(pid string) *Server {
+func (s *Node) SetParentId(pid string) *Node {
 	s.parentid = pid
 	return s
 }
 
-func (s *Server) Migrating() bool {
+func (s *Node) Migrating() bool {
 	return s.migrating
 }
 
-func (s *Server) SetMigrating(val bool) *Server {
+func (s *Node) SetMigrating(val bool) *Node {
 	s.migrating = val
 	return s
 }
 
-func (s *Server) Readable() bool {
+func (s *Node) Readable() bool {
 	return s.readable
 }
 
-func (s *Server) SetReadable(val bool) *Server {
+func (s *Node) SetReadable(val bool) *Node {
 	s.readable = val
 	return s
 }
 
-func (s *Server) Writable() bool {
+func (s *Node) Writable() bool {
 	return s.writable
 }
 
-func (s *Server) SetWritable(val bool) *Server {
+func (s *Node) SetWritable(val bool) *Node {
 	s.writable = val
 	return s
 }
 
-func (s *Server) PFail() bool {
+func (s *Node) PFail() bool {
 	return s.pfail
 }
 
-func (s *Server) SetPFail(val bool) *Server {
+func (s *Node) SetPFail(val bool) *Node {
 	s.pfail = val
 	return s
 }
 
-func (s *Server) Fail() bool {
+func (s *Node) Fail() bool {
 	return s.fail
 }
 
-func (s *Server) SetFail(val bool) *Server {
+func (s *Node) SetFail(val bool) *Node {
 	s.fail = val
 	return s
 }
 
-func (s *Server) PFailCount() int {
+func (s *Node) PFailCount() int {
 	return s.failcount
 }
 
-func (s *Server) IncrPFailCount() {
+func (s *Node) IncrPFailCount() {
 	s.failcount++
 }
 
-func (s *Server) IsMaster() bool {
+func (s *Node) IsMaster() bool {
 	return s.role == "master"
 }
 
-func (s *Server) SetRole(val string) *Server {
+func (s *Node) SetRole(val string) *Node {
 	s.role = val
 	return s
 }
 
-func (s *Server) Role() string {
+func (s *Node) Role() string {
 	return s.role
 }
 
-func (s *Server) Tag() string {
+func (s *Node) Tag() string {
 	return s.tag
 }
 
-func (s *Server) SetTag(val string) *Server {
+func (s *Node) SetTag(val string) *Node {
 	s.tag = val
 	return s
 }
 
-func (s *Server) Region() string {
+func (s *Node) Region() string {
 	return s.region
 }
 
-func (s *Server) SetRegion(val string) *Server {
+func (s *Node) SetRegion(val string) *Node {
 	s.region = val
 	return s
 }
 
-func (s *Server) Zone() string {
+func (s *Node) Zone() string {
 	return s.zone
 }
 
-func (s *Server) SetZone(val string) *Server {
+func (s *Node) SetZone(val string) *Node {
 	s.zone = val
 	return s
 }
 
-func (s *Server) Room() string {
+func (s *Node) Room() string {
 	return s.room
 }
 
-func (s *Server) SetRoom(val string) *Server {
+func (s *Node) SetRoom(val string) *Node {
 	s.room = val
 	return s
 }
 
-func (s *Server) Ranges() []Range {
+func (s *Node) Ranges() []Range {
 	return s.ranges
 }
 
-func (s *Server) AddRange(r Range) {
+func (s *Node) AddRange(r Range) {
 	s.ranges = append(s.ranges, r)
 }
 
-func (s *Server) Compare(t *Server) bool {
+func (s *Node) Compare(t *Node) bool {
 	b := true
 	b = b && (s.port == t.port)
 	b = b && (s.parentid == t.parentid)
@@ -224,7 +224,7 @@ func (s *Server) Compare(t *Server) bool {
 	return true
 }
 
-func (s *Server) Hostname() string {
+func (s *Node) Hostname() string {
 	if s.hostname == "" {
 		addr, err := net.LookupAddr(s.ip)
 		if len(addr) == 0 || err != nil {
@@ -236,7 +236,7 @@ func (s *Server) Hostname() string {
 	return s.hostname
 }
 
-func (s *Server) MachineRoom() string {
+func (s *Node) MachineRoom() string {
 	xs := strings.Split(s.Hostname(), ".")
 	if len(xs) != 2 {
 		panic("invalid host name: " + s.Hostname())

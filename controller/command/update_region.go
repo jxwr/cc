@@ -7,14 +7,14 @@ import (
 )
 
 type UpdateRegionCommand struct {
-	Region  string
-	Servers []*topo.Server
+	Region string
+	Nodes  []*topo.Node
 }
 
 func (self UpdateRegionCommand) Execute(c *ctl.Controller) (ctl.Result, error) {
 	cs := c.ClusterState
 
-	cs.UpdateRegionNodes(self.Region, self.Servers)
+	cs.UpdateRegionNodes(self.Region, self.Nodes)
 
 	for _, node := range cs.AllNodes() {
 		node.AdvanceFSM(cs, state.CMD_NONE)

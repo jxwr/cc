@@ -23,11 +23,11 @@ func (cs *ClusterState) AllNodes() map[string]*NodeState {
 	return cs.nodes
 }
 
-func (cs *ClusterState) UpdateRegionNodes(region string, servers []*topo.Server) {
+func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 	cs.version++
 
 	// 添加不存在的节点，版本号+1
-	for _, s := range servers {
+	for _, s := range nodes {
 		if s.Region() != region {
 			continue
 		}
@@ -37,13 +37,13 @@ func (cs *ClusterState) UpdateRegionNodes(region string, servers []*topo.Server)
 			cs.nodes[s.Id()] = node
 		} else {
 			node.version = cs.version
-			node.server = s
+			node.node = s
 		}
 	}
 
 	// 删除已经下线的节点
 	for id, n := range cs.nodes {
-		if n.server.Region() != region {
+		if n.node.Region() != region {
 			continue
 		}
 		node := cs.nodes[id]

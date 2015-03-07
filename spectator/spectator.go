@@ -13,17 +13,17 @@ import (
 )
 
 var (
-	ErrNoSeed           = errors.New("spectator: no seed server found")
+	ErrNoSeed           = errors.New("spectator: no seed node found")
 	ErrInvalidTag       = errors.New("spectator: invalid tag")
-	ErrServerNotExist   = errors.New("spectator: server not exist")
+	ErrNodeNotExist     = errors.New("spectator: node not exist")
 	ErrNodesInfoNotSame = errors.New("spectator: 'cluster nodes' info returned by seeds are different")
 )
 
 type Spectator struct {
-	seeds []*topo.Server
+	seeds []*topo.Node
 }
 
-func NewSpectator(seeds []*topo.Server) *Spectator {
+func NewSpectator(seeds []*topo.Node) *Spectator {
 	sp := &Spectator{
 		seeds: seeds,
 	}
@@ -40,14 +40,14 @@ func (self *Spectator) Run() {
 	}
 }
 
-func (self *Spectator) buildServer(line string) (*topo.Server, error) {
+func (self *Spectator) buildNode(line string) (*topo.Node, error) {
 	xs := strings.Split(line, " ")
 	mod, tag, id, addr, flags, parent := xs[0], xs[1], xs[2], xs[3], xs[4], xs[5]
-	server := topo.NewServerFromString(addr)
+	node := topo.NewNodeFromString(addr)
 	ranges := []string{}
 	for _, word := range xs[10:] {
 		if strings.HasPrefix(word, "[") {
-			server.SetMigrating(true)
+			node.SetMigrating(true)
 			continue
 		}
 		ranges = append(ranges, word)
@@ -59,37 +59,37 @@ func (self *Spectator) buildServer(line string) (*topo.Server, error) {
 		if len(xs) == 2 {
 			left, _ := strconv.Atoi(xs[0])
 			right, _ := strconv.Atoi(xs[1])
-			server.AddRange(topo.Range{left, right})
+			node.AddRange(topo.Range{left, right})
 		}
 	}
 
 	// basic info
-	server.SetId(id)
-	server.SetParentId(parent)
-	server.SetTag(tag)
-	server.SetReadable(mod[0] == 'r')
-	server.SetWritable(mod[1] == 'w')
+	node.SetId(id)
+	node.SetParentId(parent)
+	node.SetTag(tag)
+	node.SetReadable(mod[0] == 'r')
+	node.SetWritable(mod[1] == 'w')
 	if strings.Contains(flags, "master") {
-		server.SetRole("master")
+		node.SetRole("master")
 	} else {
-		server.SetRole("slave")
+		node.SetRole("slave")
 	}
 	if strings.Contains(flags, "fail?") {
-		server.SetPFail(true)
-		server.IncrPFailCount()
+		node.SetPFail(true)
+		node.IncrPFailCount()
 	}
 	xs = strings.Split(tag, ":")
 	if len(xs) != 3 {
 		return nil, ErrInvalidTag
 	}
-	server.SetRegion(xs[0])
-	server.SetZone(xs[1])
-	server.SetRoom(xs[2])
+	node.SetRegion(xs[0])
+	node.SetZone(xs[1])
+	node.SetRoom(xs[2])
 
-	return server, nil
+	return node, nil
 }
 
-func (self *Spectator) initClusterTopo(seed *topo.Server) (*topo.Cluster, error) {
+func (self *Spectator) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 	resp, err := redis.ClusterNodes(seed.Addr())
 	if err != nil {
 		return nil, err
@@ -104,17 +104,17 @@ func (self *Spectator) initClusterTopo(seed *topo.Server) (*topo.Cluster, error)
 			continue
 		}
 
-		server, err := self.buildServer(line)
+		node, err := self.buildNode(line)
 		if err != nil {
 			return nil, err
 		}
-		cluster.AddServer(server)
+		cluster.AddNode(node)
 	}
 
 	return cluster, nil
 }
 
-func (self *Spectator) checkClusterTopo(seed *topo.Server, cluster *topo.Cluster) error {
+func (self *Spectator) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) error {
 	resp, err := redis.ClusterNodes(seed.Addr())
 	if err != nil {
 		return err
@@ -127,22 +127,22 @@ func (self *Spectator) checkClusterTopo(seed *topo.Server, cluster *topo.Cluster
 			continue
 		}
 
-		s, err := self.buildServer(line)
+		s, err := self.buildNode(line)
 		if err != nil {
 			return err
 		}
 
-		server := cluster.FindServer(s.Id())
-		if server == nil {
-			return ErrServerNotExist
+		node := cluster.FindNode(s.Id())
+		if node == nil {
+			return ErrNodeNotExist
 		}
 
-		if !server.Compare(s) {
+		if !node.Compare(s) {
 			return ErrNodesInfoNotSame
 		}
 
 		if s.PFail() {
-			server.IncrPFailCount()
+			node.IncrPFailCount()
 		}
 	}
 
@@ -154,7 +154,7 @@ func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 		return nil, ErrNoSeed
 	}
 
-	seeds := []*topo.Server{}
+	seeds := []*topo.Node{}
 	for _, s := range self.seeds {
 		if redis.IsAlive(s.Addr()) {
 			seeds = append(seeds, s)
@@ -180,17 +180,17 @@ func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 		}
 	}
 
-	for _, s := range cluster.RegionServers() {
-		if s.PFailCount() > cluster.NumRegionServer()/2 {
+	for _, s := range cluster.RegionNodes() {
+		if s.PFailCount() > cluster.NumRegionNode()/2 {
 			log.Printf("found %d/%d PFAIL state on %s, turning into FAIL state.",
-				s.PFailCount(), cluster.NumRegionServer(), s.Addr())
+				s.PFailCount(), cluster.NumRegionNode(), s.Addr())
 			s.SetFail(true)
 		}
 	}
 
 	cluster.BuildReplicaSets()
 
-	self.seeds = cluster.RegionServers()
+	self.seeds = cluster.RegionNodes()
 
 	return cluster, nil
 }

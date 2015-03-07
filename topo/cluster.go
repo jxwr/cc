@@ -9,49 +9,49 @@ var (
 )
 
 type Cluster struct {
-	region        string
-	servers       []*Server
-	regionServers []*Server
-	replicaSets   []*ReplicaSet
-	idTable       map[string]*Server
+	region      string
+	nodes       []*Node
+	regionNodes []*Node
+	replicaSets []*ReplicaSet
+	idTable     map[string]*Node
 }
 
 func NewCluster(region string) *Cluster {
 	c := &Cluster{}
 	c.region = region
-	c.servers = []*Server{}
-	c.regionServers = []*Server{}
+	c.nodes = []*Node{}
+	c.regionNodes = []*Node{}
 	c.replicaSets = []*ReplicaSet{}
-	c.idTable = map[string]*Server{}
+	c.idTable = map[string]*Node{}
 	return c
 }
 
-func (self *Cluster) AddServer(s *Server) {
+func (self *Cluster) AddNode(s *Node) {
 	self.idTable[s.Id()] = s
-	self.servers = append(self.servers, s)
+	self.nodes = append(self.nodes, s)
 
 	if s.Region() == self.region {
-		self.regionServers = append(self.regionServers, s)
+		self.regionNodes = append(self.regionNodes, s)
 	}
 }
 
-func (self *Cluster) Servers() []*Server {
-	return self.servers
+func (self *Cluster) Nodes() []*Node {
+	return self.nodes
 }
 
-func (self *Cluster) NumServer() int {
-	return len(self.servers)
+func (self *Cluster) NumNode() int {
+	return len(self.nodes)
 }
 
-func (self *Cluster) RegionServers() []*Server {
-	return self.regionServers
+func (self *Cluster) RegionNodes() []*Node {
+	return self.regionNodes
 }
 
-func (self *Cluster) NumRegionServer() int {
-	return len(self.regionServers)
+func (self *Cluster) NumRegionNode() int {
+	return len(self.regionNodes)
 }
 
-func (self *Cluster) FindServer(id string) *Server {
+func (self *Cluster) FindNode(id string) *Node {
 	return self.idTable[id]
 }
 
@@ -59,9 +59,9 @@ func (self *Cluster) Region() string {
 	return self.region
 }
 
-func (self *Cluster) FailureServers() []*Server {
-	ss := []*Server{}
-	for _, s := range self.regionServers {
+func (self *Cluster) FailureNodes() []*Node {
+	ss := []*Node{}
+	for _, s := range self.regionNodes {
 		if s.fail {
 			ss = append(ss, s)
 		}
@@ -70,7 +70,7 @@ func (self *Cluster) FailureServers() []*Server {
 }
 
 func (self *Cluster) BuildReplicaSets() error {
-	for _, s := range self.servers {
+	for _, s := range self.nodes {
 		if s.IsMaster() {
 			rs := NewReplicaSet()
 			rs.SetMaster(s)
@@ -78,9 +78,9 @@ func (self *Cluster) BuildReplicaSets() error {
 		}
 	}
 
-	for _, s := range self.servers {
+	for _, s := range self.nodes {
 		if !s.IsMaster() {
-			master := self.FindServer(s.ParentId())
+			master := self.FindNode(s.ParentId())
 			if master == nil {
 				return ErrInvalidParentId
 			}
