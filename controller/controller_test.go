@@ -20,12 +20,10 @@ func TestUpdateRegion(t *testing.T) {
 	sp := spectator.NewSpectator([]*topo.Server{s0, s1})
 
 	go func() {
-		for {
-			cmd := &command.FailoverBeginCommand{"8e05f3ec5ab3b21da8337bb6519124847a93fc3f"}
-			fmt.Println("=====", "send failover begin", "=====")
-			time.Sleep(1 * time.Second)
-			c.ProcessCommand(cmd, 2*time.Second)
-		}
+		cmd := &command.FailoverBeginCommand{"8e05f3ec5ab3b21da8337bb6519124847a93fc3f"}
+		fmt.Println("=====", "send failover begin", "=====")
+		time.Sleep(1 * time.Second)
+		c.ProcessCommand(cmd, 2*time.Second)
 	}()
 
 	for {
