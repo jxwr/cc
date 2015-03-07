@@ -12,7 +12,7 @@ type FailoverEndCommand struct {
 
 func (self *FailoverEndCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	cs := c.ClusterState
-	node := cs.FindNode(self.NodeId)
+	node := cs.FindNodeState(self.NodeId)
 	if node == nil {
 		return nil, ErrNodeNotExist
 	}

@@ -2,6 +2,7 @@ package spectator
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sort"
 	"strconv"
@@ -44,82 +45,6 @@ func (self *Spectator) Run() {
 			self.BuildClusterTopo()
 		}
 	}
-}
-
-type reploff struct {
-	NodeId string
-	Offset int64
-}
-
-// 失败返回-1
-func fetchReplOffset(addr string) int64 {
-	info, err := redis.FetchInfo(addr, "Replication")
-	if err != nil {
-		return -1
-	}
-	if info.Get("role") == "master" {
-		offset, err := info.GetInt64("master_repl_offset")
-		if err != nil {
-			return -1
-		} else {
-			return offset
-		}
-	}
-	offset, err := info.GetInt64("slave_repl_offset")
-	if err != nil {
-		return -1
-	}
-	return offset
-}
-
-// 获取分片内ReplOffset最大的节点
-func (self *Spectator) MaxReploffSlibing(nodeId string, slaveOnly bool) (string, error) {
-	self.mutex.RLock()
-	defer self.mutex.RUnlock()
-
-	rs := self.ClusterTopo.FindReplicaSetByNode(nodeId)
-	if rs == nil {
-		return "", ErrNodeNotExist
-	}
-
-	rmap := self.FetchReplOffsetInReplicaSet(rs)
-
-	var maxVal int64 = -1
-	maxId := ""
-	for id, val := range rmap {
-		node := self.ClusterTopo.FindNode(id)
-		if slaveOnly && node.IsMaster() {
-			continue
-		}
-		if val > maxVal {
-			maxVal = val
-			maxId = id
-		}
-	}
-
-	return maxId, nil
-}
-
-func (self *Spectator) FetchReplOffsetInReplicaSet(rs *topo.ReplicaSet) map[string]int64 {
-	self.mutex.RLock()
-	defer self.mutex.RUnlock()
-
-	nodes := rs.AllNodes()
-	c := make(chan reploff, len(nodes))
-
-	for _, node := range nodes {
-		go func(id, addr string) {
-			offset := fetchReplOffset(addr)
-			c <- reploff{id, offset}
-		}(node.Id(), node.Addr())
-	}
-
-	result := map[string]int64{}
-	for i := 0; i < len(nodes); i++ {
-		off := <-c
-		result[off.NodeId] = off.Offset
-	}
-	return result
 }
 
 func (self *Spectator) buildNode(line string) (*topo.Node, error) {
@@ -221,6 +146,8 @@ func (self *Spectator) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 
 		// 对比节点数据是否相同
 		if !node.Compare(s) {
+			fmt.Println(s)
+			fmt.Println(node)
 			return ErrNodesInfoNotSame
 		}
 
@@ -273,7 +200,7 @@ func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 	// 构造LocalRegion视图
 	for _, s := range cluster.LocalRegionNodes() {
 		if s.PFailCount() > cluster.NumLocalRegionNode()/2 {
-			log.Printf("found %d/%d PFAIL state on %s, turning into FAIL state.",
+			log.Printf("found %d/%d PFAIL state on %s, set FAIL",
 				s.PFailCount(), cluster.NumLocalRegionNode(), s.Addr())
 			s.SetFail(true)
 		}

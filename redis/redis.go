@@ -2,8 +2,10 @@ package redis
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/garyburd/redigo/redis"
 )
@@ -15,6 +17,45 @@ var (
 	ErrServer      = errors.New("redis: server error")
 	ErrInvalidAddr = errors.New("redis: invalid address string")
 )
+
+func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool) error {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = redis.String(conn.Do("cluster", "failover", "force"))
+	if err != nil {
+		return err
+	}
+
+	if !waitSyncDone {
+		return nil
+	}
+
+	for {
+		info, err := FetchInfo(addr, "replication")
+		if err == nil {
+			time.Sleep(5 * time.Second)
+			n, err := info.GetInt64("connected_slaves")
+			if err != nil {
+				continue
+			}
+			done := true
+			for i := int64(0); i < n; i++ {
+				repl := info.Get(fmt.Sprintf("slave%d", i))
+				if !strings.Contains(repl, "online") {
+					done = false
+				}
+			}
+			if done {
+				return nil
+			}
+		}
+	}
+	return nil
+}
 
 func IsAlive(addr string) bool {
 	conn, err := redis.Dial("tcp", addr)

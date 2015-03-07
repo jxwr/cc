@@ -89,11 +89,13 @@ func (self *Cluster) FailureNodes() []*Node {
 }
 
 func (self *Cluster) BuildReplicaSets() error {
+	replicaSets := []*ReplicaSet{}
+
 	for _, s := range self.nodes {
 		if s.IsMaster() {
 			rs := NewReplicaSet()
 			rs.SetMaster(s)
-			self.replicaSets = append(self.replicaSets, rs)
+			replicaSets = append(replicaSets, rs)
 		}
 	}
 
@@ -112,6 +114,7 @@ func (self *Cluster) BuildReplicaSets() error {
 		}
 	}
 
+	self.replicaSets = replicaSets
 	return nil
 }
 

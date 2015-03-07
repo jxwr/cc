@@ -18,13 +18,14 @@ func TestUpdateRegion(t *testing.T) {
 	s1 := topo.NewNode("127.0.0.1", 7002)
 
 	sp := spectator.NewSpectator([]*topo.Node{s0, s1})
-
-	go func() {
-		cmd := &command.FailoverBeginCommand{"8e05f3ec5ab3b21da8337bb6519124847a93fc3f"}
-		fmt.Println("=====", "send failover begin", "=====")
-		time.Sleep(1 * time.Second)
-		c.ProcessCommand(cmd, 2*time.Second)
-	}()
+	/*
+		go func() {
+			cmd := &command.FailoverBeginCommand{"8e05f3ec5ab3b21da8337bb6519124847a93fc3f"}
+			fmt.Println("=====", "send failover begin", "=====")
+			time.Sleep(1 * time.Second)
+			c.ProcessCommand(cmd, 2*time.Second)
+		}()
+	*/
 
 	for {
 		time.Sleep(1 * time.Second)
@@ -33,13 +34,13 @@ func TestUpdateRegion(t *testing.T) {
 			fmt.Println(err)
 			continue
 		}
-		nodes := clusterTopo.LocalRegionNodes()
+		ss := clusterTopo.LocalRegionNodes()
 		fmt.Println("=================", clusterTopo.Region())
-		for _, s := range nodes {
+		for _, s := range ss {
 			fmt.Println(s.Id(), s.Addr(), s.Fail(), s.Readable(), s.Writable(), s.Role())
 		}
 
-		cmd := command.UpdateRegionCommand{clusterTopo.Region(), nodes}
+		cmd := command.UpdateRegionCommand{clusterTopo.Region(), ss}
 		c.ProcessCommand(cmd, 5*time.Second)
 	}
 }

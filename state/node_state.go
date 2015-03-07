@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jxwr/cc/fsm"
@@ -9,10 +10,11 @@ import (
 )
 
 type NodeState struct {
-	node       *topo.Node
-	updateTime time.Time
-	version    int64
-	fsm        *fsm.StateMachine
+	node       *topo.Node        // 节点静态信息
+	updateTime time.Time         // 最近一次更新时间
+	version    int64             // 更新次数
+	fsm        *fsm.StateMachine // 节点状态机
+	mutex      *sync.Mutex
 }
 
 func NewNodeState(node *topo.Node, version int64) *NodeState {
@@ -20,6 +22,7 @@ func NewNodeState(node *topo.Node, version int64) *NodeState {
 		version: version,
 		node:    node,
 		fsm:     fsm.NewStateMachine(StateRunning, RedisNodeStateModel),
+		mutex:   &sync.Mutex{},
 	}
 	return ns
 }
@@ -37,6 +40,9 @@ func (ns *NodeState) CurrentState() string {
 }
 
 func (ns *NodeState) AdvanceFSM(cs *ClusterState, cmd InputField) error {
+	ns.mutex.Lock()
+	defer ns.mutex.Unlock()
+
 	// 构造Input五元组
 	s := ns.node
 	r := F

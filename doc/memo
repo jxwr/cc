@@ -306,3 +306,6 @@ select {
 
 Controller同时是RoleSwitchListener和FailoverStateChangeListener
 
+# 2015/03/07
+
+Master故障，进行Failover之后，故障的节点仍然被标记为Master

@@ -11,7 +11,7 @@ type FailoverBeginCommand struct {
 
 func (self *FailoverBeginCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	cs := c.ClusterState
-	node := cs.FindNode(self.NodeId)
+	node := cs.FindNodeState(self.NodeId)
 	if node == nil {
 		return nil, ErrNodeNotExist
 	}
