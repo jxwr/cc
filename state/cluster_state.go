@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jxwr/cc/topo"
 )
@@ -25,6 +26,7 @@ func (cs *ClusterState) AllNodeStates() map[string]*NodeState {
 
 func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 	cs.version++
+	now := time.Now()
 
 	// 添加不存在的节点，版本号+1
 	for _, n := range nodes {
@@ -39,6 +41,7 @@ func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 			nodeState.version = cs.version
 			nodeState.node = n
 		}
+		nodeState.updateTime = now
 	}
 
 	// 删除已经下线的节点

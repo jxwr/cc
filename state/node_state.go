@@ -2,15 +2,17 @@ package state
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jxwr/cc/fsm"
 	"github.com/jxwr/cc/topo"
 )
 
 type NodeState struct {
-	version int64
-	node    *topo.Node
-	fsm     *fsm.StateMachine
+	node       *topo.Node
+	updateTime time.Time
+	version    int64
+	fsm        *fsm.StateMachine
 }
 
 func NewNodeState(node *topo.Node, version int64) *NodeState {

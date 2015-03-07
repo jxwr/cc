@@ -22,14 +22,16 @@ var (
 
 type Spectator struct {
 	mutex       *sync.RWMutex
+	LocalRegion string
 	Seeds       []*topo.Node
 	ClusterTopo *topo.Cluster
 }
 
 func NewSpectator(seeds []*topo.Node) *Spectator {
 	sp := &Spectator{
-		mutex: &sync.RWMutex{},
-		Seeds: seeds,
+		mutex:       &sync.RWMutex{},
+		Seeds:       seeds,
+		LocalRegion: "bj",
 	}
 	return sp
 }
@@ -175,7 +177,7 @@ func (self *Spectator) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 		return nil, err
 	}
 
-	cluster := topo.NewCluster("bj")
+	cluster := topo.NewCluster(self.LocalRegion)
 
 	lines := strings.Split(resp, "\n")
 	for _, line := range lines {
@@ -217,6 +219,7 @@ func (self *Spectator) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			return ErrNodeNotExist
 		}
 
+		// 对比节点数据是否相同
 		if !node.Compare(s) {
 			return ErrNodesInfoNotSame
 		}
@@ -229,6 +232,7 @@ func (self *Spectator) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 	return nil
 }
 
+// 生成ClusterSnapshot
 func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 	self.mutex.Lock()
 	defer self.mutex.Unlock()
@@ -237,6 +241,7 @@ func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 		return nil, ErrNoSeed
 	}
 
+	// 过滤掉连接不上的节点
 	seeds := []*topo.Node{}
 	for _, s := range self.Seeds {
 		if redis.IsAlive(s.Addr()) {
@@ -248,12 +253,14 @@ func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 		return nil, ErrNoSeed
 	}
 
+	// 随机选一个节点，获取nodes数据作为基准，再用其他节点的数据与基准做对比
 	seed := seeds[0]
 	cluster, err := self.initClusterTopo(seed)
 	if err != nil {
 		return nil, err
 	}
 
+	// 检查所有节点返回的信息是不是相同，如果不同说明正在变化中，直接返回等待重试
 	if len(seeds) > 1 {
 		for _, seed := range seeds[1:] {
 			err := self.checkClusterTopo(seed, cluster)
@@ -263,6 +270,7 @@ func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 		}
 	}
 
+	// 构造LocalRegion视图
 	for _, s := range cluster.LocalRegionNodes() {
 		if s.PFailCount() > cluster.NumLocalRegionNode()/2 {
 			log.Printf("found %d/%d PFAIL state on %s, turning into FAIL state.",
@@ -273,6 +281,7 @@ func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 
 	cluster.BuildReplicaSets()
 
+	// 用LocalRegion节点作为Seeds
 	self.Seeds = cluster.LocalRegionNodes()
 	self.ClusterTopo = cluster
 
