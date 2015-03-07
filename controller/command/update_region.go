@@ -1,7 +1,7 @@
 package command
 
 import (
-	ctl "github.com/jxwr/cc/controller"
+	cc "github.com/jxwr/cc/controller"
 	"github.com/jxwr/cc/state"
 	"github.com/jxwr/cc/topo"
 )
@@ -11,12 +11,14 @@ type UpdateRegionCommand struct {
 	Nodes  []*topo.Node
 }
 
-func (self UpdateRegionCommand) Execute(c *ctl.Controller) (ctl.Result, error) {
+func (self UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	cs := c.ClusterState
 
+	// 更新ClusterState
 	cs.UpdateRegionNodes(self.Region, self.Nodes)
 
-	for _, node := range cs.AllNodes() {
+	// 更新Region内Node的状态机
+	for _, node := range cs.AllNodeStates() {
 		node.AdvanceFSM(cs, state.CMD_NONE)
 	}
 

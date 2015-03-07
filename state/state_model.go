@@ -18,40 +18,40 @@ var (
 	RunningState = &fsm.State{
 		Name: StateRunning,
 		OnEnter: func(ctx interface{}) {
-			log.Println("enter RUNNING state")
+			log.Println("Enter RUNNING state")
 		},
 		OnLeave: func(ctx interface{}) {
-			log.Println("leave RUNNING state")
+			log.Println("Leave RUNNING state")
 		},
 	}
 
 	WaitFailoverBeginState = &fsm.State{
 		Name: StateWaitFailoverBegin,
 		OnEnter: func(ctx interface{}) {
-			log.Println("enter WAIT_FAILOVE_BEGIN state")
+			log.Println("Enter WAIT_FAILOVER_BEGIN state")
 		},
 		OnLeave: func(ctx interface{}) {
-			log.Println("leave WAIT_FAILOVER_BEGIN state")
+			log.Println("Leave WAIT_FAILOVER_BEGIN state")
 		},
 	}
 
 	WaitFailoverEndState = &fsm.State{
 		Name: StateWaitFailoverEnd,
 		OnEnter: func(ctx interface{}) {
-			log.Println("enter WAIT_FAILOVE_END state")
+			log.Println("Enter WAIT_FAILOVER_END state")
 		},
 		OnLeave: func(ctx interface{}) {
-			log.Println("leave WAIT_FAILOVER_END state")
+			log.Println("Leave WAIT_FAILOVER_END state")
 		},
 	}
 
 	OfflineState = &fsm.State{
 		Name: StateOffline,
 		OnEnter: func(ctx interface{}) {
-			log.Println("enter OFFLINE state")
+			log.Println("Enter OFFLINE state")
 		},
 		OnLeave: func(ctx interface{}) {
-			log.Println("leave OFFLINE state")
+			log.Println("Leave OFFLINE state")
 		},
 	}
 
@@ -159,8 +159,8 @@ func init() {
 			cs := ctx.ClusterState
 			node := ctx.NodeState
 
-			for _, s := range cs.AllNodes() {
-				resp, err := redis.DisableRead(s.Addr(), node.Id())
+			for _, n := range cs.AllNodeStates() {
+				resp, err := redis.DisableRead(n.Addr(), node.Id())
 				if err == nil {
 					log.Println("disable slave apply", resp, node.Id())
 					break
