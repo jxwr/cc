@@ -33,13 +33,13 @@ func TestUpdateRegion(t *testing.T) {
 			fmt.Println(err)
 			continue
 		}
-		ss := clusterTopo.RegionNodes()
+		nodes := clusterTopo.LocalRegionNodes()
 		fmt.Println("=================", clusterTopo.Region())
-		for _, s := range ss {
+		for _, s := range nodes {
 			fmt.Println(s.Id(), s.Addr(), s.Fail(), s.Readable(), s.Writable(), s.Role())
 		}
 
-		cmd := command.UpdateRegionCommand{clusterTopo.Region(), ss}
+		cmd := command.UpdateRegionCommand{clusterTopo.Region(), nodes}
 		c.ProcessCommand(cmd, 5*time.Second)
 	}
 }

@@ -25,3 +25,19 @@ func (s *ReplicaSet) AddSlave(node *Node) {
 func (s *ReplicaSet) Slaves() []*Node {
 	return s.slaves
 }
+
+func (s *ReplicaSet) AllNodes() []*Node {
+	return append(s.slaves, s.master)
+}
+
+func (s *ReplicaSet) HasNode(nodeId string) bool {
+	if nodeId == s.master.Id() {
+		return true
+	}
+	for _, node := range s.slaves {
+		if nodeId == node.Id() {
+			return true
+		}
+	}
+	return false
+}

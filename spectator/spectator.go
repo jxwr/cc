@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jxwr/cc/redis"
@@ -20,12 +21,15 @@ var (
 )
 
 type Spectator struct {
-	seeds []*topo.Node
+	mutex       *sync.RWMutex
+	Seeds       []*topo.Node
+	ClusterTopo *topo.Cluster
 }
 
 func NewSpectator(seeds []*topo.Node) *Spectator {
 	sp := &Spectator{
-		seeds: seeds,
+		mutex: &sync.RWMutex{},
+		Seeds: seeds,
 	}
 	return sp
 }
@@ -38,6 +42,82 @@ func (self *Spectator) Run() {
 			self.BuildClusterTopo()
 		}
 	}
+}
+
+type reploff struct {
+	NodeId string
+	Offset int64
+}
+
+// 失败返回-1
+func fetchReplOffset(addr string) int64 {
+	info, err := redis.FetchInfo(addr, "Replication")
+	if err != nil {
+		return -1
+	}
+	if info.Get("role") == "master" {
+		offset, err := info.GetInt64("master_repl_offset")
+		if err != nil {
+			return -1
+		} else {
+			return offset
+		}
+	}
+	offset, err := info.GetInt64("slave_repl_offset")
+	if err != nil {
+		return -1
+	}
+	return offset
+}
+
+// 获取分片内ReplOffset最大的节点
+func (self *Spectator) MaxReploffSlibing(nodeId string, slaveOnly bool) (string, error) {
+	self.mutex.RLock()
+	defer self.mutex.RUnlock()
+
+	rs := self.ClusterTopo.FindReplicaSetByNode(nodeId)
+	if rs == nil {
+		return "", ErrNodeNotExist
+	}
+
+	rmap := self.FetchReplOffsetInReplicaSet(rs)
+
+	var maxVal int64 = -1
+	maxId := ""
+	for id, val := range rmap {
+		node := self.ClusterTopo.FindNode(id)
+		if slaveOnly && node.IsMaster() {
+			continue
+		}
+		if val > maxVal {
+			maxVal = val
+			maxId = id
+		}
+	}
+
+	return maxId, nil
+}
+
+func (self *Spectator) FetchReplOffsetInReplicaSet(rs *topo.ReplicaSet) map[string]int64 {
+	self.mutex.RLock()
+	defer self.mutex.RUnlock()
+
+	nodes := rs.AllNodes()
+	c := make(chan reploff, len(nodes))
+
+	for _, node := range nodes {
+		go func(id, addr string) {
+			offset := fetchReplOffset(addr)
+			c <- reploff{id, offset}
+		}(node.Id(), node.Addr())
+	}
+
+	result := map[string]int64{}
+	for i := 0; i < len(nodes); i++ {
+		off := <-c
+		result[off.NodeId] = off.Offset
+	}
+	return result
 }
 
 func (self *Spectator) buildNode(line string) (*topo.Node, error) {
@@ -150,12 +230,15 @@ func (self *Spectator) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 }
 
 func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
-	if len(self.seeds) == 0 {
+	self.mutex.Lock()
+	defer self.mutex.Unlock()
+
+	if len(self.Seeds) == 0 {
 		return nil, ErrNoSeed
 	}
 
 	seeds := []*topo.Node{}
-	for _, s := range self.seeds {
+	for _, s := range self.Seeds {
 		if redis.IsAlive(s.Addr()) {
 			seeds = append(seeds, s)
 		}
@@ -180,17 +263,18 @@ func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 		}
 	}
 
-	for _, s := range cluster.RegionNodes() {
-		if s.PFailCount() > cluster.NumRegionNode()/2 {
+	for _, s := range cluster.LocalRegionNodes() {
+		if s.PFailCount() > cluster.NumLocalRegionNode()/2 {
 			log.Printf("found %d/%d PFAIL state on %s, turning into FAIL state.",
-				s.PFailCount(), cluster.NumRegionNode(), s.Addr())
+				s.PFailCount(), cluster.NumLocalRegionNode(), s.Addr())
 			s.SetFail(true)
 		}
 	}
 
 	cluster.BuildReplicaSets()
 
-	self.seeds = cluster.RegionNodes()
+	self.Seeds = cluster.LocalRegionNodes()
+	self.ClusterTopo = cluster
 
 	return cluster, nil
 }

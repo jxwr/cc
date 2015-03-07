@@ -2,6 +2,7 @@ package redis
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/garyburd/redigo/redis"
@@ -120,14 +121,14 @@ func ClusterFailover(addr string) (string, error) {
 
 type RedisInfo map[string]string
 
-func FetchInfo(addr string) (*RedisInfo, error) {
+func FetchInfo(addr, section string) (*RedisInfo, error) {
 	conn, err := redis.Dial("tcp", addr)
 	if err != nil {
 		return nil, ErrConnFailed
 	}
 	defer conn.Close()
 
-	resp, err := redis.String(conn.Do("info"))
+	resp, err := redis.String(conn.Do("info", section))
 	if err != nil {
 		return nil, err
 	}
@@ -150,4 +151,8 @@ func FetchInfo(addr string) (*RedisInfo, error) {
 
 func (info *RedisInfo) Get(key string) string {
 	return (*info)[key]
+}
+
+func (info *RedisInfo) GetInt64(key string) (int64, error) {
+	return strconv.ParseInt((*info)[key], 10, 64)
 }
