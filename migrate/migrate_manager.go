@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	ErrMigrateAlreadyExisted = errors.New("Migration task is running on the node")
-	ErrMigrateNotExisted     = errors.New("No migration task on the node")
+	ErrMigrateAlreadyExisted = errors.New("mig: task is running on the node")
+	ErrMigrateNotExisted     = errors.New("mig: no task running on the node")
 )
 
 /// Migrate
@@ -40,6 +40,15 @@ func (m *MigrateManager) FindTasksByTarget(nodeId string) []*MigrateTask {
 		}
 	}
 
+	return ts
+}
+
+func (m *MigrateManager) FindTasksByNode(nodeId string) []*MigrateTask {
+	ts := m.FindTasksByTarget(nodeId)
+	t := m.FindTaskBySource(nodeId)
+	if t != nil {
+		ts = append(ts, t)
+	}
 	return ts
 }
 
