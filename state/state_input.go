@@ -6,8 +6,13 @@ import (
 	"github.com/jxwr/cc/fsm"
 )
 
+/// InputField
+
 type InputField int
 
+// 状态转换输入是一个(Read,Write,Fail?,Role,Command)五元组
+// 常量名字起成这样是为了定义状态转换时看起来直观一些
+// 如：Input{T,ANY,FAIL,M,CMD_NONE}
 const (
 	T    InputField = iota + 1 // True
 	F                          // False
@@ -49,6 +54,8 @@ func (f InputField) String() string {
 	}
 }
 
+/// Input
+
 type Input struct {
 	Read    InputField
 	Write   InputField
@@ -57,6 +64,7 @@ type Input struct {
 	Command InputField
 }
 
+// 判断Input是否等价，ANY为通配
 func (s Input) Eq(it fsm.Input) bool {
 	t := it.(Input)
 	if s.Read != ANY && t.Read != ANY && s.Read != t.Read {
