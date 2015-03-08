@@ -15,6 +15,6 @@ func (self *EnableReadCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	if node == nil {
 		return nil, ErrNodeNotExist
 	}
-	_, err := redis.EnableRead(node.Addr(), node.Id())
+	_, err := redis.EnableRead(node.Addr(), node.Id)
 	return nil, err
 }

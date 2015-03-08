@@ -70,17 +70,17 @@ var (
 			return false
 		}
 		// 至少还有一个节点
-		localRegionNodes := rs.RegionNodes(ns.node.Region())
+		localRegionNodes := rs.RegionNodes(ns.node.Region)
 		if len(localRegionNodes) < 2 {
 			return false
 		}
 		// 最多一个故障节点(FAIL或不处于Running状态)
 		for _, node := range localRegionNodes {
-			if node.Id() == ns.Id() {
+			if node.Id == ns.Id() {
 				continue
 			}
-			nodeState := cs.FindNodeState(node.Id())
-			if node.Fail() || nodeState.CurrentState() != StateRunning {
+			nodeState := cs.FindNodeState(node.Id)
+			if node.Fail || nodeState.CurrentState() != StateRunning {
 				return false
 			}
 		}
@@ -103,17 +103,17 @@ var (
 			return false
 		}
 		// Region至少还有一个节点
-		localRegionNodes := rs.RegionNodes(ns.node.Region())
+		localRegionNodes := rs.RegionNodes(ns.node.Region)
 		if len(localRegionNodes) < 2 {
 			return false
 		}
 		// 最多一个故障节点(FAIL或不处于Running状态)
 		for _, node := range localRegionNodes {
-			if node.Id() == ns.Id() {
+			if node.Id == ns.Id() {
 				continue
 			}
-			nodeState := cs.FindNodeState(node.Id())
-			if node.Fail() || nodeState.CurrentState() != StateRunning {
+			nodeState := cs.FindNodeState(node.Id)
+			if node.Fail || nodeState.CurrentState() != StateRunning {
 				return false
 			}
 		}
@@ -124,12 +124,12 @@ var (
 	SlaveFailoverHandler = func(i interface{}) {
 		ctx := i.(StateContext)
 		cs := ctx.ClusterState
-		node := ctx.NodeState
+		ns := ctx.NodeState
 
 		for _, n := range cs.AllNodeStates() {
-			resp, err := redis.DisableRead(n.Addr(), node.Id())
+			resp, err := redis.DisableRead(n.Addr(), ns.Id())
 			if err == nil {
-				log.Println("Disable read of slave:", resp, node.Id())
+				log.Println("Disable read of slave:", resp, ns.Id())
 				break
 			}
 		}
@@ -311,7 +311,7 @@ func init() {
 			ctx := i.(StateContext)
 			ns := ctx.NodeState
 
-			if ns.node.Fail() && len(ns.node.Ranges()) == 0 {
+			if ns.node.Fail && len(ns.node.Ranges) == 0 {
 				return false
 			}
 			return true

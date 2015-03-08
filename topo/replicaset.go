@@ -33,7 +33,7 @@ func (s *ReplicaSet) AllNodes() []*Node {
 func (s *ReplicaSet) RegionNodes(region string) []*Node {
 	nodes := []*Node{}
 	for _, n := range s.AllNodes() {
-		if n.Region() == region {
+		if n.Region == region {
 			nodes = append(nodes, n)
 		}
 	}
@@ -41,11 +41,11 @@ func (s *ReplicaSet) RegionNodes(region string) []*Node {
 }
 
 func (s *ReplicaSet) HasNode(nodeId string) bool {
-	if nodeId == s.master.Id() {
+	if nodeId == s.master.Id {
 		return true
 	}
 	for _, node := range s.slaves {
-		if nodeId == node.Id() {
+		if nodeId == node.Id {
 			return true
 		}
 	}

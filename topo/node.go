@@ -14,22 +14,22 @@ type Range struct {
 }
 
 type Node struct {
-	ip        string
-	port      int
-	id        string
-	parentid  string
-	migrating bool
-	readable  bool
-	writable  bool
-	pfail     bool
-	fail      bool
-	role      string
-	tag       string
-	region    string
-	zone      string
-	room      string
-	ranges    []Range
-	failcount int
+	Ip        string
+	Port      int
+	Id        string
+	ParentId  string
+	Migrating bool
+	Readable  bool
+	Writable  bool
+	PFail     bool
+	Fail      bool
+	Role      string
+	Tag       string
+	Region    string
+	Zone      string
+	Room      string
+	Ranges    []Range
+	FailCount int
 	hostname  string
 }
 
@@ -56,179 +56,117 @@ func NewNode(ip string, port int) *Node {
 		ip = ips[0].String()
 	}
 
-	node := Node{ip: ip, port: port, ranges: []Range{}}
+	node := Node{Ip: ip, Port: port, Ranges: []Range{}}
 	return &node
 }
 
 func (s *Node) Addr() string {
-	return fmt.Sprintf("%s:%d", s.ip, s.port)
-}
-
-func (s *Node) Ip() string {
-	return s.ip
-}
-
-func (s *Node) Port() int {
-	return s.port
-}
-
-func (s *Node) Id() string {
-	return s.id
+	return fmt.Sprintf("%s:%d", s.Ip, s.Port)
 }
 
 func (s *Node) SetId(id string) *Node {
-	s.id = id
+	s.Id = id
 	return s
-}
-
-func (s *Node) ParentId() string {
-	return s.parentid
 }
 
 func (s *Node) SetParentId(pid string) *Node {
-	s.parentid = pid
+	s.ParentId = pid
 	return s
-}
-
-func (s *Node) Migrating() bool {
-	return s.migrating
 }
 
 func (s *Node) SetMigrating(val bool) *Node {
-	s.migrating = val
+	s.Migrating = val
 	return s
-}
-
-func (s *Node) Readable() bool {
-	return s.readable
 }
 
 func (s *Node) SetReadable(val bool) *Node {
-	s.readable = val
+	s.Readable = val
 	return s
-}
-
-func (s *Node) Writable() bool {
-	return s.writable
 }
 
 func (s *Node) SetWritable(val bool) *Node {
-	s.writable = val
+	s.Writable = val
 	return s
-}
-
-func (s *Node) PFail() bool {
-	return s.pfail
 }
 
 func (s *Node) SetPFail(val bool) *Node {
-	s.pfail = val
+	s.PFail = val
 	return s
 }
 
-func (s *Node) Fail() bool {
-	return s.fail
-}
-
 func (s *Node) SetFail(val bool) *Node {
-	s.fail = val
+	s.Fail = val
 	return s
 }
 
 func (s *Node) PFailCount() int {
-	return s.failcount
+	return s.FailCount
 }
 
 func (s *Node) IncrPFailCount() {
-	s.failcount++
+	s.FailCount++
 }
 
 func (s *Node) IsMaster() bool {
-	return s.role == "master"
+	return s.Role == "master"
 }
 
 func (s *Node) SetRole(val string) *Node {
-	s.role = val
+	s.Role = val
 	return s
-}
-
-func (s *Node) Role() string {
-	return s.role
-}
-
-func (s *Node) Tag() string {
-	return s.tag
 }
 
 func (s *Node) SetTag(val string) *Node {
-	s.tag = val
+	s.Tag = val
 	return s
-}
-
-func (s *Node) Region() string {
-	return s.region
 }
 
 func (s *Node) SetRegion(val string) *Node {
-	s.region = val
+	s.Region = val
 	return s
-}
-
-func (s *Node) Zone() string {
-	return s.zone
 }
 
 func (s *Node) SetZone(val string) *Node {
-	s.zone = val
+	s.Zone = val
 	return s
-}
-
-func (s *Node) Room() string {
-	return s.room
 }
 
 func (s *Node) SetRoom(val string) *Node {
-	s.room = val
+	s.Room = val
 	return s
 }
 
-func (s *Node) Ranges() []Range {
-	return s.ranges
-}
-
 func (s *Node) AddRange(r Range) {
-	s.ranges = append(s.ranges, r)
+	s.Ranges = append(s.Ranges, r)
 }
 
 func (s *Node) Compare(t *Node) bool {
 	b := true
-	b = b && (s.port == t.port)
-	b = b && (s.parentid == t.parentid)
-	b = b && (s.readable == t.readable)
-	b = b && (s.writable == t.writable)
-	b = b && (s.role == t.role)
-	b = b && (s.tag == t.tag)
-	b = b && (len(s.ranges) == len(t.ranges))
+	b = b && (s.Port == t.Port)
+	b = b && (s.ParentId == t.ParentId)
+	b = b && (s.Readable == t.Readable)
+	b = b && (s.Writable == t.Writable)
+	b = b && (s.Role == t.Role)
+	b = b && (s.Tag == t.Tag)
+	b = b && (len(s.Ranges) == len(t.Ranges))
 
 	if b == false {
 		return false
 	}
 
-	for i, r := range s.ranges {
-		if r != t.ranges[i] {
-			fmt.Println("EE")
+	for i, r := range s.Ranges {
+		if r != t.Ranges[i] {
 			return false
 		}
 	}
-
 	return true
 }
 
 func (s *Node) Hostname() string {
 	if s.hostname == "" {
-		addr, err := net.LookupAddr(s.ip)
+		addr, err := net.LookupAddr(s.Ip)
 		if len(addr) == 0 || err != nil {
-			panic("unknown host for " + s.ip)
+			panic("unknown host for " + s.Ip)
 		}
 		s.hostname = strings.TrimSuffix(addr[0], ".baidu.com")
 		s.hostname = strings.TrimSuffix(addr[0], ".baidu.com.")

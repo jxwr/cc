@@ -309,3 +309,10 @@ Controller同时是RoleSwitchListener和FailoverStateChangeListener
 # 2015/03/07
 
 Master故障，进行Failover之后，故障的节点仍然被标记为Master
+
+# 2015/03/08
+
+TODO:
+- meta
+- Master执行Failover过程中，暂停迁移任务，成功后fix迁移任务信息
+- api/console

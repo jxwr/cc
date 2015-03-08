@@ -37,15 +37,17 @@ func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 	cs.version++
 	now := time.Now()
 
+	log.Println("Update region", region, len(nodes), "nodes")
+
 	// 添加不存在的节点，版本号+1
 	for _, n := range nodes {
-		if n.Region() != region {
+		if n.Region != region {
 			continue
 		}
-		nodeState := cs.nodeStates[n.Id()]
+		nodeState := cs.nodeStates[n.Id]
 		if nodeState == nil {
 			nodeState = NewNodeState(n, cs.version)
-			cs.nodeStates[n.Id()] = nodeState
+			cs.nodeStates[n.Id] = nodeState
 		} else {
 			nodeState.version = cs.version
 			nodeState.node = n
@@ -55,7 +57,7 @@ func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 
 	// 删除已经下线的节点
 	for id, n := range cs.nodeStates {
-		if n.node.Region() != region {
+		if n.node.Region != region {
 			continue
 		}
 		nodeState := cs.nodeStates[id]
@@ -76,7 +78,7 @@ func (cs *ClusterState) BuildReplicaSets() {
 	for _, ns := range cs.nodeStates {
 		node := ns.node
 		// 已经处理过的挂掉的Master
-		if node.Fail() && len(node.Ranges()) == 0 {
+		if node.Fail && len(node.Ranges) == 0 {
 			continue
 		}
 		if node.IsMaster() {
@@ -90,14 +92,11 @@ func (cs *ClusterState) BuildReplicaSets() {
 	for _, ns := range cs.nodeStates {
 		node := ns.node
 		if !node.IsMaster() {
-			master := cs.FindNode(node.ParentId())
+			master := cs.FindNode(node.ParentId)
 			// 出现这种情况，可能是有的地域没有汇报拓扑信息
 			// 初始化时或节点变更时可能出现
 			if master == nil {
-				for _, nn := range cs.nodeStates {
-					fmt.Println(nn.Id(), nn.Addr())
-				}
-				fmt.Printf("parent not exist failed: %s %s\n", node.ParentId(), node.Addr())
+				fmt.Printf("parent not exist failed: %s %s\n", node.ParentId, node.Addr())
 				return
 			}
 
@@ -203,7 +202,7 @@ func (cs *ClusterState) FetchReplOffsetInReplicaSet(rs *topo.ReplicaSet) map[str
 		go func(id, addr string) {
 			offset := fetchReplOffset(addr)
 			c <- reploff{id, offset}
-		}(node.Id(), node.Addr())
+		}(node.Id, node.Addr())
 	}
 
 	rmap := map[string]int64{}

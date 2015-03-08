@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/topo"
 )
@@ -32,19 +32,9 @@ func NewSpectator(seeds []*topo.Node) *Spectator {
 	sp := &Spectator{
 		mutex:       &sync.RWMutex{},
 		Seeds:       seeds,
-		LocalRegion: "bj",
+		LocalRegion: meta.LocalRegion(),
 	}
 	return sp
-}
-
-func (self *Spectator) Run() {
-	tickChan := time.NewTicker(time.Second * 1).C
-	for {
-		select {
-		case <-tickChan:
-			self.BuildClusterTopo()
-		}
-	}
 }
 
 func (self *Spectator) buildNode(line string) (*topo.Node, error) {
@@ -139,7 +129,7 @@ func (self *Spectator) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			return err
 		}
 
-		node := cluster.FindNode(s.Id())
+		node := cluster.FindNode(s.Id)
 		if node == nil {
 			return ErrNodeNotExist
 		}
@@ -151,7 +141,7 @@ func (self *Spectator) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			return ErrNodesInfoNotSame
 		}
 
-		if s.PFail() {
+		if s.PFail {
 			node.IncrPFailCount()
 		}
 	}

@@ -15,6 +15,6 @@ func (self *DisableWriteCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	if node == nil {
 		return nil, ErrNodeNotExist
 	}
-	_, err := redis.DisableWrite(node.Addr(), node.Id())
+	_, err := redis.DisableWrite(node.Addr(), node.Id)
 	return nil, err
 }

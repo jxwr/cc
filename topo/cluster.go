@@ -27,10 +27,10 @@ func NewCluster(region string) *Cluster {
 }
 
 func (self *Cluster) AddNode(s *Node) {
-	self.idTable[s.Id()] = s
+	self.idTable[s.Id] = s
 	self.nodes = append(self.nodes, s)
 
-	if s.Region() == self.localRegion {
+	if s.Region == self.localRegion {
 		self.localRegionNodes = append(self.localRegionNodes, s)
 	}
 }
@@ -50,7 +50,7 @@ func (self *Cluster) LocalRegionNodes() []*Node {
 func (self *Cluster) RegionNodes(region string) []*Node {
 	nodes := []*Node{}
 	for _, n := range self.nodes {
-		if n.Region() == region {
+		if n.Region == region {
 			nodes = append(nodes, n)
 		}
 	}
@@ -81,7 +81,7 @@ func (self *Cluster) Region() string {
 func (self *Cluster) FailureNodes() []*Node {
 	ss := []*Node{}
 	for _, s := range self.localRegionNodes {
-		if s.fail {
+		if s.Fail {
 			ss = append(ss, s)
 		}
 	}
@@ -101,7 +101,7 @@ func (self *Cluster) BuildReplicaSets() error {
 
 	for _, s := range self.nodes {
 		if !s.IsMaster() {
-			master := self.FindNode(s.ParentId())
+			master := self.FindNode(s.ParentId)
 			if master == nil {
 				return ErrInvalidParentId
 			}
