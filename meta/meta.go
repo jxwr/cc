@@ -7,7 +7,7 @@ var leaderAddress string
 func init() {
 	localRegion = "bj"
 	autoFailover = true
-	leaderAddress = "http://127.0.0.1:6000"
+	leaderAddress = "http://127.0.0.1:6200"
 }
 
 func LocalRegion() string {

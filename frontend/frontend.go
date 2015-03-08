@@ -22,6 +22,7 @@ func NewFrontEnd(c *cc.Controller, bind string) *FrontEnd {
 		BindAddr: bind,
 	}
 
+	fe.Router.Static("/ui", "./public")
 	fe.Router.POST(api.RegionSnapshotPath, fe.HandleRegionSnapshot)
 
 	return fe

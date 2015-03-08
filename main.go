@@ -20,6 +20,6 @@ func main() {
 	sp := spectator.NewSpectator([]*topo.Node{s0, s1})
 	go sp.ReportRegionSnanshotLoop()
 
-	fe := frontend.NewFrontEnd(c, ":6000")
+	fe := frontend.NewFrontEnd(c, ":6200")
 	fe.Run()
 }
