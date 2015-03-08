@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/jxwr/cc/redis"
@@ -124,10 +125,16 @@ func (cs *ClusterState) FindNodeState(nodeId string) *NodeState {
 }
 
 func (cs *ClusterState) DebugDump() {
+	var keys []string
+	for k := range cs.nodeStates {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	fmt.Println("Cluster Debug Information:")
-	for _, ns := range cs.nodeStates {
+	for _, key := range keys {
 		fmt.Print("  ")
-		ns.DebugDump()
+		cs.nodeStates[key].DebugDump()
 	}
 }
 
