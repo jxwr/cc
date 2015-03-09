@@ -19,6 +19,7 @@ var NodeRow = React.createClass({
     var WRITE = node.Writable ? "Write":"-";
     return (
         <tr className="nodeRow">
+          <td>{node.State}</td>
           <td>{node.Region}</td>
           <td className={FAIL}>{FAIL}</td>
           <td>{READ}</td>
@@ -26,6 +27,7 @@ var NodeRow = React.createClass({
           <td>{node.Role}</td>
           <td>{node.Ip}:{node.Port}</td>
           <td>{node.Id}</td>
+          <td>{node.Version}</td>
         </tr>
     );
   }

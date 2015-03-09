@@ -14,12 +14,12 @@
 }
 .nodeTable td:first-child {
     padding-top: .5em;
+    background-color: #334499;
 }
 .nodeTable td:last-child {
     padding-bottom: .5em;
 }
 .nodeTable td:before {
-    content: attr(data-th) ": ";
     font-weight: bold;
     width: 6.5em;
     display: inline-block;

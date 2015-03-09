@@ -30,7 +30,9 @@ type Node struct {
 	Room      string
 	Ranges    []Range
 	FailCount int
-	hostname  string
+	// Extra
+	State    string
+	hostname string
 }
 
 func NewNodeFromString(addr string) *Node {
