@@ -190,7 +190,7 @@ func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
 	// 构造LocalRegion视图
 	for _, s := range cluster.LocalRegionNodes() {
 		if s.PFailCount() > cluster.NumLocalRegionNode()/2 {
-			log.Printf("found %d/%d PFAIL state on %s, set FAIL",
+			log.Printf("Found %d/%d PFAIL state on %s, set FAIL",
 				s.PFailCount(), cluster.NumLocalRegionNode(), s.Addr())
 			s.SetFail(true)
 		}

@@ -2,7 +2,6 @@ package controller
 
 import (
 	"errors"
-	"log"
 	"sync"
 	"time"
 
@@ -38,7 +37,6 @@ func (c *Controller) ProcessCommand(command Command, timeout time.Duration) (res
 	resultCh := make(chan Result)
 	errorCh := make(chan error)
 
-	log.Println("Processing command", command)
 	c.ClusterState.DebugDump()
 
 	go func() {

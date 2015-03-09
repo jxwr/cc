@@ -72,7 +72,8 @@ func (ns *NodeState) AdvanceFSM(cs *ClusterState, cmd InputField) error {
 	}
 	ns.fsm.Advance(ctx, input)
 
-	streams.NodeStateStream <- ns.node
+	// 记录
+	streams.NodeStateStream.Pub(ns.node)
 	return nil
 }
 

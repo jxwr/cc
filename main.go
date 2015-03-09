@@ -6,11 +6,14 @@ import (
 	"github.com/jxwr/cc/controller"
 	"github.com/jxwr/cc/frontend"
 	"github.com/jxwr/cc/spectator"
+	"github.com/jxwr/cc/streams"
 	"github.com/jxwr/cc/topo"
 )
 
 func main() {
 	fmt.Println("here we go")
+
+	streams.StartAllStreams()
 
 	c := controller.NewController()
 

@@ -3,8 +3,8 @@ package frontend
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/jxwr/cc/streams"
@@ -12,18 +12,23 @@ import (
 )
 
 func nodeStateServer(ws *websocket.Conn) {
-	n := 0
-
-	for {
-		ns := <-streams.NodeStateStream
+	callback := func(ns interface{}) bool {
 		data, err := json.Marshal(ns)
 		if err != nil {
-			continue
+			return false
 		}
-		io.Copy(ws, bytes.NewReader(data))
-		n++
-		fmt.Println("ws:", n)
+		_, err = io.Copy(ws, bytes.NewReader(data))
+		if err != nil {
+			log.Println("NodeStateStream close", err)
+			return false
+		}
+		log.Println("sending")
+		return true
 	}
+
+	quitCh := streams.NodeStateStream.Sub(callback)
+	<-quitCh
+	log.Println("quit")
 }
 
 func RunWebsockServer(bindAddr string) {
