@@ -316,3 +316,28 @@ TODO:
 - meta
 - Master执行Failover过程中，暂停迁移任务，成功后fix迁移任务信息
 - api/console
+
+# 2015/03/09
+
+streams该怎么做
+streams.Send("NodeStateStream", event)
+
+- NodeStateChan
+
+states = rx.fromChannel(NodeStateChan)
+logs = states.Map(func(ns *NodeState) string {
+        return ns.String()
+})
+logs.Map(func(log string) {
+        log.Println(log)
+})
+```
+- MigrateStateChan
+
+states = rx.fromChannel(NodeStateChan)
+logs = states.Map(func(ns *NodeState) string {
+        return ns.String()
+})
+logs.Map(func(log string) {
+        log.Println(log)
+})

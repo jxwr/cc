@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jxwr/cc/fsm"
+	"github.com/jxwr/cc/streams"
 	"github.com/jxwr/cc/topo"
 )
 
@@ -70,6 +71,8 @@ func (ns *NodeState) AdvanceFSM(cs *ClusterState, cmd InputField) error {
 		NodeState:    ns,
 	}
 	ns.fsm.Advance(ctx, input)
+
+	streams.NodeStateStream <- ns.node
 	return nil
 }
 

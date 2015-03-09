@@ -10,16 +10,18 @@ import (
 )
 
 type FrontEnd struct {
-	C        *cc.Controller
-	Router   *gin.Engine
-	BindAddr string
+	C            *cc.Controller
+	Router       *gin.Engine
+	HttpBindAddr string
+	WsBindAddr   string
 }
 
-func NewFrontEnd(c *cc.Controller, bind string) *FrontEnd {
+func NewFrontEnd(c *cc.Controller, httpBind, wsBind string) *FrontEnd {
 	fe := &FrontEnd{
-		C:        c,
-		Router:   gin.Default(),
-		BindAddr: bind,
+		C:            c,
+		Router:       gin.Default(),
+		HttpBindAddr: httpBind,
+		WsBindAddr:   wsBind,
 	}
 
 	fe.Router.Static("/ui", "./public")
@@ -29,7 +31,8 @@ func NewFrontEnd(c *cc.Controller, bind string) *FrontEnd {
 }
 
 func (fe *FrontEnd) Run() {
-	fe.Router.Run(fe.BindAddr)
+	go RunWebsockServer(fe.WsBindAddr)
+	fe.Router.Run(fe.HttpBindAddr)
 }
 
 func (fe *FrontEnd) HandleRegionSnapshot(c *gin.Context) {
