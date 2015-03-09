@@ -14,12 +14,15 @@ var RxNodeState = socket.map(function(e){ return JSON.parse(e.data); });
 var NodeRow = React.createClass({
   render: function() {
     var node = this.props.node;
+    var FAIL = node.Fail ? "FAIL":"OK";
+    var READ = node.Readable ? "Read":"-";
+    var WRITE = node.Writable ? "Write":"-";
     return (
         <tr className="nodeRow">
           <td>{node.Region}</td>
-          <td>{node.Fail}</td>
-          <td>{node.Readable?"Read":"-"}</td>
-          <td>{node.Writable?"Write":"-"}</td>
+          <td className={FAIL}>{FAIL}</td>
+          <td>{READ}</td>
+          <td>{WRITE}</td>
           <td>{node.Role}</td>
           <td>{node.Ip}:{node.Port}</td>
           <td>{node.Id}</td>
