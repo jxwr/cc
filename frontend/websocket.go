@@ -17,22 +17,20 @@ func nodeStateServer(ws *websocket.Conn) {
 		if err != nil {
 			return false
 		}
+		// 如果浏览器关闭，或发送数据失败，则取消该Callback
 		_, err = io.Copy(ws, bytes.NewReader(data))
 		if err != nil {
-			log.Println("NodeStateStream close", err)
 			return false
 		}
-		log.Println("sending")
 		return true
 	}
 
 	quitCh := streams.NodeStateStream.Sub(callback)
 	<-quitCh
-	log.Println("quit")
+	log.Println("Websocket closed")
 }
 
 func RunWebsockServer(bindAddr string) {
-
 	http.Handle("/node/state", websocket.Handler(nodeStateServer))
 
 	err := http.ListenAndServe(bindAddr, nil)

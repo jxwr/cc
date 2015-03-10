@@ -18,6 +18,30 @@ var (
 	ErrInvalidAddr = errors.New("redis: invalid address string")
 )
 
+const (
+	SLOT_MIGRATING = "MIGRATING"
+	SLOT_IMPORTING = "IMPORTING"
+	SLOT_STABLE    = "STABLE"
+	SLOT_NODE      = "NODE"
+)
+
+/// Misc
+
+func IsAlive(addr string) bool {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+	resp, err := redis.String(conn.Do("PING"))
+	if err != nil || resp != "PONG" {
+		return false
+	}
+	return true
+}
+
+/// Cluster
+
 func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool) error {
 	conn, err := redis.Dial("tcp", addr)
 	if err != nil {
@@ -55,19 +79,6 @@ func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool) error {
 		}
 	}
 	return nil
-}
-
-func IsAlive(addr string) bool {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return false
-	}
-	defer conn.Close()
-	resp, err := redis.String(conn.Do("PING"))
-	if err != nil || resp != "PONG" {
-		return false
-	}
-	return true
 }
 
 func ClusterNodes(addr string) (string, error) {
@@ -160,6 +171,8 @@ func ClusterFailover(addr string) (string, error) {
 	return resp, nil
 }
 
+/// Info
+
 type RedisInfo map[string]string
 
 func FetchInfo(addr, section string) (*RedisInfo, error) {
@@ -196,4 +209,53 @@ func (info *RedisInfo) Get(key string) string {
 
 func (info *RedisInfo) GetInt64(key string) (int64, error) {
 	return strconv.ParseInt((*info)[key], 10, 64)
+}
+
+/// Migrate
+
+func SetSlot(addr string, slot int, action, toId string) error {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return ErrConnFailed
+	}
+	defer conn.Close()
+
+	if action == SLOT_STABLE {
+		_, err = redis.String(conn.Do("cluster", "setslot", slot, action))
+	} else {
+		_, err = redis.String(conn.Do("cluster", "setslot", slot, action, toId))
+	}
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetKeysInSlot(addr string, slot, num int) ([]string, error) {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return nil, ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.Strings(conn.Do("cluster", "getkeysinslot", slot, num))
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func Migrate(addr, toIp string, toPort int, key string, timeout int) (string, error) {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("migrate", toIp, toPort, key, 0, timeout))
+	if err != nil {
+		return "", err
+	}
+	return resp, nil
 }

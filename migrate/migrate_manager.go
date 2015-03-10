@@ -2,11 +2,13 @@ package migrate
 
 import (
 	"errors"
+
+	"github.com/jxwr/cc/topo"
 )
 
 var (
-	ErrMigrateAlreadyExisted = errors.New("mig: task is running on the node")
-	ErrMigrateNotExisted     = errors.New("mig: no task running on the node")
+	ErrMigrateAlreadyExist = errors.New("mig: task is running on the node")
+	ErrMigrateNotExist     = errors.New("mig: no task running on the node")
 )
 
 /// Migrate
@@ -24,7 +26,7 @@ func NewMigrateManager() *MigrateManager {
 
 func (m *MigrateManager) FindTaskBySource(nodeId string) *MigrateTask {
 	for _, t := range m.tasks {
-		if t.From == nodeId {
+		if t.From.Id == nodeId {
 			return t
 		}
 	}
@@ -35,7 +37,7 @@ func (m *MigrateManager) FindTasksByTarget(nodeId string) []*MigrateTask {
 	ts := []*MigrateTask{}
 
 	for _, t := range m.tasks {
-		if t.To == nodeId {
+		if t.To.Id == nodeId {
 			ts = append(ts, t)
 		}
 	}
@@ -57,9 +59,9 @@ func (m *MigrateManager) AllTasks() []*MigrateTask {
 }
 
 func (m *MigrateManager) addTask(task *MigrateTask) error {
-	t := m.FindTaskBySource(task.From)
+	t := m.FindTaskBySource(task.From.Id)
 	if t != nil {
-		return ErrMigrateAlreadyExisted
+		return ErrMigrateAlreadyExist
 	}
 	m.tasks = append(m.tasks, task)
 	return nil
@@ -77,12 +79,12 @@ func (m *MigrateManager) removeTask(task *MigrateTask) {
 	}
 }
 
-func (m *MigrateManager) Create(fromId, toId string, ranges []Range) error {
-	task := m.FindTaskBySource(fromId)
+func (m *MigrateManager) Create(fromNode, toNode *topo.Node, ranges []Range) error {
+	task := m.FindTaskBySource(fromNode.Id)
 	if task != nil {
-		return ErrMigrateAlreadyExisted
+		return ErrMigrateAlreadyExist
 	}
-	task = NewMigrateTask(fromId, toId, ranges)
+	task = NewMigrateTask(fromNode, toNode, ranges)
 	m.addTask(task)
 	return nil
 }
@@ -96,7 +98,7 @@ func (m *MigrateManager) RunTask(nodeId string) {
 func (m *MigrateManager) Pause(nodeId string) error {
 	task := m.FindTaskBySource(nodeId)
 	if task == nil {
-		return ErrMigrateNotExisted
+		return ErrMigrateNotExist
 	}
 	err := task.Pause()
 	return err
@@ -105,7 +107,7 @@ func (m *MigrateManager) Pause(nodeId string) error {
 func (m *MigrateManager) Resume(nodeId string) error {
 	task := m.FindTaskBySource(nodeId)
 	if task == nil {
-		return ErrMigrateNotExisted
+		return ErrMigrateNotExist
 	}
 	err := task.Resume()
 	return err
@@ -114,7 +116,7 @@ func (m *MigrateManager) Resume(nodeId string) error {
 func (m *MigrateManager) Cancel(nodeId string) error {
 	task := m.FindTaskBySource(nodeId)
 	if task == nil {
-		return ErrMigrateNotExisted
+		return ErrMigrateNotExist
 	}
 	err := task.Cancel()
 	if err != nil {
@@ -127,7 +129,7 @@ func (m *MigrateManager) Cancel(nodeId string) error {
 func (m *MigrateManager) Reset(nodeId string) error {
 	task := m.FindTaskBySource(nodeId)
 	if task == nil {
-		return ErrMigrateNotExisted
+		return ErrMigrateNotExist
 	}
 	err := task.Reset()
 	return err

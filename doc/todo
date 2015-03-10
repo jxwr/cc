@@ -1,0 +1,6 @@
+TODO:
+
+- 
+
+TOFIX:
+- Failover主之后，需要开启写标志，等待新主变成Master
