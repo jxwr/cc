@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -54,11 +55,15 @@ func NewMigrateTask(fromNode, toNode *topo.Node, ranges []Range) *MigrateTask {
 	return t
 }
 
+func (t *MigrateTask) TaskName() string {
+	return fmt.Sprintf("Mig[%s->%s]", t.From.Id, t.To.Id)
+}
+
 func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	err := redis.SetSlot(t.From.Addr(), slot, redis.SLOT_MIGRATING, t.To.Id)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
-			log.Printf("%s is not the owner of hash slot %d\n", t.From.Id, slot)
+			log.Printf("%s %s is not the owner of hash slot %d\n", t.TaskName(), t.From.Id, slot)
 			return 0, nil
 		}
 		return 0, err
@@ -66,7 +71,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	err = redis.SetSlot(t.To.Addr(), slot, redis.SLOT_IMPORTING, t.From.Id)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "ERR I'm already the owner of hash slot") {
-			log.Printf("%s already the owner of hash slot %d\n", t.To.Id, slot)
+			log.Printf("%s %s already the owner of hash slot %d\n", t.TaskName(), t.To.Id, slot)
 			return 0, nil
 		}
 		return 0, err
@@ -144,10 +149,12 @@ begin:
 
 			nkeys, err := t.migrateSlot(t.currSlot, 100)
 			if err != nil {
-				log.Printf("Migrate slot %d error, %d keys have done, %v\n", t.currSlot, nkeys, err)
+				log.Printf("%s Migrate slot %d error, %d keys have done, %v\n",
+					t.TaskName(), t.currSlot, nkeys, err)
 				time.Sleep(100 * time.Millisecond)
 			} else {
-				log.Printf("Migrate slot %d done, total %d keys\n", t.currSlot, nkeys)
+				log.Printf("%s Migrate slot %d done, total %d keys\n",
+					t.TaskName(), t.currSlot, nkeys)
 				t.currSlot++
 			}
 		}
