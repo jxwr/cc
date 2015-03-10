@@ -245,4 +245,8 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 		log.Printf("Failover finished with error(timedout)\n")
 		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 	}
+
+	// 打开新主的写入，因为给slave加Write没有效果
+	// 所以即便Failover失败，也不会产生错误
+	redis.DisableWrite(new.Addr(), new.Id())
 }
