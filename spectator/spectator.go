@@ -57,6 +57,9 @@ func (self *Spectator) buildNode(line string) (*topo.Node, error) {
 			left, _ := strconv.Atoi(xs[0])
 			right, _ := strconv.Atoi(xs[1])
 			node.AddRange(topo.Range{left, right})
+		} else {
+			left, _ := strconv.Atoi(r)
+			node.AddRange(topo.Range{left, left})
 		}
 	}
 

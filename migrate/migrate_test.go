@@ -17,7 +17,7 @@ func TestCreate(t *testing.T) {
 	fromNode := topo.NewNode("127.0.0.1", 7000).SetId(fromId)
 	toNode := topo.NewNode("127.0.0.1", 7002).SetId(toId)
 
-	m.Create(fromNode, toNode, []Range{Range{0, 20}})
+	m.Create(fromNode, toNode, []Range{Range{0, 40}})
 
 	go m.RunTask(fromId)
 
