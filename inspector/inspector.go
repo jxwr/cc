@@ -1,4 +1,4 @@
-package spectator
+package inspector
 
 import (
 	"errors"
@@ -15,21 +15,21 @@ import (
 )
 
 var (
-	ErrNoSeed           = errors.New("spectator: no seed node found")
-	ErrInvalidTag       = errors.New("spectator: invalid tag")
-	ErrNodeNotExist     = errors.New("spectator: node not exist")
-	ErrNodesInfoNotSame = errors.New("spectator: 'cluster nodes' info returned by seeds are different")
+	ErrNoSeed           = errors.New("inspector: no seed node found")
+	ErrInvalidTag       = errors.New("inspector: invalid tag")
+	ErrNodeNotExist     = errors.New("inspector: node not exist")
+	ErrNodesInfoNotSame = errors.New("inspector: 'cluster nodes' info returned by seeds are different")
 )
 
-type Spectator struct {
+type Inspector struct {
 	mutex       *sync.RWMutex
 	LocalRegion string
 	Seeds       []*topo.Node
 	ClusterTopo *topo.Cluster
 }
 
-func NewSpectator(seeds []*topo.Node) *Spectator {
-	sp := &Spectator{
+func NewInspector(seeds []*topo.Node) *Inspector {
+	sp := &Inspector{
 		mutex:       &sync.RWMutex{},
 		Seeds:       seeds,
 		LocalRegion: meta.LocalRegion(),
@@ -37,7 +37,7 @@ func NewSpectator(seeds []*topo.Node) *Spectator {
 	return sp
 }
 
-func (self *Spectator) buildNode(line string) (*topo.Node, error) {
+func (self *Inspector) buildNode(line string) (*topo.Node, error) {
 	xs := strings.Split(line, " ")
 	mod, tag, id, addr, flags, parent := xs[0], xs[1], xs[2], xs[3], xs[4], xs[5]
 	node := topo.NewNodeFromString(addr)
@@ -89,7 +89,7 @@ func (self *Spectator) buildNode(line string) (*topo.Node, error) {
 	return node, nil
 }
 
-func (self *Spectator) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
+func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 	resp, err := redis.ClusterNodes(seed.Addr())
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func (self *Spectator) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 	return cluster, nil
 }
 
-func (self *Spectator) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) error {
+func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) error {
 	resp, err := redis.ClusterNodes(seed.Addr())
 	if err != nil {
 		return err
@@ -153,7 +153,7 @@ func (self *Spectator) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 }
 
 // 生成ClusterSnapshot
-func (self *Spectator) BuildClusterTopo() (*topo.Cluster, error) {
+func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 	self.mutex.Lock()
 	defer self.mutex.Unlock()
 

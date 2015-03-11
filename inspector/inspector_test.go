@@ -1,4 +1,4 @@
-package spectator
+package inspector
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ func TestBuildClusterTopo(t *testing.T) {
 	s0 := topo.NewNode("127.0.0.1", 7000)
 	s1 := topo.NewNode("127.0.0.1", 7002)
 
-	sp := NewSpectator([]*topo.Node{s0, s1})
+	sp := NewInspector([]*topo.Node{s0, s1})
 	sp.BuildClusterTopo()
 	cluster, err := sp.BuildClusterTopo()
 

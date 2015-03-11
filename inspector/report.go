@@ -1,4 +1,4 @@
-package spectator
+package inspector
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ func SendRegionTopoSnapshot(nodes []*topo.Node) error {
 	return nil
 }
 
-func (self *Spectator) ReportRegionSnanshotLoop() {
+func (self *Inspector) ReportRegionSnanshotLoop() {
 	tickChan := time.NewTicker(time.Second * 1).C
 	for {
 		select {

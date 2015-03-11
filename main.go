@@ -5,7 +5,7 @@ import (
 
 	"github.com/jxwr/cc/controller"
 	"github.com/jxwr/cc/frontend"
-	"github.com/jxwr/cc/spectator"
+	"github.com/jxwr/cc/inspector"
 	"github.com/jxwr/cc/streams"
 	"github.com/jxwr/cc/topo"
 )
@@ -20,7 +20,7 @@ func main() {
 	s0 := topo.NewNode("127.0.0.1", 7000)
 	s1 := topo.NewNode("127.0.0.1", 7002)
 
-	sp := spectator.NewSpectator([]*topo.Node{s0, s1})
+	sp := inspector.NewInspector([]*topo.Node{s0, s1})
 	go sp.ReportRegionSnanshotLoop()
 
 	fe := frontend.NewFrontEnd(c, ":6200", ":6201")
