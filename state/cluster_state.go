@@ -243,7 +243,24 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 	case <-time.After(20 * time.Minute):
 		log.Printf("Failover finished with error(timedout)\n")
+		// 判断是否主从是否已经切换
 		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
+	}
+
+	// 重新读取一次，因为可能已经更新了
+	roleChanged := false
+	node := cs.FindNode(newMasterId)
+	if node.IsMaster() {
+		roleChanged = true
+	} else {
+		info, err := redis.FetchInfo(node.Addr(), "Replication")
+		if err == nil && info.Get("role") == "master" {
+			roleChanged = true
+		}
+	}
+
+	if roleChanged {
+		log.Printf("New master %s(%s) role change success", node.Id, node.Addr())
 	}
 
 	// 打开新主的写入，因为给slave加Write没有效果
