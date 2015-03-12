@@ -1,77 +1,69 @@
 package migrate
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/topo"
 )
 
-var (
-	ErrActionTimeout = errors.New("migrate: action timeout")
-)
-
-type ActionType int
-type Action struct {
-	Type ActionType
-	C    chan error
-}
-
 const (
-	ACTION_PAUSE ActionType = iota
-	ACTION_RESET
-	ACTION_RESUME
-	ACTION_CANCEL
+	StateRunning int32 = iota
+	StatePausing
+	StatePaused
+	StateCancelling
+	StateCancelled
+	StateNodeFailure
 )
-
-type Range struct {
-	Left  int
-	Right int
-}
 
 type MigrateTask struct {
 	// Node是创建迁移任务时的一个快照，它的信息可能会被更新
 	// 这里仅使用Node的Ip,Port,Id的信息，其他信息不可用
-	From   *topo.Node
-	To     *topo.Node
-	Ranges []Range
+	Ranges []topo.Range
 
+	source         atomic.Value
+	target         atomic.Value
 	currRangeIndex int // current range index
 	currSlot       int // current slot
-	actionChan     chan Action
+	state          int32
 }
 
-func NewMigrateTask(fromNode, toNode *topo.Node, ranges []Range) *MigrateTask {
+func NewMigrateTask(fromNode, toNode *topo.Node, ranges []topo.Range) *MigrateTask {
 	t := &MigrateTask{
-		From:       fromNode,
-		To:         toNode,
-		Ranges:     ranges,
-		actionChan: make(chan Action),
+		Ranges: ranges,
+		state:  StateRunning,
 	}
+	t.ReplaceSourceNode(fromNode)
+	t.ReplaceTargetNode(toNode)
 	return t
 }
 
 func (t *MigrateTask) TaskName() string {
-	return fmt.Sprintf("Mig[%s->%s]", t.From.Id, t.To.Id)
+	return fmt.Sprintf("Mig[%s->%s]", t.SourceNode().Id, t.TargetNode().Id)
 }
 
 func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
-	err := redis.SetSlot(t.From.Addr(), slot, redis.SLOT_MIGRATING, t.To.Id)
+	sourceNode := t.SourceNode()
+	targetNode := t.TargetNode()
+
+	err := redis.SetSlot(sourceNode.Addr(), slot, redis.SLOT_MIGRATING, targetNode.Id)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
-			log.Printf("%s %s is not the owner of hash slot %d\n", t.TaskName(), t.From.Id, slot)
+			log.Printf("%s %s is not the owner of hash slot %d\n",
+				t.TaskName(), sourceNode.Id, slot)
 			return 0, nil
 		}
 		return 0, err
 	}
-	err = redis.SetSlot(t.To.Addr(), slot, redis.SLOT_IMPORTING, t.From.Id)
+	err = redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_IMPORTING, sourceNode.Id)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "ERR I'm already the owner of hash slot") {
-			log.Printf("%s %s already the owner of hash slot %d\n", t.TaskName(), t.To.Id, slot)
+			log.Printf("%s %s already the owner of hash slot %d\n",
+				t.TaskName(), targetNode.Id, slot)
 			return 0, nil
 		}
 		return 0, err
@@ -83,12 +75,12 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	nkeys := 0
 	for {
 		// TODO: 流控，和迁移重试
-		keys, err := redis.GetKeysInSlot(t.From.Addr(), slot, 100)
+		keys, err := redis.GetKeysInSlot(sourceNode.Addr(), slot, 100)
 		if err != nil {
 			return nkeys, err
 		}
 		for _, key := range keys {
-			_, err := redis.Migrate(t.From.Addr(), t.To.Ip, t.To.Port, key, 15000)
+			_, err := redis.Migrate(sourceNode.Addr(), targetNode.Ip, targetNode.Port, key, 15000)
 			if err != nil {
 				return nkeys, err
 			}
@@ -96,11 +88,11 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 		}
 		if len(keys) == 0 {
 			// 迁移完成，设置slot归属到新节点，该操作自动清理IMPORTING和MIGRATING状态
-			err = redis.SetSlot(t.From.Addr(), slot, redis.SLOT_NODE, t.To.Id)
+			err = redis.SetSlot(sourceNode.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 			if err != nil {
 				return nkeys, err
 			}
-			err = redis.SetSlot(t.To.Addr(), slot, redis.SLOT_NODE, t.To.Id)
+			err = redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 			if err != nil {
 				return nkeys, err
 			}
@@ -112,41 +104,35 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 }
 
 func (t *MigrateTask) Run() {
-begin:
-	pause := false
-
 	for i, r := range t.Ranges {
 		t.currRangeIndex = i
 		t.currSlot = r.Left
 		for t.currSlot < r.Right {
-			// 每迁移完一整个slot或遇到错误处理一个动作
-			// 如果状态停留在一次slot迁移内部，处理比较麻烦
-			// 不过，只是尽量，还是有可能停在一个Slot内部
-			select {
-			case action := <-t.actionChan:
-				switch action.Type {
-				case ACTION_PAUSE:
-					pause = true
-					action.C <- nil
-				case ACTION_RESUME:
-					pause = false
-					action.C <- nil
-				case ACTION_CANCEL:
-					action.C <- nil
-					return
-				case ACTION_RESET:
-					action.C <- nil
-					goto begin
-				}
-			default:
-				// 无Action就继续迁移
+			// 尽量在迁移完一个完整Slot或遇到错误时，再进行状态的转换
+			// 只是尽量而已，还是有可能停在一个Slot内部
+
+			if t.CurrentState() == StateCancelling {
+				t.SetState(StateCancelled)
+				return
 			}
 
-			if pause {
+			// 暂停，sleep一会继续检查
+			if t.CurrentState() == StatePausing {
+				t.SetState(StatePaused)
+			}
+			if t.CurrentState() == StatePaused {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 
+			// Source节点或Target节点挂了，一般这时会遇到错误，不必
+			// 多增加一个ING状态
+			if t.CurrentState() == StateNodeFailure {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			// 正常运行
 			nkeys, err := t.migrateSlot(t.currSlot, 100)
 			if err != nil {
 				log.Printf("%s Migrate slot %d error, %d keys have done, %v\n",
@@ -161,35 +147,28 @@ begin:
 	}
 }
 
-func (t *MigrateTask) do(action ActionType, timeout time.Duration) error {
-	c := make(chan error)
-	timeoutChan := time.After(timeout)
+// 下面方法在MigrateManager中使用，需要原子操作
 
-	t.actionChan <- Action{action, c}
-	select {
-	case err := <-c:
-		return err
-	case <-timeoutChan:
-		return ErrActionTimeout
-	}
+func (t *MigrateTask) CurrentState() int32 {
+	return atomic.LoadInt32(&t.state)
 }
 
-func (t *MigrateTask) Pause() error {
-	err := t.do(ACTION_PAUSE, 1*time.Second)
-	return err
+func (t *MigrateTask) SetState(state int32) {
+	atomic.StoreInt32(&t.state, state)
 }
 
-func (t *MigrateTask) Resume() error {
-	err := t.do(ACTION_RESUME, 1*time.Second)
-	return err
+func (t *MigrateTask) ReplaceSourceNode(node *topo.Node) {
+	t.source.Store(*node)
 }
 
-func (t *MigrateTask) Cancel() error {
-	err := t.do(ACTION_CANCEL, 2*time.Second)
-	return err
+func (t *MigrateTask) ReplaceTargetNode(node *topo.Node) {
+	t.target.Store(*node)
 }
 
-func (t *MigrateTask) Reset() error {
-	err := t.do(ACTION_RESET, 1*time.Second)
-	return err
+func (t *MigrateTask) SourceNode() topo.Node {
+	return t.source.Load().(topo.Node)
+}
+
+func (t *MigrateTask) TargetNode() topo.Node {
+	return t.target.Load().(topo.Node)
 }

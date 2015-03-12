@@ -16,16 +16,15 @@ var (
 )
 
 type ClusterState struct {
-	version     int64                 // 更新消息处理次数
-	replicaSets []*topo.ReplicaSet    // 分片
-	nodeStates  map[string]*NodeState // 节点状态机
+	version    int64                 // 更新消息处理次数
+	cluster    *topo.Cluster         // 集群拓扑快照
+	nodeStates map[string]*NodeState // 节点状态机
 }
 
 func NewClusterState() *ClusterState {
 	cs := &ClusterState{
-		version:     0,
-		nodeStates:  map[string]*NodeState{},
-		replicaSets: []*topo.ReplicaSet{},
+		version:    0,
+		nodeStates: map[string]*NodeState{},
 	}
 	return cs
 }
@@ -67,49 +66,26 @@ func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 		}
 	}
 
-	// NB: 每次都干这个很低效，先这么着，看看效果
-	cs.BuildReplicaSets()
+	// NB：低效？
+	cs.BuildClusterSnapshot()
 }
 
-// 重建ReplicaSet
-func (cs *ClusterState) BuildReplicaSets() {
-	replicaSets := []*topo.ReplicaSet{}
+func (cs *ClusterState) GetClusterSnapshot() *topo.Cluster {
+	return cs.cluster
+}
 
-	// 先找出Master创建RS
+func (cs *ClusterState) BuildClusterSnapshot() {
+	// __CC__没什么意义，跟Region区别开即可
+	cluster := topo.NewCluster("__CC__")
 	for _, ns := range cs.nodeStates {
-		node := ns.node
-		// 已经处理过的挂掉的Master
-		if node.Fail && len(node.Ranges) == 0 {
-			continue
-		}
-		if node.IsMaster() {
-			rs := topo.NewReplicaSet()
-			rs.SetMaster(node)
-			replicaSets = append(replicaSets, rs)
-		}
+		cluster.AddNode(ns.node)
 	}
-
-	// 把Slave塞进去
-	for _, ns := range cs.nodeStates {
-		node := ns.node
-		if !node.IsMaster() {
-			master := cs.FindNode(node.ParentId)
-			// 出现这种情况，可能是有的地域没有汇报拓扑信息
-			// 初始化时或节点变更时可能出现
-			if master == nil {
-				fmt.Printf("parent not exist failed: %s %s\n", node.ParentId, node.Addr())
-				return
-			}
-
-			for _, rs := range replicaSets {
-				if rs.Master() == master {
-					rs.AddSlave(node)
-				}
-			}
-		}
+	err := cluster.BuildReplicaSets()
+	// 出现这种情况，很可能是启动时节点还不全
+	if err != nil {
+		return
 	}
-
-	cs.replicaSets = replicaSets
+	cs.cluster = cluster
 }
 
 func (cs *ClusterState) FindNode(nodeId string) *topo.Node {
@@ -139,12 +115,11 @@ func (cs *ClusterState) DebugDump() {
 }
 
 func (cs *ClusterState) FindReplicaSetByNode(nodeId string) *topo.ReplicaSet {
-	for _, rs := range cs.replicaSets {
-		if rs.HasNode(nodeId) {
-			return rs
-		}
+	if cs.cluster != nil {
+		return cs.cluster.FindReplicaSetByNode(nodeId)
+	} else {
+		return nil
 	}
-	return nil
 }
 
 /// helpers

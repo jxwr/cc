@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"errors"
+	"log"
 
 	"github.com/jxwr/cc/topo"
 )
@@ -24,9 +25,58 @@ func NewMigrateManager() *MigrateManager {
 	return m
 }
 
+func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Cluster) error {
+	fromNode := cluster.FindNode(task.SourceNode().Id)
+	toNode := cluster.FindNode(task.TargetNode().Id)
+
+	if fromNode == nil {
+		log.Printf("mig: source node not exist\n")
+		return nil
+	}
+	if toNode == nil {
+		log.Printf("mig: target node not exist\n")
+		return nil
+	}
+
+	if !fromNode.IsMaster() {
+		rs := cluster.FindReplicaSetByNode(fromNode.Id)
+		fromNode = rs.Master()
+		if fromNode == nil {
+			log.Println("mig: no source master node found")
+			return nil
+		}
+		task.ReplaceSourceNode(fromNode)
+	}
+
+	if !toNode.IsMaster() {
+		rs := cluster.FindReplicaSetByNode(toNode.Id)
+		toNode = rs.Master()
+		if toNode == nil {
+			log.Println("mig: no target master node found")
+			return nil
+		}
+		task.ReplaceSourceNode(toNode)
+	}
+
+	if task.CurrentState() == StateRunning || task.CurrentState() == StateNodeFailure {
+		if !fromNode.Fail || !toNode.Fail {
+			task.SetState(StateNodeFailure)
+		} else {
+			task.SetState(StateRunning)
+		}
+	}
+	return nil
+}
+
+func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
+	for _, task := range m.tasks {
+		m.handleTaskChange(task, cluster)
+	}
+}
+
 func (m *MigrateManager) FindTaskBySource(nodeId string) *MigrateTask {
 	for _, t := range m.tasks {
-		if t.From.Id == nodeId {
+		if t.SourceNode().Id == nodeId {
 			return t
 		}
 	}
@@ -37,7 +87,7 @@ func (m *MigrateManager) FindTasksByTarget(nodeId string) []*MigrateTask {
 	ts := []*MigrateTask{}
 
 	for _, t := range m.tasks {
-		if t.To.Id == nodeId {
+		if t.TargetNode().Id == nodeId {
 			ts = append(ts, t)
 		}
 	}
@@ -59,7 +109,7 @@ func (m *MigrateManager) AllTasks() []*MigrateTask {
 }
 
 func (m *MigrateManager) addTask(task *MigrateTask) error {
-	t := m.FindTaskBySource(task.From.Id)
+	t := m.FindTaskBySource(task.SourceNode().Id)
 	if t != nil {
 		return ErrMigrateAlreadyExist
 	}
@@ -79,7 +129,7 @@ func (m *MigrateManager) removeTask(task *MigrateTask) {
 	}
 }
 
-func (m *MigrateManager) Create(fromNode, toNode *topo.Node, ranges []Range) error {
+func (m *MigrateManager) CreateTask(fromNode, toNode *topo.Node, ranges []topo.Range) error {
 	task := m.FindTaskBySource(fromNode.Id)
 	if task != nil {
 		return ErrMigrateAlreadyExist
@@ -93,56 +143,4 @@ func (m *MigrateManager) RunTask(nodeId string) {
 	task := m.FindTaskBySource(nodeId)
 	task.Run()
 	m.removeTask(task)
-}
-
-func (m *MigrateManager) Pause(nodeId string) error {
-	task := m.FindTaskBySource(nodeId)
-	if task == nil {
-		return ErrMigrateNotExist
-	}
-	err := task.Pause()
-	return err
-}
-
-func (m *MigrateManager) Resume(nodeId string) error {
-	task := m.FindTaskBySource(nodeId)
-	if task == nil {
-		return ErrMigrateNotExist
-	}
-	err := task.Resume()
-	return err
-}
-
-func (m *MigrateManager) Cancel(nodeId string) error {
-	task := m.FindTaskBySource(nodeId)
-	if task == nil {
-		return ErrMigrateNotExist
-	}
-	err := task.Cancel()
-	if err != nil {
-		return err
-	}
-	m.removeTask(task)
-	return nil
-}
-
-func (m *MigrateManager) Reset(nodeId string) error {
-	task := m.FindTaskBySource(nodeId)
-	if task == nil {
-		return ErrMigrateNotExist
-	}
-	err := task.Reset()
-	return err
-}
-
-func (m *MigrateManager) CancelAll(nodeId string) error {
-	tasks := m.AllTasks()
-	for _, task := range tasks {
-		err := task.Cancel()
-		if err != nil {
-			return err
-		}
-		m.removeTask(task)
-	}
-	return nil
 }

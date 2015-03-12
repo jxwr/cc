@@ -41,13 +41,17 @@ func (s *ReplicaSet) RegionNodes(region string) []*Node {
 }
 
 func (s *ReplicaSet) HasNode(nodeId string) bool {
+	return s.FindNode(nodeId) != nil
+}
+
+func (s *ReplicaSet) FindNode(nodeId string) *Node {
 	if nodeId == s.master.Id {
-		return true
+		return s.master
 	}
 	for _, node := range s.slaves {
 		if nodeId == node.Id {
-			return true
+			return node
 		}
 	}
-	return false
+	return nil
 }

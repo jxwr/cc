@@ -17,15 +17,7 @@ func TestCreate(t *testing.T) {
 	fromNode := topo.NewNode("127.0.0.1", 7000).SetId(fromId)
 	toNode := topo.NewNode("127.0.0.1", 7002).SetId(toId)
 
-	m.Create(fromNode, toNode, []Range{Range{0, 40}})
+	task := m.CreateTask(fromNode, toNode, []Range{Range{0, 40}})
 
 	go m.RunTask(fromId)
-
-	fmt.Println("=======")
-	time.Sleep(3 * time.Second)
-	fmt.Println("pause:", m.Pause(fromId))
-	time.Sleep(3 * time.Second)
-	fmt.Println("resume:", m.Resume(fromId))
-	fmt.Println("cancel:", m.Cancel(fromId))
-	fmt.Println("resume:", m.Resume(fromId))
 }
