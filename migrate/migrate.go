@@ -32,13 +32,13 @@ type MigrateTask struct {
 	state          int32
 }
 
-func NewMigrateTask(fromNode, toNode *topo.Node, ranges []topo.Range) *MigrateTask {
+func NewMigrateTask(sourceRS, targetRS *topo.ReplicaSet, ranges []topo.Range) *MigrateTask {
 	t := &MigrateTask{
 		Ranges: ranges,
 		state:  StateRunning,
 	}
-	t.ReplaceSourceNode(fromNode)
-	t.ReplaceTargetNode(toNode)
+	t.ReplaceSourceReplicaSet(sourceRS)
+	t.ReplaceTargetReplicaSet(targetRS)
 	return t
 }
 
@@ -157,18 +157,26 @@ func (t *MigrateTask) SetState(state int32) {
 	atomic.StoreInt32(&t.state, state)
 }
 
-func (t *MigrateTask) ReplaceSourceNode(node *topo.Node) {
-	t.source.Store(*node)
+func (t *MigrateTask) ReplaceSourceReplicaSet(rs *topo.ReplicaSet) {
+	t.source.Store(rs)
 }
 
-func (t *MigrateTask) ReplaceTargetNode(node *topo.Node) {
-	t.target.Store(*node)
+func (t *MigrateTask) ReplaceTargetReplicaSet(rs *topo.ReplicaSet) {
+	t.target.Store(rs)
 }
 
-func (t *MigrateTask) SourceNode() topo.Node {
-	return t.source.Load().(topo.Node)
+func (t *MigrateTask) SourceReplicaSet() *topo.ReplicaSet {
+	return t.source.Load().(*topo.ReplicaSet)
 }
 
-func (t *MigrateTask) TargetNode() topo.Node {
-	return t.target.Load().(topo.Node)
+func (t *MigrateTask) TargetReplicaSet() *topo.ReplicaSet {
+	return t.target.Load().(*topo.ReplicaSet)
+}
+
+func (t *MigrateTask) SourceNode() *topo.Node {
+	return t.SourceReplicaSet().Master()
+}
+
+func (t *MigrateTask) TargetNode() *topo.Node {
+	return t.TargetReplicaSet().Master()
 }

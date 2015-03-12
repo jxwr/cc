@@ -5,5 +5,6 @@ import (
 )
 
 var (
-	ErrNodeNotExist = errors.New("node not exist")
+	ErrNodeNotExist            = errors.New("node not exist")
+	ErrClusterSnapshotNotReady = errors.New("cluster snapshot not ready")
 )
