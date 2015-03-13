@@ -18,7 +18,7 @@ var (
 	ErrNoSeed           = errors.New("inspector: no seed node found")
 	ErrInvalidTag       = errors.New("inspector: invalid tag")
 	ErrNodeNotExist     = errors.New("inspector: node not exist")
-	ErrNodesInfoNotSame = errors.New("inspector: 'cluster nodes' info returned by seeds are different")
+	ErrNodesInfoNotSame = errors.New("inspector: cluster nodes info of seeds are different")
 )
 
 type Inspector struct {

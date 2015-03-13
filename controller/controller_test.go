@@ -24,7 +24,7 @@ func TestUpdateRegion(t *testing.T) {
 		cmd := &command.MigrateCommand{
 			"1c11d8d88e7d2ac9e0bb9bb1a1208e06468cd9e0",
 			"5f674075196119c0d94037583b8a4a9a0e902dd5",
-			[]topo.Range{topo.Range{6000, 6010}},
+			[]topo.Range{topo.Range{6010, 6020}},
 		}
 		fmt.Println("=====", "migrate command", "=====")
 		c.ProcessCommand(cmd, 2*time.Second)

@@ -47,19 +47,25 @@ func (t *MigrateTask) TaskName() string {
 }
 
 func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
+	rs := t.SourceReplicaSet()
 	sourceNode := t.SourceNode()
 	targetNode := t.TargetNode()
 
-	err := redis.SetSlot(sourceNode.Addr(), slot, redis.SLOT_MIGRATING, targetNode.Id)
-	if err != nil {
-		if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
-			log.Printf("%s %s is not the owner of hash slot %d\n",
-				t.TaskName(), sourceNode.Id, slot)
-			return 0, nil
+	// 需要将Source分片的所有节点标记为MIGRATING，最大限度避免从地域的读造成的数据不一致
+	// 这样操作降低问题的严重性，但由于是异步同步数据，读取到旧数据还是有小概率发生
+	for _, node := range rs.AllNodes() {
+		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_MIGRATING, targetNode.Id)
+		if err != nil {
+			if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
+				log.Printf("%s %s is not the owner of hash slot %d\n",
+					t.TaskName(), sourceNode.Id, slot)
+				return 0, nil
+			}
+			return 0, err
 		}
-		return 0, err
 	}
-	err = redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_IMPORTING, sourceNode.Id)
+
+	err := redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_IMPORTING, sourceNode.Id)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "ERR I'm already the owner of hash slot") {
 			log.Printf("%s %s already the owner of hash slot %d\n",
@@ -88,10 +94,22 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 		}
 		if len(keys) == 0 {
 			// 迁移完成，设置slot归属到新节点，该操作自动清理IMPORTING和MIGRATING状态
-			err = redis.SetSlot(sourceNode.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
+			// 如果设置的是Source节点，设置slot归属时，Redis会确保该slot中已无剩余的key
+			// 即便slot不属于这个节点，该操作也会成功
+			rs := t.SourceReplicaSet()
+			// 首先更新Master节点，主的slot状态会被Controller看见
+			err = redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 			if err != nil {
 				return nkeys, err
 			}
+			// 清理从节点的MIGRATING状态
+			for _, node := range rs.Slaves() {
+				err = redis.SetSlot(node.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
+				if err != nil {
+					return nkeys, err
+				}
+			}
+			// 更新slot在目标节点上的归属，该操作增加Epoch，进而广播出去
 			err = redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 			if err != nil {
 				return nkeys, err
