@@ -30,8 +30,27 @@ func nodeStateServer(ws *websocket.Conn) {
 	log.Println("Websocket closed")
 }
 
+func migrateStateServer(ws *websocket.Conn) {
+	callback := func(ns interface{}) bool {
+		data, err := json.Marshal(ns)
+		if err != nil {
+			return false
+		}
+		_, err = io.Copy(ws, bytes.NewReader(data))
+		if err != nil {
+			return false
+		}
+		return true
+	}
+
+	quitCh := streams.MigrateStateStream.Sub(callback)
+	<-quitCh
+	log.Println("Websocket closed")
+}
+
 func RunWebsockServer(bindAddr string) {
 	http.Handle("/node/state", websocket.Handler(nodeStateServer))
+	http.Handle("/migrate/state", websocket.Handler(migrateStateServer))
 
 	err := http.ListenAndServe(bindAddr, nil)
 	if err != nil {

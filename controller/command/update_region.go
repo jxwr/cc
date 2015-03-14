@@ -11,7 +11,7 @@ type UpdateRegionCommand struct {
 	Nodes  []*topo.Node
 }
 
-func (self UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
+func (self *UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	// 更新Cluster拓扑
 	cs := c.ClusterState
 	cs.UpdateRegionNodes(self.Region, self.Nodes)

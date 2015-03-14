@@ -10,10 +10,21 @@ type NodeStateStreamData struct {
 	Version int64
 }
 
+type MigrateStateStreamData struct {
+	SourceId       string
+	TargetId       string
+	State          string
+	Ranges         []topo.Range
+	CurrRangeIndex int
+	CurrSlot       int
+}
+
 var (
-	NodeStateStream = NewStream("NodeStateStream", 4096)
+	NodeStateStream    = NewStream("NodeStateStream", 4096)
+	MigrateStateStream = NewStream("MigrateStateStream", 4096)
 )
 
 func StartAllStreams() {
 	go NodeStateStream.Run()
+	go MigrateStateStream.Run()
 }

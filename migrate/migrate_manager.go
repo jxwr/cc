@@ -129,12 +129,8 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 	}
 
 	// 只有这两种状态可进行自动切换
-	if task.CurrentState() == StateRunning || task.CurrentState() == StateNodeFailure {
-		if !fromNode.Fail || !toNode.Fail {
-			task.SetState(StateNodeFailure)
-		} else {
-			task.SetState(StateRunning)
-		}
+	if fromNode.Fail || toNode.Fail {
+		task.SetState(StateCancelling)
 	}
 	return nil
 }

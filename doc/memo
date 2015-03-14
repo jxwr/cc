@@ -392,3 +392,10 @@ fromNode := cluster.FindNode(task.From.Id)
 toNode := cluster.FindNode(task.To.Id)
 // if not exist, exception
 
+# 2015/03/15
+
+迁移任务逻辑似乎错了。
+
+迁移过程中，如果节点挂了，在Failover之后，无论是源节点还是目标节点，slot信息其实都已经丢失了，除非我们缓存一份之前的拓扑关系，或者根据Range来查找故障节点属于哪个新节点。其实都不可靠。
+
+如果简单一点，遇到故障时，直接取消该迁移任务，然后根据集群信息重建迁移任务。将问题的复杂性抛给迁移任务重建。

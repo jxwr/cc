@@ -95,16 +95,20 @@ var (
 
 		// 如果AutoFailover没开，且不是执行Failover的信号
 		if !meta.AutoFailover() && ctx.Input.Command != CMD_FAILOVER_BEGIN_SIGNAL {
+			log.Println("Check constraint failed, autofailover off or no FL begin signal")
 			return false
 		}
 
 		rs := cs.FindReplicaSetByNode(ns.Id())
 		if rs == nil {
+			log.Println("Check constraint failed, can not find replicaset by the failure node")
 			return false
 		}
 		// Region至少还有一个节点
 		localRegionNodes := rs.RegionNodes(ns.node.Region)
 		if len(localRegionNodes) < 2 {
+			log.Printf("Check constraint failed, %s region nodes %d < 2\n",
+				ns.node.Region, len(localRegionNodes))
 			return false
 		}
 		// 最多一个故障节点(FAIL或不处于Running状态)
@@ -114,6 +118,7 @@ var (
 			}
 			nodeState := cs.FindNodeState(node.Id)
 			if node.Fail || nodeState.CurrentState() != StateRunning {
+				log.Println("Check constraint failed, more than one failure node")
 				return false
 			}
 		}

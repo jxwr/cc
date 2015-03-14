@@ -5,11 +5,73 @@ var log = console.log;
 
 var openingObserver = Rx.Observer.create(function() { console.log('Opening socket'); });
 var closingObserver = Rx.Observer.create(function() { console.log('Closing socket'); });
-var socket = Rx.DOM.fromWebSocket(
+
+var stateSocket = Rx.DOM.fromWebSocket(
   HOST +'/node/state', null, openingObserver, closingObserver);
-var RxNodeState = socket.map(function(e){ return JSON.parse(e.data); });
+var RxNodeState = stateSocket.map(function(e){ return JSON.parse(e.data); });
+
+var migrateSocket = Rx.DOM.fromWebSocket(
+  HOST +'/migrate/state', null, openingObserver, closingObserver);
+var RxMigration = migrateSocket.map(function(e){ return JSON.parse(e.data); });
 
 /// react
+
+var MigratingRow = React.createClass({
+  render: function() {
+    var obj = this.props.obj;
+    return (
+      <tr className="nodeRow">
+        <td>{obj.left}-{obj.right}</td>
+        <td>{obj.state}</td>
+      </tr>
+    );
+  }
+});
+
+var MigrationTable = React.createClass({
+  render: function() {
+    var mig = this.props.mig;
+    var name = mig.SourceId.substring(0,6)+' to '+mig.TargetId.substring(0,6);
+    var rows = mig.Ranges.map(function(range, idx){
+      var obj = {left: range.Left, right: range.Right};
+      if (idx > mig.CurrRangeIndex)
+        obj.state = "Todo";
+      if (idx < mig.CurrRangeIndex)
+        obj.state = "Done";
+      if (idx == mig.CurrRangeIndex)
+        obj.state = mig.State
+      return <MigratingRow obj={obj} />;
+    });
+    return (
+      <div className="migrateTable">
+        <table className="nodeTable">
+        <tr className="nodeRow">
+        <td>{name}</td>
+        <td>{mig.CurrSlot}</td>
+        </tr>
+        {rows}
+      </table>
+      </div>
+    );
+  }
+});
+
+var MigrationPanel = React.createClass({
+  render: function() {
+    var migMap = this.props.migMap;
+    var keys = _.keys(migMap).sort();
+    var migs = keys.map(function (key) {
+      return (
+        <MigrationTable mig={migMap[key]} />
+      );
+    });
+    return (
+      <div className="migrationPanel">
+        {migs}
+      </div>
+    );
+  }
+});
 
 /// NodeRangeState
 
@@ -20,7 +82,7 @@ var NodeRangeBarItem = React.createClass({
     var style = {
       left: range.Left*width/16384,
       width: (range.Right-range.Left+1)*width/16384,
-      backgroundColor: "green"
+      backgroundColor: "#00BB00"
     };
     return (
         <div className="nodeRangeBarItem" style={style}>
@@ -78,6 +140,7 @@ var NodeStateRow = React.createClass({
     var FAIL = node.Fail ? "FAIL":"OK";
     var READ = node.Readable ? "Read":"-";
     var WRITE = node.Writable ? "Write":"-";
+    var MIGRATING = node.Migrating ? "Migrating":"-";
     return (
         <tr className="nodeRow">
           <td>{node.State}</td>
@@ -88,6 +151,7 @@ var NodeStateRow = React.createClass({
           <td>{node.Role}</td>
           <td>{node.Ip}:{node.Port}</td>
           <td>{node.Id.substring(0,6)}</td>
+          <td>{MIGRATING}</td>
           <td>{node.Version}</td>
         </tr>
     );
@@ -127,19 +191,34 @@ var Main = React.createClass({
       function (){
         console.log('Closed');
       });
+
+    RxMigration.subscribe(
+      function (obj) {
+        var migMap = self.props.migMap;
+        migMap[obj.SourceId] = obj;
+        self.setState({migMap: migMap});
+      },
+      function (e) {
+        console.log('Error: ', e);
+      },
+      function (){
+        console.log('Closed');
+      });
   },
   render: function() {
     var nodes = this.props.nodes;
+    var migMap = this.props.migMap;
     return (
       <div className="Main">
         <NodeStateTable nodes={nodes} />
         <NodeRangeTable nodes={nodes} />
+        <MigrationPanel migMap={migMap} />
       </div>
     );
   }
 });
 
 React.render(
-    <Main nodes={{}} />,
+    <Main nodes={{}} migMap={{}} />,
     document.getElementById('content')
 );

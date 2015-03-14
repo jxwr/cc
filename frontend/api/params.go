@@ -17,3 +17,9 @@ type RegionSnapshotParams struct {
 	PostTime int64        `json:"posttime"`
 	Nodes    []*topo.Node `json:"nodes"`
 }
+
+type MigrateParams struct {
+	SourceId string   `json:"source_id"`
+	TargetId string   `json:"target_id"`
+	Ranges   []string `json:"ranges"`
+}

@@ -83,6 +83,7 @@ func (cs *ClusterState) BuildClusterSnapshot() {
 	err := cluster.BuildReplicaSets()
 	// 出现这种情况，很可能是启动时节点还不全
 	if err != nil {
+		log.Println("Build cluster snapshot failed", err)
 		return
 	}
 	cs.cluster = cluster
@@ -240,5 +241,5 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 
 	// 打开新主的写入，因为给slave加Write没有效果
 	// 所以即便Failover失败，也不会产生错误
-	redis.DisableWrite(new.Addr(), new.Id())
+	redis.EnableWrite(new.Addr(), new.Id())
 }

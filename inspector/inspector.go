@@ -144,6 +144,10 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			return ErrNodesInfoNotSame
 		}
 
+		if s.Migrating {
+			node.Migrating = true
+		}
+
 		if s.PFail {
 			node.IncrPFailCount()
 		}

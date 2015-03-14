@@ -37,7 +37,7 @@ func (c *Controller) ProcessCommand(command Command, timeout time.Duration) (res
 	resultCh := make(chan Result)
 	errorCh := make(chan error)
 
-	c.ClusterState.DebugDump()
+	//c.ClusterState.DebugDump()
 
 	go func() {
 		result, err := command.Execute(c)

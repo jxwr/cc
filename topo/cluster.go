@@ -106,7 +106,7 @@ func (self *Cluster) BuildReplicaSets() error {
 				return ErrInvalidParentId
 			}
 
-			for _, rs := range self.replicaSets {
+			for _, rs := range replicaSets {
 				if rs.Master() == master {
 					rs.AddSlave(s)
 				}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jxwr/cc/redis"
+	"github.com/jxwr/cc/streams"
 	"github.com/jxwr/cc/topo"
 )
 
@@ -17,8 +18,17 @@ const (
 	StatePaused
 	StateCancelling
 	StateCancelled
-	StateNodeFailure
+	StateDone
 )
+
+var stateNames = map[int32]string{
+	StateRunning:    "Migrating",
+	StatePausing:    "Pausing",
+	StatePaused:     "Paused",
+	StateCancelling: "Cancelling",
+	StateCancelled:  "Cancelled",
+	StateDone:       "Done",
+}
 
 type MigrateTask struct {
 	// Node是创建迁移任务时的一个快照，它的信息可能会被更新
@@ -50,6 +60,9 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	rs := t.SourceReplicaSet()
 	sourceNode := t.SourceNode()
 	targetNode := t.TargetNode()
+
+	// for test
+	time.Sleep(50 * time.Millisecond)
 
 	// 需要将Source分片的所有节点标记为MIGRATING，最大限度避免从地域的读造成的数据不一致
 	// 这样操作降低问题的严重性，但由于是异步同步数据，读取到旧数据还是有小概率发生
@@ -121,11 +134,24 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	return nkeys, nil
 }
 
+func (t *MigrateTask) streamPub() {
+	data := &streams.MigrateStateStreamData{
+		SourceId:       t.SourceNode().Id,
+		TargetId:       t.TargetNode().Id,
+		State:          stateNames[t.CurrentState()],
+		Ranges:         t.Ranges,
+		CurrRangeIndex: t.currRangeIndex,
+		CurrSlot:       t.currSlot,
+	}
+	streams.MigrateStateStream.Pub(data)
+}
+
 func (t *MigrateTask) Run() {
 	for i, r := range t.Ranges {
 		t.currRangeIndex = i
 		t.currSlot = r.Left
 		for t.currSlot < r.Right {
+			t.streamPub()
 			// 尽量在迁移完一个完整Slot或遇到错误时，再进行状态的转换
 			// 只是尽量而已，还是有可能停在一个Slot内部
 
@@ -143,13 +169,6 @@ func (t *MigrateTask) Run() {
 				continue
 			}
 
-			// Source节点或Target节点挂了，一般这时会遇到错误，不必
-			// 多增加一个ING状态
-			if t.CurrentState() == StateNodeFailure {
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-
 			// 正常运行
 			nkeys, err := t.migrateSlot(t.currSlot, 100)
 			if err != nil {
@@ -163,6 +182,8 @@ func (t *MigrateTask) Run() {
 			}
 		}
 	}
+	t.SetState(StateDone)
+	t.streamPub()
 }
 
 // 下面方法在MigrateManager中使用，需要原子操作
