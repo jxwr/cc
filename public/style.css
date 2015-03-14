@@ -51,7 +51,7 @@ body {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     color: #444;
-    background: #eee;
+    background: url("http://graygrids.com/demos/snippets/startup-fw-pricing-table/assets/img/bg.jpg");
 }
 
 h1 {
@@ -83,4 +83,18 @@ h1 {
 
 .nodeTable .Fail {
     color: red;
+}
+
+.nodeRangeBar {
+    float: left;
+    position: relative;
+    width: 1024px;
+    height: 10px;
+    background-color: lightgrey;
+    margin: 1px;
+}
+
+.nodeRangeBar .nodeRangeBarItem {
+    position: absolute;
+    height: 10px;
 }
