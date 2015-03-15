@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/topo"
 )
 
@@ -130,7 +131,9 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 
 	// 如果是源节点挂了，直接取消，等待主从切换之后重建任务
 	if fromNode.Fail {
+		log.Printf("mig: cancel migration task %s\n", task.TaskName())
 		task.SetState(StateCancelling)
+		return nil
 	}
 	// 如果目标节点挂了，需要记录当前的ReplicaSet，观察等待主从切换
 	if toNode.Fail {
@@ -164,39 +167,50 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 				return nil
 			}
 			task.ReplaceTargetReplicaSet(rs)
-			log.Printf("mig: recover dead target node to %s\n", rs.Master())
+			log.Printf("mig: recover dead target node to %s()\n",
+				rs.Master().Id, rs.Master().Addr())
 		}
 	}
 	return nil
 }
 
 func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
+	// 处理主节点的迁移任务重建
 	for _, node := range cluster.AllNodes() {
-		// 首先处理主节点的迁移任务重建，（主，OK）
 		if node.IsMaster() && !node.Fail && len(node.Migrating) != 0 {
 			// 如果已经存在该节点的迁移任务，先跳过，等结束后再处理
 			task := m.FindTaskBySource(node.Id)
 			if task != nil {
 				continue
 			}
+
 			log.Printf("Will recover migrating task for %s\n", node.Id)
+
 			for id, slots := range node.Migrating {
+				// 根据slot生成ranges
 				ranges := []topo.Range{}
 				for _, slot := range slots {
-					ranges = append(ranges, topo.Range{Left: slot, Right: slot})
+					// 如果是自己
+					if id == node.Id {
+						redis.SetSlot(node.Addr(), slot, redis.SLOT_STABLE, "")
+					} else {
+						ranges = append(ranges, topo.Range{Left: slot, Right: slot})
+					}
 				}
+
 				rs := cluster.FindReplicaSetByNode(id)
 				if rs.FindNode(id).IsStandbyMaster() {
 					continue
 				}
+
 				task, err := m.CreateTask(node.Id, rs.Master().Id, ranges, cluster)
 				if err != nil {
 					log.Println("Can not recover migrate task,", err)
 				} else {
-					go func() {
-						task.Run()
-						m.RemoveTask(task)
-					}()
+					go func(t *MigrateTask) {
+						t.Run()
+						m.RemoveTask(t)
+					}(task)
 				}
 			}
 		}

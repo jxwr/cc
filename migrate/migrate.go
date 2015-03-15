@@ -160,6 +160,7 @@ func (t *MigrateTask) Run() {
 
 			if t.CurrentState() == StateCancelling {
 				t.SetState(StateCancelled)
+				t.streamPub()
 				return
 			}
 
