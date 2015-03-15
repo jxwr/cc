@@ -126,6 +126,17 @@ var (
 		return true
 	}
 
+	MasterGotoOfflineConstraint = func(i interface{}) bool {
+		ctx := i.(StateContext)
+		ns := ctx.NodeState
+
+		// 已经被处理过了
+		if ns.node.IsStandbyMaster() {
+			return true
+		}
+		return false
+	}
+
 	SlaveFailoverHandler = func(i interface{}) {
 		ctx := i.(StateContext)
 		cs := ctx.ClusterState
@@ -151,6 +162,24 @@ var (
 			go ns.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 		} else {
 			go cs.RunFailoverTask(ns.Id(), masterId)
+		}
+	}
+
+	MasterGotoOfflineHandler = func(i interface{}) {
+		ctx := i.(StateContext)
+		cs := ctx.ClusterState
+		ns := ctx.NodeState
+
+		for _, n := range cs.AllNodeStates() {
+			resp, err := redis.DisableRead(n.Addr(), ns.Id())
+			if err == nil {
+				log.Println("Disable read of the already dead master:", resp, ns.Id())
+			}
+			resp, err = redis.DisableWrite(n.Addr(), ns.Id())
+			if err == nil {
+				log.Println("Disable read of the already dead master:", resp, ns.Id())
+				break
+			}
 		}
 	}
 )
@@ -229,7 +258,7 @@ func init() {
 		Apply:      nil,
 	})
 
-	// (b1) 主节点，Autofailover或手动继续执行Failover
+	// (b10) 主节点，Autofailover或手动继续执行Failover
 	RedisNodeStateModel.AddTransition(&fsm.Transition{
 		From:       StateWaitFailoverBegin,
 		To:         StateWaitFailoverEnd,
@@ -237,6 +266,16 @@ func init() {
 		Priority:   0,
 		Constraint: MasterAutoFailoverConstraint,
 		Apply:      MasterFailoverHandler,
+	})
+
+	// (b11) 主节点，已经处理过了
+	RedisNodeStateModel.AddTransition(&fsm.Transition{
+		From:       StateWaitFailoverBegin,
+		To:         StateOffline,
+		Input:      Input{ANY, ANY, FAIL, M, ANY},
+		Priority:   0,
+		Constraint: MasterGotoOfflineConstraint,
+		Apply:      MasterGotoOfflineHandler,
 	})
 
 	// (b2) 从节点，AutoFailover或手动继续执行Failover
