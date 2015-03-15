@@ -19,15 +19,17 @@ const (
 	StateCancelling
 	StateCancelled
 	StateDone
+	StateTargetNodeFailure
 )
 
 var stateNames = map[int32]string{
-	StateRunning:    "Migrating",
-	StatePausing:    "Pausing",
-	StatePaused:     "Paused",
-	StateCancelling: "Cancelling",
-	StateCancelled:  "Cancelled",
-	StateDone:       "Done",
+	StateRunning:           "Migrating",
+	StatePausing:           "Pausing",
+	StatePaused:            "Paused",
+	StateCancelling:        "Cancelling",
+	StateCancelled:         "Cancelled",
+	StateDone:              "Done",
+	StateTargetNodeFailure: "TargetNodeFailure",
 }
 
 type MigrateTask struct {
@@ -35,11 +37,12 @@ type MigrateTask struct {
 	// 这里仅使用Node的Ip,Port,Id的信息，其他信息不可用
 	Ranges []topo.Range
 
-	source         atomic.Value
-	target         atomic.Value
-	currRangeIndex int // current range index
-	currSlot       int // current slot
-	state          int32
+	source           atomic.Value
+	target           atomic.Value
+	currRangeIndex   int // current range index
+	currSlot         int // current slot
+	state            int32
+	backupReplicaSet *topo.ReplicaSet
 }
 
 func NewMigrateTask(sourceRS, targetRS *topo.ReplicaSet, ranges []topo.Range) *MigrateTask {
@@ -182,8 +185,17 @@ func (t *MigrateTask) Run() {
 			}
 		}
 	}
+	t.currSlot--
 	t.SetState(StateDone)
 	t.streamPub()
+}
+
+func (t *MigrateTask) BackupReplicaSet() *topo.ReplicaSet {
+	return t.backupReplicaSet
+}
+
+func (t *MigrateTask) SetBackupReplicaSet(rs *topo.ReplicaSet) {
+	t.backupReplicaSet = rs
 }
 
 // 下面方法在MigrateManager中使用，需要原子操作

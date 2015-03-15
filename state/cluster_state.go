@@ -236,7 +236,22 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 	}
 
 	if roleChanged {
-		log.Printf("New master %s(%s) role change success", node.Id, node.Addr())
+		log.Printf("New master %s(%s) role change success\n", node.Id, node.Addr())
+		// 处理迁移过程中的异常问题，将故障节点（旧主）的slots转移到新主上
+		oldNode := cs.FindNode(oldMasterId)
+		if oldNode.Fail && oldNode.IsMaster() && len(oldNode.Ranges) != 0 {
+			for _, r := range oldNode.Ranges {
+				log.Printf("Fix migration task %d-%d\n", r.Left, r.Right)
+				for i := r.Left; i <= r.Right; i++ {
+					for _, ns := range cs.AllNodeStates() {
+						if ns.node.IsMaster() {
+							log.Printf("setslot %d node %s", i, new.Id())
+							redis.SetSlot(ns.Addr(), i, redis.SLOT_NODE, new.Id())
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// 打开新主的写入，因为给slave加Write没有效果

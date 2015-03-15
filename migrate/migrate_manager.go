@@ -128,9 +128,44 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 		task.ReplaceTargetReplicaSet(rs)
 	}
 
-	// 只有这两种状态可进行自动切换
-	if fromNode.Fail || toNode.Fail {
+	// 如果是源节点挂了，直接取消，等待主从切换之后重建任务
+	if fromNode.Fail {
 		task.SetState(StateCancelling)
+	}
+	// 如果目标节点挂了，需要记录当前的ReplicaSet，观察等待主从切换
+	if toNode.Fail {
+		if task.CurrentState() == StateRunning {
+			task.SetState(StateTargetNodeFailure)
+			task.SetBackupReplicaSet(task.TargetReplicaSet())
+		}
+	} else {
+		task.SetState(StateRunning)
+		task.SetBackupReplicaSet(nil)
+	}
+	// 如果目标节点已经进行了Failover(重新选主)，我们需要找到对应的新主
+	// 方法是从BackupReplicaSet里取一个从，来查找
+	if toNode.IsStandbyMaster() {
+		brs := task.BackupReplicaSet()
+		if brs == nil {
+			task.SetState(StateCancelling)
+			log.Println("mig: no backup replicaset found, controller maybe restarted after target master failure, can not do recovery.")
+			return nil
+		}
+		slaves := brs.Slaves()
+		if len(slaves) == 0 {
+			task.SetState(StateCancelling)
+			log.Println("mig: the dead target master has no slave, cannot do recovery.")
+			return nil
+		} else {
+			rs := cluster.FindReplicaSetByNode(slaves[0].Id)
+			if rs == nil {
+				task.SetState(StateCancelling)
+				log.Println("mig: no replicaset for slave of dead target master found")
+				return nil
+			}
+			task.ReplaceTargetReplicaSet(rs)
+			log.Printf("mig: recover dead target node to %s\n", rs.Master())
+		}
 	}
 	return nil
 }
