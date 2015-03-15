@@ -136,6 +136,37 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 }
 
 func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
+	for _, node := range cluster.AllNodes() {
+		// 首先处理主节点的迁移任务重建，（主，OK）
+		if node.IsMaster() && !node.Fail && len(node.Migrating) != 0 {
+			// 如果已经存在该节点的迁移任务，先跳过，等结束后再处理
+			task := m.FindTaskBySource(node.Id)
+			if task != nil {
+				continue
+			}
+			log.Printf("Will recover migrating task for %s\n", node.Id)
+			for id, slots := range node.Migrating {
+				ranges := []topo.Range{}
+				for _, slot := range slots {
+					ranges = append(ranges, topo.Range{Left: slot, Right: slot})
+				}
+				rs := cluster.FindReplicaSetByNode(id)
+				if rs.FindNode(id).IsStandbyMaster() {
+					continue
+				}
+				task, err := m.CreateTask(node.Id, rs.Master().Id, ranges, cluster)
+				if err != nil {
+					log.Println("Can not recover migrate task,", err)
+				} else {
+					go func() {
+						task.Run()
+						m.RemoveTask(task)
+					}()
+				}
+			}
+		}
+	}
+
 	for _, task := range m.tasks {
 		m.handleTaskChange(task, cluster)
 	}

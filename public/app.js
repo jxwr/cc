@@ -140,7 +140,6 @@ var NodeStateRow = React.createClass({
     var FAIL = node.Fail ? "FAIL":"OK";
     var READ = node.Readable ? "Read":"-";
     var WRITE = node.Writable ? "Write":"-";
-    var MIGRATING = node.Migrating ? "Migrating":"-";
     return (
         <tr className="nodeRow">
           <td>{node.State}</td>
@@ -151,7 +150,6 @@ var NodeStateRow = React.createClass({
           <td>{node.Role}</td>
           <td>{node.Ip}:{node.Port}</td>
           <td>{node.Id.substring(0,6)}</td>
-          <td>{MIGRATING}</td>
           <td>{node.Version}</td>
         </tr>
     );

@@ -150,7 +150,7 @@ func (t *MigrateTask) Run() {
 	for i, r := range t.Ranges {
 		t.currRangeIndex = i
 		t.currSlot = r.Left
-		for t.currSlot < r.Right {
+		for t.currSlot <= r.Right {
 			t.streamPub()
 			// 尽量在迁移完一个完整Slot或遇到错误时，再进行状态的转换
 			// 只是尽量而已，还是有可能停在一个Slot内部

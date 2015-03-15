@@ -18,7 +18,8 @@ type Node struct {
 	Port      int
 	Id        string
 	ParentId  string
-	Migrating bool
+	Migrating map[string][]int
+	Importing map[string][]int
 	Readable  bool
 	Writable  bool
 	PFail     bool
@@ -56,7 +57,13 @@ func NewNode(ip string, port int) *Node {
 		ip = ips[0].String()
 	}
 
-	node := Node{Ip: ip, Port: port, Ranges: []Range{}}
+	node := Node{
+		Ip:        ip,
+		Port:      port,
+		Ranges:    []Range{},
+		Migrating: map[string][]int{},
+		Importing: map[string][]int{},
+	}
 	return &node
 }
 
@@ -74,8 +81,13 @@ func (s *Node) SetParentId(pid string) *Node {
 	return s
 }
 
-func (s *Node) SetMigrating(val bool) *Node {
-	s.Migrating = val
+func (s *Node) AddMigrating(nodeId string, slot int) *Node {
+	s.Migrating[nodeId] = append(s.Migrating[nodeId], slot)
+	return s
+}
+
+func (s *Node) AddImporting(nodeId string, slot int) *Node {
+	s.Importing[nodeId] = append(s.Importing[nodeId], slot)
 	return s
 }
 
@@ -109,6 +121,10 @@ func (s *Node) IncrPFailCount() {
 
 func (s *Node) IsMaster() bool {
 	return s.Role == "master"
+}
+
+func (s *Node) IsStandbyMaster() bool {
+	return (s.Role == "master" && s.Fail && len(s.Ranges) == 0)
 }
 
 func (s *Node) SetRole(val string) *Node {

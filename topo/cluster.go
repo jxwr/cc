@@ -35,7 +35,7 @@ func (self *Cluster) AddNode(s *Node) {
 	}
 }
 
-func (self *Cluster) Nodes() []*Node {
+func (self *Cluster) AllNodes() []*Node {
 	return self.nodes
 }
 

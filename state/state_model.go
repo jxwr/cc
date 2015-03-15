@@ -316,7 +316,7 @@ func init() {
 			ctx := i.(StateContext)
 			ns := ctx.NodeState
 
-			if ns.node.Fail && len(ns.node.Ranges) == 0 {
+			if ns.node.IsStandbyMaster() {
 				return false
 			}
 			return true

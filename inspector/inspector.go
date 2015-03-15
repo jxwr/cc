@@ -44,7 +44,17 @@ func (self *Inspector) buildNode(line string) (*topo.Node, error) {
 	ranges := []string{}
 	for _, word := range xs[10:] {
 		if strings.HasPrefix(word, "[") {
-			node.SetMigrating(true)
+			word = word[1 : len(word)-1]
+			xs := strings.Split(word, "->-")
+			if len(xs) == 2 {
+				slot, _ := strconv.Atoi(xs[0])
+				node.AddMigrating(xs[1], slot)
+			}
+			xs = strings.Split(word, "-<-")
+			if len(xs) == 2 {
+				slot, _ := strconv.Atoi(xs[0])
+				node.AddImporting(xs[1], slot)
+			}
 			continue
 		}
 		ranges = append(ranges, word)
@@ -144,8 +154,11 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			return ErrNodesInfoNotSame
 		}
 
-		if s.Migrating {
-			node.Migrating = true
+		if len(s.Migrating) != 0 {
+			node.Migrating = s.Migrating
+		}
+		if len(s.Importing) != 0 {
+			node.Importing = s.Importing
 		}
 
 		if s.PFail {
