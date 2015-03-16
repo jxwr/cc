@@ -1,17 +1,18 @@
 /// rxjs websocket
 
-var HOST = 'ws://127.0.0.1:6201';
+var HTTP_HOST = 'http://127.0.0.1:6200';
+var WS_HOST = 'ws://127.0.0.1:6201';
 var log = console.log;
 
 var openingObserver = Rx.Observer.create(function() { console.log('Opening socket'); });
 var closingObserver = Rx.Observer.create(function() { console.log('Closing socket'); });
 
 var stateSocket = Rx.DOM.fromWebSocket(
-  HOST +'/node/state', null, openingObserver, closingObserver);
+  WS_HOST +'/node/state', null, openingObserver, closingObserver);
 var RxNodeState = stateSocket.map(function(e){ return JSON.parse(e.data); });
 
 var migrateSocket = Rx.DOM.fromWebSocket(
-  HOST +'/migrate/state', null, openingObserver, closingObserver);
+  WS_HOST +'/migrate/state', null, openingObserver, closingObserver);
 var RxMigration = migrateSocket.map(function(e){ return JSON.parse(e.data); });
 
 /// react
@@ -135,6 +136,29 @@ var NodeRangeTable = React.createClass({
 /// NodeStateTable
 
 var NodeStateRow = React.createClass({
+  toggleMode: function(action, perm) {
+    $.ajax({
+      url: HTTP_HOST+'/node/perm',
+      contentType: 'application/json',
+      type: "POST",
+      data: JSON.stringify({
+        node_id: this.props.node.Id,
+        action: action,
+        perm: perm
+      })});
+  },
+  enableRead: function() {
+    this.toggleMode('enable', 'read');
+  },
+  disableRead: function() {
+    this.toggleMode('disable', 'read');
+  },
+  enableWrite: function() {
+    this.toggleMode('enable', 'write');
+  },
+  disableWrite: function() {
+    this.toggleMode('disable', 'write');
+  },
   render: function() {
     var node = this.props.node;
     var FAIL = node.Fail ? "FAIL":"OK";
@@ -151,6 +175,12 @@ var NodeStateRow = React.createClass({
           <td>{node.Ip}:{node.Port}</td>
           <td>{node.Id.substring(0,6)}</td>
           <td>{node.Version}</td>
+          <td>
+            <button onClick={this.enableRead}>+r</button>
+            <button onClick={this.disableRead}>-r</button>
+            <button onClick={this.enableWrite}>+w</button>
+            <button onClick={this.disableWrite}>-w</button>
+          </td>
         </tr>
     );
   }

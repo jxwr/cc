@@ -23,3 +23,9 @@ type MigrateParams struct {
 	TargetId string   `json:"target_id"`
 	Ranges   []string `json:"ranges"`
 }
+
+type ToggleModeParams struct {
+	Action string `json:"action"`
+	Perm   string `json:"perm"`
+	NodeId string `json:"node_id"`
+}

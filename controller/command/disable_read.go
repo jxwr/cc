@@ -11,10 +11,16 @@ type DisableReadCommand struct {
 
 func (self *DisableReadCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	cs := c.ClusterState
-	node := cs.FindNode(self.NodeId)
-	if node == nil {
+	target := cs.FindNode(self.NodeId)
+	if target == nil {
 		return nil, ErrNodeNotExist
 	}
-	_, err := redis.DisableRead(node.Addr(), node.Id)
+	var err error
+	for _, ns := range cs.AllNodeStates() {
+		_, err = redis.DisableRead(ns.Addr(), target.Id)
+		if err == nil {
+			return nil, nil
+		}
+	}
 	return nil, err
 }

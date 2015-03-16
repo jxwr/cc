@@ -11,10 +11,16 @@ type EnableWriteCommand struct {
 
 func (self *EnableWriteCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	cs := c.ClusterState
-	node := cs.FindNode(self.NodeId)
-	if node == nil {
+	target := cs.FindNode(self.NodeId)
+	if target == nil {
 		return nil, ErrNodeNotExist
 	}
-	_, err := redis.EnableWrite(node.Addr(), node.Id)
+	var err error
+	for _, ns := range cs.AllNodeStates() {
+		_, err = redis.EnableWrite(ns.Addr(), target.Id)
+		if err == nil {
+			return nil, nil
+		}
+	}
 	return nil, err
 }

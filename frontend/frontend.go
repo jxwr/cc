@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ func NewFrontEnd(c *cc.Controller, httpBind, wsBind string) *FrontEnd {
 	fe.Router.Static("/ui", "./public")
 	fe.Router.POST(api.RegionSnapshotPath, fe.HandleRegionSnapshot)
 	fe.Router.POST(api.MigrateCreatePath, fe.HandleMigrateCreate)
+	fe.Router.POST(api.NodePermPath, fe.HandleToggleMode)
 
 	return fe
 }
@@ -49,6 +51,42 @@ func (fe *FrontEnd) HandleRegionSnapshot(c *gin.Context) {
 	}
 
 	result, err := fe.C.ProcessCommand(&cmd, 2*time.Second)
+	if err != nil {
+		c.JSON(500, api.FailureResponse{
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, result)
+}
+
+func (fe *FrontEnd) HandleToggleMode(c *gin.Context) {
+	var params api.ToggleModeParams
+	c.Bind(&params)
+
+	var cmd cc.Command
+	nodeId := params.NodeId
+
+	fmt.Println(params)
+
+	if params.Action == "enable" && params.Perm == "read" {
+		cmd = &command.EnableReadCommand{nodeId}
+	} else if params.Action == "disable" && params.Perm == "read" {
+		cmd = &command.DisableReadCommand{nodeId}
+	} else if params.Action == "enable" && params.Perm == "write" {
+		cmd = &command.EnableWriteCommand{nodeId}
+	} else if params.Action == "disable" && params.Perm == "write" {
+		cmd = &command.DisableWriteCommand{nodeId}
+	} else {
+		c.JSON(500, api.FailureResponse{
+			Message:     "Invalid params",
+			Description: fmt.Sprintf("%v", params),
+		})
+		return
+	}
+
+	result, err := fe.C.ProcessCommand(cmd, 2*time.Second)
 	if err != nil {
 		c.JSON(500, api.FailureResponse{
 			Message: err.Error(),
