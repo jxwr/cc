@@ -112,23 +112,31 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			// 迁移完成，设置slot归属到新节点，该操作自动清理IMPORTING和MIGRATING状态
 			// 如果设置的是Source节点，设置slot归属时，Redis会确保该slot中已无剩余的key
 			// 即便slot不属于这个节点，该操作也会成功
-			rs := t.SourceReplicaSet()
-			// 首先更新Master节点，主的slot状态会被Controller看见
-			err = redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_NODE, targetNode.Id)
-			if err != nil {
-				return nkeys, err
-			}
-			// 清理从节点的MIGRATING状态
-			for _, node := range rs.Slaves() {
+			// 更新slot在目标节点上的归属，该操作增加Epoch，进而广播出去
+			trs := t.TargetReplicaSet()
+			for _, node := range trs.Slaves() {
 				err = redis.SetSlot(node.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 				if err != nil {
 					return nkeys, err
 				}
 			}
-			// 更新slot在目标节点上的归属，该操作增加Epoch，进而广播出去
-			err = redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
+			err = redis.SetSlot(trs.Master().Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 			if err != nil {
 				return nkeys, err
+			}
+
+			srs := t.SourceReplicaSet()
+			// 首先更新Master节点，主的slot状态会被Controller看见
+			err = redis.SetSlot(srs.Master().Addr(), slot, redis.SLOT_NODE, targetNode.Id)
+			if err != nil {
+				return nkeys, err
+			}
+			// 清理从节点的MIGRATING状态
+			for _, node := range srs.Slaves() {
+				err = redis.SetSlot(node.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
+				if err != nil {
+					return nkeys, err
+				}
 			}
 			break
 		}

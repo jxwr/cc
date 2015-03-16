@@ -421,3 +421,52 @@ Case 0:
 此时就可能出现B和C都是主
 
 难点就是如何避免在数据迁移过程中出现的各种问题。尤其是，目标节点挂了时候。
+
+主地域所有节点挂了该如何恢复？只能将主搞到其他地域，做两次SetAsMaster切回去，这需要保证操作可靠，这本身就很难。
+
+# 2015/03/16
+
+- dirty_slots
+
+  /* 1) If the sender of the message is a master, and we detected that
+   *    the set of slots it claims changed, scan the slots to see if we
+   *    need to update our configuration. */
+  if (sender && nodeIsMaster(sender) && dirty_slots)
+  clusterUpdateSlotsConfigWith(sender,senderConfigEpoch,hdr->myslots);
+
+如果自己记录的slots信息和sender消息头中带来的slots不相同，说明sender的slots有变化，判断是否需要更新。
+
+  /* The slot is in importing state, it should be modified only
+   * manually via redis-trib (example: a resharding is in progress
+   * and the migrating side slot was already closed and is advertising
+   * a new config. We still want the slot to be closed manually). */
+  if (server.cluster->importing_slots_from[j]) continue;
+
+如果处于IMPORTING状态，不处理？这个概率还是很大的，是说在一个处于IMPORTING状态的目标节点挂掉之后，系统进行了选
+主，当这个节点重新启动后，它会处于何种状态（变成从，但是还有IMPORTING状态的slot？），所以一个节点挂掉之后，最好
+的办法是重新加一个，把挂掉的彻底删掉。
+
+  /* 2) We also check for the reverse condition, that is, the sender
+   *    claims to serve slots we know are served by a master with a
+   *    greater configEpoch. If this happens we inform the sender.
+   *
+   * This is useful because sometimes after a partition heals, a
+   * reappearing master may be the last one to claim a given set of
+   * hash slots, but with a configuration that other instances know to
+   * be deprecated. Example:
+   *
+   * A and B are master and slave for slots 1,2,3.
+   * A is partitioned away, B gets promoted.
+   * B is partitioned away, and A returns available.
+   *
+   * Usually B would PING A publishing its set of served slots and its
+   * configEpoch, but because of the partition B can't inform A of the
+   * new configuration, so other nodes that have an updated table must
+   * do it. In this way A will stop to act as a master (or can try to
+   * failover if there are the conditions to win the election). */
+
+迁移操作步骤：
+1. Mark, (SM,SS)->MIGRATING (TM)->IMPORTING
+2. MigrateSlot until empty
+3. setslot node
+   - TM TS, SM, SS

@@ -242,15 +242,19 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 		if oldNode.Fail && oldNode.IsMaster() && len(oldNode.Ranges) != 0 {
 			for _, r := range oldNode.Ranges {
 				log.Printf("Fix migration task %d-%d\n", r.Left, r.Right)
+
 				for i := r.Left; i <= r.Right; i++ {
 					for _, ns := range cs.AllNodeStates() {
 						if ns.node.IsMaster() {
 							log.Printf("setslot %d node %s", i, new.Id())
+
 							redis.SetSlot(ns.Addr(), i, redis.SLOT_NODE, new.Id())
 						}
 					}
 				}
 			}
+		} else {
+			log.Println("Good, no slot need to be fix after failover.")
 		}
 	}
 
