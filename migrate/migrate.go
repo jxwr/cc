@@ -33,8 +33,6 @@ var stateNames = map[int32]string{
 }
 
 type MigrateTask struct {
-	// Node是创建迁移任务时的一个快照，它的信息可能会被更新
-	// 这里仅使用Node的Ip,Port,Id的信息，其他信息不可用
 	Ranges []topo.Range
 
 	source           atomic.Value
@@ -159,6 +157,12 @@ func (t *MigrateTask) streamPub() {
 
 func (t *MigrateTask) Run() {
 	for i, r := range t.Ranges {
+		if r.Left < 0 {
+			r.Left = 0
+		}
+		if r.Right > 16383 {
+			r.Right = 16383
+		}
 		t.currRangeIndex = i
 		t.currSlot = r.Left
 		for t.currSlot <= r.Right {
