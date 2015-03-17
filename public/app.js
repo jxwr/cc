@@ -44,7 +44,7 @@ var MigrationTable = React.createClass({
       return <MigratingRow obj={obj} />;
     });
     return (
-      <div className="migrateTable">
+      <div className="migrationTable">
         <table className="nodeTable">
         <tr className="nodeRow">
         <td>{name}</td>
@@ -74,6 +74,36 @@ var MigrationPanel = React.createClass({
   }
 });
 
+var MigrationCtrl = React.createClass({
+  handleSubmit: function(event) {
+    event.preventDefault();
+    var source_id = this.refs['source_id'].getDOMNode().value.trim();
+    var target_id = this.refs['target_id'].getDOMNode().value.trim();
+    var ranges = this.refs['ranges'].getDOMNode().value.trim();
+    ranges = ranges.split(',');
+    if (source_id == "" || target_id == "" || ranges.length == 0) return;
+    $.ajax({
+      url: HTTP_HOST+'/migrate/create',
+      contentType: 'application/json',
+      type: "POST",
+      data: JSON.stringify({
+        source_id: source_id,
+        target_id: target_id,
+        ranges: ranges
+      })});
+  },
+  render: function() {
+    return (
+      <form className="migrationCtrl" onSubmit={this.handleSubmit}>
+        From:<input type="text" ref="source_id"/>
+        To:<input type="text" ref="target_id"/>
+        Ranges:<input type="text" ref="ranges"/>
+        <button>Migrate</button>
+      </form>
+    );
+  }
+});
+
 /// NodeRangeState
 
 var NodeRangeBarItem = React.createClass({
@@ -96,6 +126,9 @@ var NodeRangeRow = React.createClass({
   render: function() {
     var id = this.props.nodeid;
     var ranges = this.props.ranges;
+    var rangePairs = ranges.map(function (range) {
+      return [range.Left,range.Right];
+    });
     var items = ranges.map(function (range) {
       return (
           <NodeRangeBarItem range={range} />
@@ -105,9 +138,11 @@ var NodeRangeRow = React.createClass({
       <tr className="nodeRow">
         <td>{id.substring(0,6)}</td>
         <td>
+          <div>{id}</div>
           <div className="nodeRangeBar">
           {items}
           </div>
+          <div>{JSON.stringify(rangePairs)}</div>
         </td>
       </tr>
     );
@@ -173,7 +208,7 @@ var NodeStateRow = React.createClass({
           <td>{WRITE}</td>
           <td>{node.Role}</td>
           <td>{node.Ip}:{node.Port}</td>
-          <td>{node.Id.substring(0,6)}</td>
+          <td>{node.Id}</td>
           <td>{node.Version}</td>
           <td>
             <button onClick={this.enableRead}>+r</button>
@@ -239,8 +274,9 @@ var Main = React.createClass({
     return (
       <div className="Main">
         <NodeStateTable nodes={nodes} />
-        <NodeRangeTable nodes={nodes} />
+        <MigrationCtrl />
         <MigrationPanel migMap={migMap} />
+        <NodeRangeTable nodes={nodes} />
       </div>
     );
   }

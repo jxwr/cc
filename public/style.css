@@ -51,13 +51,17 @@ body {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     color: #444;
-    background: url("http://graygrids.com/demos/snippets/startup-fw-pricing-table/assets/img/bg.jpg");
+#    background: url("http://graygrids.com/demos/snippets/startup-fw-pricing-table/assets/img/bg.jpg");
 }
 
 h1 {
     font-weight: normal;
     letter-spacing: -1px;
     color: #34495E;
+}
+
+input {
+    min-width: 300px;
 }
 
 .nodeTable {
@@ -97,4 +101,14 @@ h1 {
 .nodeRangeBar .nodeRangeBarItem {
     position: absolute;
     height: 10px;
+}
+
+.migrationTable {
+    float: left;
+    min-height: 100px;
+}
+
+.migrationCtrl {
+    background-color: #fff;
+    margin: auto;
 }
