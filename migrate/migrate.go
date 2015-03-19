@@ -57,6 +57,24 @@ func (t *MigrateTask) TaskName() string {
 	return fmt.Sprintf("Mig[%s->%s]", t.SourceNode().Id, t.TargetNode().Id)
 }
 
+func (t *MigrateTask) setSlotToNode(rs *topo.ReplicaSet, slot int, targetId string) error {
+	// 先清理从节点的MIGRATING状态
+	for _, node := range rs.Slaves() {
+		if node.Fail {
+			continue
+		}
+		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_NODE, targetId)
+		if err != nil {
+			return err
+		}
+	}
+	err := redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_NODE, targetId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	rs := t.SourceReplicaSet()
 	sourceNode := t.SourceNode()
@@ -71,7 +89,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_MIGRATING, targetNode.Id)
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
-				log.Printf("%s %s is not the owner of hash slot %d\n",
+				log.Printf("mig: %s %s is not the owner of hash slot %d\n",
 					t.TaskName(), sourceNode.Id, slot)
 				return 0, nil
 			}
@@ -82,9 +100,13 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	err := redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_IMPORTING, sourceNode.Id)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "ERR I'm already the owner of hash slot") {
-			log.Printf("%s %s already the owner of hash slot %d\n",
+			log.Printf("mig: %s %s already the owner of hash slot %d\n",
 				t.TaskName(), targetNode.Id, slot)
-			return 0, nil
+			// 逻辑到此，说明Target已经包含该slot，但是Source处于Migrating状态
+			// 迁移实际已经完成，需要清理Source的Migrating状态
+			srs := t.SourceReplicaSet()
+			err = t.setSlotToNode(srs, slot, targetNode.Id)
+			return 0, err
 		}
 		return 0, err
 	}
@@ -109,32 +131,27 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 		if len(keys) == 0 {
 			// 迁移完成，设置slot归属到新节点，该操作自动清理IMPORTING和MIGRATING状态
 			// 如果设置的是Source节点，设置slot归属时，Redis会确保该slot中已无剩余的key
-			// 即便slot不属于这个节点，该操作也会成功
-			// 更新slot在目标节点上的归属，该操作增加Epoch，进而广播出去
 			trs := t.TargetReplicaSet()
+			// 优先设置从节点，保证当主的数据分布还未广播到从节点时主挂掉，slot信息也不会丢失
 			for _, node := range trs.Slaves() {
+				if node.Fail {
+					continue
+				}
 				err = redis.SetSlot(node.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 				if err != nil {
 					return nkeys, err
 				}
 			}
+			// 该操作增加Epoch并广播出去
 			err = redis.SetSlot(trs.Master().Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 			if err != nil {
 				return nkeys, err
 			}
-
+			// 更新源节点上slot的归属
 			srs := t.SourceReplicaSet()
-			// 首先更新Master节点，主的slot状态会被Controller看见
-			err = redis.SetSlot(srs.Master().Addr(), slot, redis.SLOT_NODE, targetNode.Id)
+			err = t.setSlotToNode(srs, slot, targetNode.Id)
 			if err != nil {
 				return nkeys, err
-			}
-			// 清理从节点的MIGRATING状态
-			for _, node := range srs.Slaves() {
-				err = redis.SetSlot(node.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
-				if err != nil {
-					return nkeys, err
-				}
 			}
 			break
 		}
@@ -188,11 +205,11 @@ func (t *MigrateTask) Run() {
 			// 正常运行
 			nkeys, err := t.migrateSlot(t.currSlot, 100)
 			if err != nil {
-				log.Printf("%s Migrate slot %d error, %d keys have done, %v\n",
+				log.Printf("mig: %s Migrate slot %d error, %d keys have done, %v\n",
 					t.TaskName(), t.currSlot, nkeys, err)
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(500 * time.Millisecond)
 			} else {
-				log.Printf("%s Migrate slot %d done, total %d keys\n",
+				log.Printf("mig: %s Migrate slot %d done, total %d keys\n",
 					t.TaskName(), t.currSlot, nkeys)
 				t.currSlot++
 			}

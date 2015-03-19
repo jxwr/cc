@@ -13,6 +13,9 @@ var (
 	ErrMigrateNotExist     = errors.New("mig: no task running on the node")
 	ErrReplicatSetNotFound = errors.New("mig: replica set not found")
 	ErrNodeNotFound        = errors.New("mig: node not found")
+	ErrSourceNodeFail      = errors.New("mig: source node failure")
+	ErrTargetNodeFail      = errors.New("mig: target node failure")
+	ErrCanNotRecover       = errors.New("mig: can not recover")
 )
 
 /// Migrate
@@ -133,38 +136,39 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 	if fromNode.Fail {
 		log.Printf("mig: cancel migration task %s\n", task.TaskName())
 		task.SetState(StateCancelling)
-		return nil
+		return ErrSourceNodeFail
 	}
 	// 如果目标节点挂了，需要记录当前的ReplicaSet，观察等待主从切换
 	if toNode.Fail {
 		if task.CurrentState() == StateRunning {
 			task.SetState(StateTargetNodeFailure)
 			task.SetBackupReplicaSet(task.TargetReplicaSet())
+			return ErrTargetNodeFail
 		}
 	} else {
 		task.SetState(StateRunning)
 		task.SetBackupReplicaSet(nil)
 	}
 	// 如果目标节点已经进行了Failover(重新选主)，我们需要找到对应的新主
-	// 方法是从BackupReplicaSet里取一个从，来查找
+	// 方法是从BackupReplicaSet里取一个从来查找
 	if toNode.IsStandbyMaster() {
 		brs := task.BackupReplicaSet()
 		if brs == nil {
 			task.SetState(StateCancelling)
 			log.Println("mig: no backup replicaset found, controller maybe restarted after target master failure, can not do recovery.")
-			return nil
+			return ErrCanNotRecover
 		}
 		slaves := brs.Slaves()
 		if len(slaves) == 0 {
 			task.SetState(StateCancelling)
 			log.Println("mig: the dead target master has no slave, cannot do recovery.")
-			return nil
+			return ErrCanNotRecover
 		} else {
 			rs := cluster.FindReplicaSetByNode(slaves[0].Id)
 			if rs == nil {
 				task.SetState(StateCancelling)
 				log.Println("mig: no replicaset for slave of dead target master found")
-				return nil
+				return ErrCanNotRecover
 			}
 			task.ReplaceTargetReplicaSet(rs)
 			log.Printf("mig: recover dead target node to %s()\n",
