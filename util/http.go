@@ -57,5 +57,5 @@ func HttpGet(path string, in, out interface{}, timeout time.Duration) (*api.Fail
 }
 
 func MkUrl(path string) string {
-	return meta.LeaderAddress() + path
+	return "http://" + meta.LeaderHttpAddress() + path
 }

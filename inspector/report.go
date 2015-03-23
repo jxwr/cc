@@ -29,11 +29,14 @@ func SendRegionTopoSnapshot(nodes []*topo.Node) error {
 	return nil
 }
 
-func (self *Inspector) ReportRegionSnanshotLoop() {
+func (self *Inspector) Run() {
 	tickChan := time.NewTicker(time.Second * 1).C
 	for {
 		select {
 		case <-tickChan:
+			if !meta.IsRegionLeader() {
+				continue
+			}
 			cluster, err := self.BuildClusterTopo()
 			if err != nil {
 				log.Println("build cluster topo failed,", err)

@@ -5,12 +5,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/migrate"
 	"github.com/jxwr/cc/state"
 )
 
 var (
 	ErrProcessCommandTimedout = errors.New("controller: process command timeout")
+	ErrNotClusterLeader       = errors.New("controller: not cluster leader")
 )
 
 type Controller struct {
@@ -29,6 +31,9 @@ func NewController() *Controller {
 }
 
 func (c *Controller) ProcessCommand(command Command, timeout time.Duration) (result Result, err error) {
+	if !meta.IsClusterLeader() {
+		return nil, ErrNotClusterLeader
+	}
 	// 一次处理一条命令，也即同一时间只能在做一个状态变换。是很粗粒度的锁，不过
 	// 这样做问题不大，毕竟执行命令的频率很低，且执行时间都不会太长
 	c.mutex.Lock()

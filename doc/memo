@@ -470,3 +470,42 @@ Case 0:
 2. MigrateSlot until empty
 3. setslot node
    - TM TS, SM, SS
+
+# 2015/03/26
+
+Controller集群化：
+
+/r3/app/ksarch-test
+{"master_region":"bj","regions":["bj","hz"],"appname":"ksarch-test","autofailover":true}
+
+/r3/app/ksarch-test/controllers
+
+/r3/app/ksarch-test/controllers/cc_bj_000000001
+{"ip":"127.0.0.1","http_port":7000,"ws_port":8001,"region":"bj"}
+
+全局Failover控制
+
+Failover进行条件：
+1. 当前没有其他正在进行的Failover
+2. 最近30分钟内没有进行过Failover
+该过程如何实现
+
+/r3/failover/doing
+/r3/failover/history
+
+初始化
+1. 根据appName去zk上获取appMetaData，如果为空则Fatal
+2. 注册Controller数据到zk，进行选主（ClusterLeader和RegionLeader）
+3. ClusterLeader负责处理消息，RegionLeader负责发送快照数据
+4. 获取LeaderConfig
+
+操作：
+1. IsRegionLeader()
+2. IsClusterLeader()
+3. ClusterLeaderHttpAddress()
+
+watchon:
+/r3/failover/doing
+/r3/failover/history
+/r3/app/ksarch-test/controller
+/r3/app/ksarch-test/controller/leader

@@ -2,6 +2,7 @@ package state
 
 import (
 	"log"
+	"time"
 
 	"github.com/jxwr/cc/fsm"
 	"github.com/jxwr/cc/meta"
@@ -121,6 +122,12 @@ var (
 				log.Println("Check constraint failed, more than one failure node")
 				return false
 			}
+		}
+		if meta.FailoverInDoing() {
+			return false
+		}
+		if time.Since(meta.LastFailoverTime()) < 30*time.Minute {
+			return false
 		}
 		log.Println("Can do failover for master")
 		return true

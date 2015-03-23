@@ -20,12 +20,12 @@ type FrontEnd struct {
 	WsBindAddr   string
 }
 
-func NewFrontEnd(c *cc.Controller, httpBind, wsBind string) *FrontEnd {
+func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe := &FrontEnd{
 		C:            c,
 		Router:       gin.Default(),
-		HttpBindAddr: httpBind,
-		WsBindAddr:   wsBind,
+		HttpBindAddr: fmt.Sprintf(":%d", httpPort),
+		WsBindAddr:   fmt.Sprintf(":%d", wsPort),
 	}
 
 	fe.Router.Static("/ui", "./public")

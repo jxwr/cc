@@ -1,6 +1,8 @@
 TODO:
 
-- 
-
-TOFIX:
-- Failover主之后，需要开启写标志，等待新主变成Master
+- Controller集群化
+- 日志按功能拆分开（状态变化，迁移任务）
+- AutoRebalance
+- 处理节点加入和删除
+- 且Master
+- UI
