@@ -32,6 +32,7 @@ type FailoverRecord struct {
 	Timestamp time.Time    `json:"timestamp"`
 	Region    string       `json:"region"`
 	Tag       string       `json:"tag"`
+	Role      string       `json:"role"`
 	Ranges    []topo.Range `json:"ranges"`
 }
 
@@ -123,6 +124,29 @@ func (m *Meta) IsDoingFailover() (bool, error) {
 	} else {
 		return true, err
 	}
+}
+
+func (m *Meta) MarkFailoverDoing(record *FailoverRecord) error {
+	data, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	path, err := m.zconn.Create("/r3/failover/doing", string(data),
+		zookeeper.EPHEMERAL, zookeeper.WorldACL(PERM_FILE))
+	if err != nil {
+		return err
+	}
+	log.Printf("meta: mark doing failover at %s", path)
+	return nil
+}
+
+func (m *Meta) UnmarkFailoverDoing() error {
+	err := m.zconn.Delete("/r3/failover/doing", -1)
+	if err != nil {
+		return err
+	}
+	log.Printf("meta: unmark doing failover")
+	return nil
 }
 
 func (m *Meta) LastFailoverRecord() (*FailoverRecord, error) {

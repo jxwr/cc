@@ -6,3 +6,9 @@ TODO:
 - 处理节点加入和删除
 - 且Master
 - UI
+
+# 2015/03/24
+
+- MarkDoingFailover()
+  UnmarkDogingFailover()
+- meta原子操作

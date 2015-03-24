@@ -52,6 +52,7 @@ var (
 				Timestamp: time.Now(),
 				Region:    ns.Region(),
 				Tag:       ns.Tag(),
+				Role:      ns.Role(),
 				Ranges:    ns.Ranges(),
 			}
 			err := meta.AddFailoverRecord(record)
@@ -59,8 +60,18 @@ var (
 				log.Printf("state: add failover record failed, %v", err)
 			}
 		},
-		OnLeave: func(ctx interface{}) {
+		OnLeave: func(i interface{}) {
 			log.Println("Leave WAIT_FAILOVER_END state")
+
+			ctx := i.(StateContext)
+			ns := ctx.NodeState
+
+			if ns.Role() == "master" {
+				err := meta.UnmarkFailoverDoing()
+				if err != nil {
+					log.Printf("state: unmark FAILOVER_DOING status failed, %v", err)
+				}
+			}
 		},
 	}
 
@@ -150,7 +161,6 @@ var (
 			log.Println("There is another failover doing")
 			return false
 		}
-
 		// 最近是否进行过Failover
 		lastTime, err := meta.LastFailoverTime()
 		if err != nil {
@@ -159,6 +169,21 @@ var (
 		}
 		if lastTime != nil && time.Since(*lastTime) < 30*time.Minute {
 			log.Printf("Failover too soon, lastTime: %v", *lastTime)
+			return false
+		}
+
+		record := &meta.FailoverRecord{
+			AppName:   meta.AppName(),
+			NodeId:    ns.Id(),
+			NodeAddr:  ns.Addr(),
+			Timestamp: time.Now(),
+			Region:    ns.Region(),
+			Tag:       ns.Tag(),
+			Ranges:    ns.Ranges(),
+		}
+		err = meta.MarkFailoverDoing(record)
+		if err != nil {
+			log.Println("Can not mark FAILOVER_DOING status")
 			return false
 		}
 		log.Println("Can do failover for master")

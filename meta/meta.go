@@ -81,6 +81,14 @@ func AddFailoverRecord(record *FailoverRecord) error {
 	return meta.AddFailoverRecord(record)
 }
 
+func MarkFailoverDoing(record *FailoverRecord) error {
+	return meta.MarkFailoverDoing(record)
+}
+
+func UnmarkFailoverDoing() error {
+	return meta.UnmarkFailoverDoing()
+}
+
 func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initCh chan error) {
 	zconn, session, err := DialZk(zkAddr)
 	if err != nil {

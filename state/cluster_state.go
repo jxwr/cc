@@ -214,7 +214,7 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 		if err != nil {
 			log.Printf("Failover finished with error(%v)\n", err)
 		} else {
-			log.Printf("Failover success\n", err)
+			log.Printf("Failover success")
 		}
 		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 	case <-time.After(20 * time.Minute):

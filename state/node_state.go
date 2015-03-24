@@ -44,6 +44,10 @@ func (ns *NodeState) Tag() string {
 	return ns.node.Tag
 }
 
+func (ns *NodeState) Role() string {
+	return ns.node.Role
+}
+
 func (ns *NodeState) Ranges() []topo.Range {
 	return ns.node.Ranges
 }
