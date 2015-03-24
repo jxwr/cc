@@ -142,15 +142,23 @@ var (
 		}
 		// 是否有其他Failover正在进行
 		doing, err := meta.IsDoingFailover()
-		if err != nil || doing {
+		if err != nil {
+			log.Printf("Fetch failover status failed, %v", err)
 			return false
 		}
+		if doing {
+			log.Println("There is another failover doing")
+			return false
+		}
+
 		// 最近是否进行过Failover
 		lastTime, err := meta.LastFailoverTime()
 		if err != nil {
+			log.Printf("Get last failover time failed, %v", err)
 			return false
 		}
 		if lastTime != nil && time.Since(*lastTime) < 30*time.Minute {
+			log.Printf("Failover too soon, lastTime: %v", *lastTime)
 			return false
 		}
 		log.Println("Can do failover for master")

@@ -114,7 +114,7 @@ func (m *Meta) FetchControllerConfig(zkNode string) (*ControllerConfig, <-chan z
 
 func (m *Meta) IsDoingFailover() (bool, error) {
 	stat, err := m.zconn.Exists("/r3/failover/doing")
-	if zookeeper.IsError(err, zookeeper.ZOK) {
+	if err == nil {
 		if stat != nil {
 			return true, nil
 		} else {
@@ -155,6 +155,6 @@ func (m *Meta) AddFailoverRecord(record *FailoverRecord) error {
 		return err
 	}
 	path, err := m.zconn.Create(zkPath, string(data), zookeeper.SEQUENCE, zookeeper.WorldACL(PERM_FILE))
-	log.Println("meta: failover record created at %s", path)
+	log.Printf("meta: failover record created at %s", path)
 	return nil
 }

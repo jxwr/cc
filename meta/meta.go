@@ -71,6 +71,9 @@ func LastFailoverTime() (*time.Time, error) {
 	if err != nil {
 		return nil, err
 	}
+	if r == nil {
+		return nil, nil
+	}
 	return &r.Timestamp, nil
 }
 
