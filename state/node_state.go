@@ -36,6 +36,18 @@ func (ns *NodeState) Id() string {
 	return ns.node.Id
 }
 
+func (ns *NodeState) Region() string {
+	return ns.node.Region
+}
+
+func (ns *NodeState) Tag() string {
+	return ns.node.Tag
+}
+
+func (ns *NodeState) Ranges() []topo.Range {
+	return ns.node.Ranges
+}
+
 func (ns *NodeState) CurrentState() string {
 	return ns.fsm.CurrentState()
 }

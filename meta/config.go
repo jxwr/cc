@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jxwr/cc/topo"
 	"launchpad.net/gozk"
 )
 
@@ -25,13 +26,13 @@ type ControllerConfig struct {
 }
 
 type FailoverRecord struct {
-	AppName   string    `json:"appname"`
-	NodeId    string    `json:"node_id"`
-	NodeAddr  string    `json:"node_addr"`
-	Timestamp time.Time `json:"timestamp"`
-	Region    string    `json:"region"`
-	Tag       string    `json:"tag"`
-	Ranges    []string  `json:"ranges"`
+	AppName   string       `json:"appname"`
+	NodeId    string       `json:"node_id"`
+	NodeAddr  string       `json:"node_addr"`
+	Timestamp time.Time    `json:"timestamp"`
+	Region    string       `json:"region"`
+	Tag       string       `json:"tag"`
+	Ranges    []topo.Range `json:"ranges"`
 }
 
 func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
@@ -145,4 +146,15 @@ func (m *Meta) LastFailoverRecord() (*FailoverRecord, error) {
 		return nil, err
 	}
 	return &record, nil
+}
+
+func (m *Meta) AddFailoverRecord(record *FailoverRecord) error {
+	zkPath := fmt.Sprintf("/r3/failover/history/record_%s_%s", record.AppName, record.Region)
+	data, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	path, err := m.zconn.Create(zkPath, string(data), zookeeper.SEQUENCE, zookeeper.WorldACL(PERM_FILE))
+	log.Println("meta: failover record created at %s", path)
+	return nil
 }

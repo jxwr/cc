@@ -39,8 +39,25 @@ var (
 
 	WaitFailoverEndState = &fsm.State{
 		Name: StateWaitFailoverEnd,
-		OnEnter: func(ctx interface{}) {
+		OnEnter: func(i interface{}) {
 			log.Println("Enter WAIT_FAILOVER_END state")
+
+			ctx := i.(StateContext)
+			ns := ctx.NodeState
+
+			record := &meta.FailoverRecord{
+				AppName:   meta.AppName(),
+				NodeId:    ns.Id(),
+				NodeAddr:  ns.Addr(),
+				Timestamp: time.Now(),
+				Region:    ns.Region(),
+				Tag:       ns.Tag(),
+				Ranges:    ns.Ranges(),
+			}
+			err := meta.AddFailoverRecord(record)
+			if err != nil {
+				log.Printf("state: add failover record failed, %v", err)
+			}
 		},
 		OnLeave: func(ctx interface{}) {
 			log.Println("Leave WAIT_FAILOVER_END state")

@@ -36,6 +36,10 @@ type Meta struct {
 
 var meta *Meta
 
+func AppName() string {
+	return meta.appName
+}
+
 func LocalRegion() string {
 	return meta.localRegion
 }
@@ -68,6 +72,10 @@ func LastFailoverTime() (*time.Time, error) {
 		return nil, err
 	}
 	return &r.Timestamp, nil
+}
+
+func AddFailoverRecord(record *FailoverRecord) error {
+	return meta.AddFailoverRecord(record)
 }
 
 func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initCh chan error) {
