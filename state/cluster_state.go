@@ -125,8 +125,8 @@ func (cs *ClusterState) FindReplicaSetByNode(nodeId string) *topo.ReplicaSet {
 
 /// helpers
 
-// 获取分片内ReplOffset最大的节点ID
-func (cs *ClusterState) MaxReploffSlibing(nodeId string, slaveOnly bool) (string, error) {
+// 获取分片内主地域中ReplOffset最大的节点ID
+func (cs *ClusterState) MaxReploffSlibing(nodeId string, region string, slaveOnly bool) (string, error) {
 	rs := cs.FindReplicaSetByNode(nodeId)
 	if rs == nil {
 		return "", ErrNodeNotExist
@@ -139,6 +139,9 @@ func (cs *ClusterState) MaxReploffSlibing(nodeId string, slaveOnly bool) (string
 	for id, val := range rmap {
 		node := cs.FindNode(id)
 		if slaveOnly && node.IsMaster() {
+			continue
+		}
+		if node.Region != region {
 			continue
 		}
 		if val > maxVal {

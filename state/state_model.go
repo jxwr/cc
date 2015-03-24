@@ -219,7 +219,9 @@ var (
 		ctx := i.(StateContext)
 		cs := ctx.ClusterState
 		ns := ctx.NodeState
-		masterId, err := cs.MaxReploffSlibing(ns.Id(), true)
+
+		masterRegion := meta.MasterRegion()
+		masterId, err := cs.MaxReploffSlibing(ns.Id(), masterRegion, true)
 		if err != nil {
 			log.Printf("No slave can be used for failover %s\n", ns.Id())
 			// 放到另一个线程做，避免死锁
