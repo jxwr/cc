@@ -1,156 +1,61 @@
 package meta
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
+	"log"
 	"time"
 
 	"launchpad.net/gozk"
 )
 
-type metadata struct {
-	appName                string
-	localIp                string
-	httpPort               int
-	wsPort                 int
-	localRegion            string
+type Meta struct {
+	/// local config
+	appName     string
+	localIp     string
+	httpPort    int
+	wsPort      int
+	localRegion string
+
+	/// leadership
 	selfZNodeName          string
 	clusterLeaderZNodeName string
 	regionLeaderZNodeName  string
-	appConfig              *AppConfig
-	clusterLeaderConfig    *ControllerConfig
-	regionLeaderConfig     *ControllerConfig
+
+	/// /r3/app/<appname>/controller
+	ccDirPath string
+
+	/// configs in ZK
+	appConfig           *AppConfig
+	clusterLeaderConfig *ControllerConfig
+	regionLeaderConfig  *ControllerConfig
+
+	/// zk connection
+	zconn    *zookeeper.Conn
+	zsession <-chan zookeeper.Event
 }
 
-var theMetadata metadata
-
-func FetchAppConfig(zconn *zookeeper.Conn, appName string) (*AppConfig, error) {
-	data, _, err := zconn.Get("/r3/app/" + appName)
-	if err != nil {
-		return nil, err
-	}
-	var c AppConfig
-	err = json.Unmarshal([]byte(data), &c)
-	if err != nil {
-		return nil, fmt.Errorf("zk: parse app config error, %v", err)
-	}
-	if c.AppName != appName {
-		return nil, fmt.Errorf("zk: local appname is different from zk, %s <-> %s", appName, c.AppName)
-	}
-	if c.MasterRegion == "" {
-		return nil, fmt.Errorf("zk: master region not set")
-	}
-	if len(c.Regions) == 0 {
-		return nil, fmt.Errorf("zk: regions empty")
-	}
-	return &c, nil
-}
-
-func RegisterLocalController(zconn *zookeeper.Conn) error {
-	ccDirPath := "/r3/app/" + theMetadata.appName + "/controller"
-	zkPath := fmt.Sprintf(ccDirPath + "/cc_" + theMetadata.localRegion + "_")
-	conf := &ControllerConfig{
-		Ip:       theMetadata.localIp,
-		HttpPort: theMetadata.httpPort,
-		Region:   theMetadata.localRegion,
-		WsPort:   theMetadata.wsPort,
-	}
-	data, err := json.Marshal(conf)
-	if err != nil {
-		return err
-	}
-	path, err := zconn.Create(zkPath, string(data), zookeeper.SEQUENCE|zookeeper.EPHEMERAL, zookeeper.WorldACL(PERM_FILE))
-	if err == nil {
-		xs := strings.Split(path, "/")
-		theMetadata.selfZNodeName = xs[len(xs)-1]
-	}
-	return err
-}
-
-func FetchLeaderConfig(zconn *zookeeper.Conn, zkPath string) (*ControllerConfig, error) {
-	data, _, err := zconn.Get(zkPath)
-	if err != nil {
-		return nil, err
-	}
-	var c ControllerConfig
-	err = json.Unmarshal([]byte(data), &c)
-	if err != nil {
-		return nil, err
-	}
-	return &c, nil
-}
-
-func Init(appName, localRegion string, httpPort, wsPort int, zkAddr string) error {
-	theMetadata = metadata{
-		appName:     appName,
-		httpPort:    httpPort,
-		localRegion: localRegion,
-	}
-
-	zconn, _, err := DialZk(zkAddr)
-	if err != nil {
-		return fmt.Errorf("zk: can't connect: %v", err)
-	}
-
-	a, err := FetchAppConfig(zconn, appName)
-	if err != nil {
-		return err
-	}
-	theMetadata.appConfig = a
-
-	// Controller目录，如果不存在就创建
-	ccDirPath := "/r3/app/" + appName + "/controller"
-	CreateRecursive(zconn, ccDirPath, "", 0, zookeeper.WorldACL(zookeeper.PERM_ALL))
-
-	err = RegisterLocalController(zconn)
-	if err != nil {
-		return err
-	}
-
-	clusterLeader, regionLeader, _, err := ElectLeader(zconn, ccDirPath, localRegion, false)
-	if err != nil {
-		return err
-	}
-
-	// 获取ClusterLeader配置
-	c, err := FetchLeaderConfig(zconn, ccDirPath+"/"+clusterLeader)
-	if err != nil {
-		return err
-	}
-	theMetadata.clusterLeaderConfig = c
-
-	// 获取RegionLeader配置
-	c, err = FetchLeaderConfig(zconn, ccDirPath+"/"+regionLeader)
-	if err != nil {
-		return err
-	}
-	theMetadata.regionLeaderConfig = c
-
-	go ZkWatcher(zconn)
-	return nil
-}
+var meta *Meta
 
 func LocalRegion() string {
-	return theMetadata.localRegion
+	return meta.localRegion
 }
 
 func AutoFailover() bool {
-	return theMetadata.appConfig.AutoFailover
+	return meta.appConfig.AutoFailover
 }
 
 func LeaderHttpAddress() string {
-	c := theMetadata.clusterLeaderConfig
+	c := meta.clusterLeaderConfig
 	addr := fmt.Sprintf("%s:%d", c.Ip, c.HttpPort)
 	return addr
 }
 
 func IsRegionLeader() bool {
-	return theMetadata.selfZNodeName == theMetadata.regionLeaderZNodeName
+	return meta.selfZNodeName == meta.regionLeaderZNodeName
 }
 
 func IsClusterLeader() bool {
-	return theMetadata.selfZNodeName == theMetadata.clusterLeaderZNodeName
+	return meta.selfZNodeName == meta.clusterLeaderZNodeName
 }
 
 func FailoverInDoing() bool {
@@ -159,4 +64,73 @@ func FailoverInDoing() bool {
 
 func LastFailoverTime() time.Time {
 	return time.Now()
+}
+
+func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initCh chan error) {
+	zconn, session, err := DialZk(zkAddr)
+	if err != nil {
+		initCh <- fmt.Errorf("zk: can't connect: %v", err)
+		return
+	}
+
+	meta = &Meta{
+		appName:     appName,
+		wsPort:      wsPort,
+		httpPort:    httpPort,
+		localRegion: localRegion,
+		ccDirPath:   "/r3/app/" + appName + "/controller",
+		zconn:       zconn,
+		zsession:    session,
+	}
+
+	a, w, err := meta.FetchAppConfig()
+	if err != nil {
+		initCh <- err
+		return
+	}
+	meta.appConfig = a
+	go meta.handleAppConfigChanged(w)
+
+	// Controller目录，如果不存在就创建
+	CreateRecursive(zconn, meta.ccDirPath, "", 0, zookeeper.WorldACL(zookeeper.PERM_ALL))
+
+	err = meta.RegisterLocalController()
+	if err != nil {
+		initCh <- err
+		return
+	}
+
+	watcher, err := meta.ElectLeader()
+	if err != nil {
+		initCh <- err
+		return
+	}
+	// 元信息初始化成功，通知Main函数继续初始化
+	initCh <- nil
+
+	// 开始各种Watch
+	tickChan := time.NewTicker(time.Second * 60).C
+	for {
+		select {
+		case event := <-meta.zsession:
+			if event.State == zookeeper.STATE_EXPIRED_SESSION {
+				// 重试连接直到成功
+				for {
+					zconn, session, err := DialZk(zkAddr)
+					if err == nil {
+						meta.zconn = zconn
+						meta.zsession = session
+						break
+					}
+					time.Sleep(10 * time.Second)
+				}
+			}
+		case <-watcher:
+			watcher, err = meta.ElectLeader()
+			log.Println(err)
+		case <-tickChan:
+			watcher, err = meta.ElectLeader()
+			log.Println(err)
+		}
+	}
 }

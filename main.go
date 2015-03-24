@@ -51,7 +51,9 @@ func main() {
 		flag.PrintDefaults()
 	}
 
-	err := meta.Init(appName, localRegion, httpPort, wsPort, zkHosts)
+	initCh := make(chan error)
+	go meta.Run(appName, localRegion, httpPort, wsPort, zkHosts, initCh)
+	err := <-initCh
 	if err != nil {
 		log.Fatal(err)
 	}

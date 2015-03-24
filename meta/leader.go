@@ -2,28 +2,23 @@ package meta
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
 	"launchpad.net/gozk"
 )
 
-func ElectLeader(zconn *zookeeper.Conn, zkPath, region string, watch bool) (string, string, <-chan zookeeper.Event, error) {
-	var err error
-	var children []string
-	var watcher <-chan zookeeper.Event
-	var stat *zookeeper.Stat
+func (m *Meta) leaders() (string, string, <-chan zookeeper.Event, error) {
+	zkPath := m.ccDirPath
+	zconn := m.zconn
 
-	if watch {
-		children, stat, watcher, err = zconn.ChildrenW(zkPath)
-	} else {
-		children, stat, err = zconn.Children(zkPath)
-	}
+	children, stat, watcher, err := zconn.ChildrenW(zkPath)
 	if err != nil {
 		return "", "", nil, err
 	}
 	if stat.NumChildren() == 0 {
-		return "", "", nil, fmt.Errorf("zk: no node in controller leader directory")
+		return "", "", nil, fmt.Errorf("meta: no node in controller leader directory")
 	}
 
 	needRejoin := true
@@ -46,7 +41,7 @@ func ElectLeader(zconn *zookeeper.Conn, zkPath, region string, watch bool) (stri
 			clusterLeader = child
 		}
 		// Region Leader
-		if theMetadata.localRegion == region {
+		if m.localRegion == region {
 			if regionMinSeq < 0 {
 				regionMinSeq = seq
 				regionLeader = child
@@ -57,17 +52,89 @@ func ElectLeader(zconn *zookeeper.Conn, zkPath, region string, watch bool) (stri
 			}
 		}
 		// Rejoin
-		if theMetadata.selfZNodeName == child {
+		if m.selfZNodeName == child {
 			needRejoin = false
 		}
 	}
 
 	if needRejoin {
-		err := RegisterLocalController(zconn)
+		err := m.RegisterLocalController()
 		if err != nil {
 			return "", "", nil, err
 		}
 	}
 
 	return clusterLeader, regionLeader, watcher, nil
+}
+
+func (m *Meta) handleClusterLeaderConfigChanged(watch <-chan zookeeper.Event) {
+	for {
+		event := <-watch
+		if event.Type == zookeeper.EVENT_CHANGED {
+			c, w, err := m.FetchControllerConfig(m.clusterLeaderZNodeName)
+			if err == nil {
+				m.clusterLeaderConfig = c
+				log.Println("meta: cluster leader config changed.")
+			} else {
+				log.Printf("meta: fetch controller config failed, %v", err)
+			}
+			watch = w
+		} else {
+			log.Printf("meta: unexpected event coming, %v", event)
+			return
+		}
+	}
+}
+
+func (m *Meta) handleRegionLeaderConfigChanged(watch <-chan zookeeper.Event) {
+	for {
+		event := <-watch
+		if event.Type == zookeeper.EVENT_CHANGED {
+			c, w, err := m.FetchControllerConfig(m.regionLeaderZNodeName)
+			if err == nil {
+				m.regionLeaderConfig = c
+				log.Println("meta: region leader config changed.")
+			} else {
+				log.Printf("meta: fetch controller config failed, %v", err)
+			}
+			watch = w
+		} else {
+			log.Printf("meta: unexpected event coming, %v", event)
+			return
+		}
+	}
+}
+
+func (m *Meta) ElectLeader() (<-chan zookeeper.Event, error) {
+	clusterLeader, regionLeader, watcher, err := m.leaders()
+	if err != nil {
+		return nil, err
+	}
+	if clusterLeader == "" || regionLeader == "" {
+		return nil, fmt.Errorf("meta: get leaders failed.")
+	}
+
+	log.Println("leader:", clusterLeader, regionLeader)
+
+	if m.clusterLeaderZNodeName != clusterLeader {
+		// 获取ClusterLeader配置
+		c, w, err := m.FetchControllerConfig(clusterLeader)
+		if err != nil {
+			return nil, err
+		}
+		m.clusterLeaderConfig = c
+		m.clusterLeaderZNodeName = clusterLeader
+		go m.handleClusterLeaderConfigChanged(w)
+	}
+
+	if m.regionLeaderZNodeName != regionLeader {
+		c, w, err := m.FetchControllerConfig(regionLeader)
+		if err != nil {
+			return nil, err
+		}
+		m.regionLeaderConfig = c
+		m.regionLeaderZNodeName = regionLeader
+		go m.handleRegionLeaderConfigChanged(w)
+	}
+	return watcher, nil
 }
