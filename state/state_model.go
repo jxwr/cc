@@ -123,10 +123,17 @@ var (
 				return false
 			}
 		}
-		if meta.FailoverInDoing() {
+		// 是否有其他Failover正在进行
+		doing, err := meta.IsDoingFailover()
+		if err != nil || doing {
 			return false
 		}
-		if time.Since(meta.LastFailoverTime()) < 30*time.Minute {
+		// 最近是否进行过Failover
+		lastTime, err := meta.LastFailoverTime()
+		if err != nil {
+			return false
+		}
+		if lastTime != nil && time.Since(*lastTime) < 30*time.Minute {
 			return false
 		}
 		log.Println("Can do failover for master")

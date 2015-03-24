@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"launchpad.net/gozk"
 )
@@ -21,6 +22,16 @@ type ControllerConfig struct {
 	HttpPort int    `json:"http_port"`
 	WsPort   int    `json:"ws_port"`
 	Region   string `json:"region"`
+}
+
+type FailoverRecord struct {
+	AppName   string    `json:"appname"`
+	NodeId    string    `json:"node_id"`
+	NodeAddr  string    `json:"node_addr"`
+	Timestamp time.Time `json:"timestamp"`
+	Region    string    `json:"region"`
+	Tag       string    `json:"tag"`
+	Ranges    []string  `json:"ranges"`
 }
 
 func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
@@ -98,4 +109,40 @@ func (m *Meta) FetchControllerConfig(zkNode string) (*ControllerConfig, <-chan z
 		return nil, watch, err
 	}
 	return &c, watch, nil
+}
+
+func (m *Meta) IsDoingFailover() (bool, error) {
+	stat, err := m.zconn.Exists("/r3/failover/doing")
+	if zookeeper.IsError(err, zookeeper.ZOK) {
+		if stat != nil {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	} else {
+		return true, err
+	}
+}
+
+func (m *Meta) LastFailoverRecord() (*FailoverRecord, error) {
+	children, stat, err := m.zconn.Children("/r3/failover/history")
+	if err != nil {
+		return nil, err
+	}
+	if stat.NumChildren() == 0 {
+		return nil, nil
+	}
+
+	last := children[len(children)-1]
+	data, _, err := m.zconn.Get("/r3/failover/history/" + last)
+	if err != nil {
+		return nil, err
+	}
+
+	var record FailoverRecord
+	err = json.Unmarshal([]byte(data), &record)
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
 }

@@ -58,12 +58,16 @@ func IsClusterLeader() bool {
 	return meta.selfZNodeName == meta.clusterLeaderZNodeName
 }
 
-func FailoverInDoing() bool {
-	return false
+func IsDoingFailover() (bool, error) {
+	return meta.IsDoingFailover()
 }
 
-func LastFailoverTime() time.Time {
-	return time.Now()
+func LastFailoverTime() (*time.Time, error) {
+	r, err := meta.LastFailoverRecord()
+	if err != nil {
+		return nil, err
+	}
+	return &r.Timestamp, nil
 }
 
 func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initCh chan error) {
