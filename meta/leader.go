@@ -15,10 +15,10 @@ func (m *Meta) leaders() (string, string, <-chan zookeeper.Event, error) {
 
 	children, stat, watcher, err := zconn.ChildrenW(zkPath)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", watcher, err
 	}
 	if stat.NumChildren() == 0 {
-		return "", "", nil, fmt.Errorf("meta: no node in controller leader directory")
+		return "", "", watcher, fmt.Errorf("meta: no node in controller leader directory")
 	}
 
 	needRejoin := true
@@ -60,18 +60,22 @@ func (m *Meta) leaders() (string, string, <-chan zookeeper.Event, error) {
 	if needRejoin {
 		err := m.RegisterLocalController()
 		if err != nil {
-			return "", "", nil, err
+			return "", "", watcher, err
 		}
 	}
 
 	return clusterLeader, regionLeader, watcher, nil
 }
 
-func (m *Meta) handleClusterLeaderConfigChanged(watch <-chan zookeeper.Event) {
+func (m *Meta) handleClusterLeaderConfigChanged(znode string, watch <-chan zookeeper.Event) {
 	for {
 		event := <-watch
 		if event.Type == zookeeper.EVENT_CHANGED {
-			c, w, err := m.FetchControllerConfig(m.clusterLeaderZNodeName)
+			if m.clusterLeaderZNodeName != znode {
+				log.Println("meta: region leader has changed")
+				break
+			}
+			c, w, err := m.FetchControllerConfig(znode)
 			if err == nil {
 				m.clusterLeaderConfig = c
 				log.Println("meta: cluster leader config changed.")
@@ -81,16 +85,20 @@ func (m *Meta) handleClusterLeaderConfigChanged(watch <-chan zookeeper.Event) {
 			watch = w
 		} else {
 			log.Printf("meta: unexpected event coming, %v", event)
-			return
+			break
 		}
 	}
 }
 
-func (m *Meta) handleRegionLeaderConfigChanged(watch <-chan zookeeper.Event) {
+func (m *Meta) handleRegionLeaderConfigChanged(znode string, watch <-chan zookeeper.Event) {
 	for {
 		event := <-watch
 		if event.Type == zookeeper.EVENT_CHANGED {
-			c, w, err := m.FetchControllerConfig(m.regionLeaderZNodeName)
+			if m.regionLeaderZNodeName != znode {
+				log.Println("meta: region leader has changed")
+				break
+			}
+			c, w, err := m.FetchControllerConfig(znode)
 			if err == nil {
 				m.regionLeaderConfig = c
 				log.Println("meta: region leader config changed.")
@@ -100,7 +108,7 @@ func (m *Meta) handleRegionLeaderConfigChanged(watch <-chan zookeeper.Event) {
 			watch = w
 		} else {
 			log.Printf("meta: unexpected event coming, %v", event)
-			return
+			break
 		}
 	}
 }
@@ -108,10 +116,10 @@ func (m *Meta) handleRegionLeaderConfigChanged(watch <-chan zookeeper.Event) {
 func (m *Meta) ElectLeader() (<-chan zookeeper.Event, error) {
 	clusterLeader, regionLeader, watcher, err := m.leaders()
 	if err != nil {
-		return nil, err
+		return watcher, err
 	}
 	if clusterLeader == "" || regionLeader == "" {
-		return nil, fmt.Errorf("meta: get leaders failed.")
+		return watcher, fmt.Errorf("meta: get leaders failed.")
 	}
 
 	log.Println("leader:", clusterLeader, regionLeader)
@@ -120,21 +128,21 @@ func (m *Meta) ElectLeader() (<-chan zookeeper.Event, error) {
 		// 获取ClusterLeader配置
 		c, w, err := m.FetchControllerConfig(clusterLeader)
 		if err != nil {
-			return nil, err
+			return watcher, err
 		}
 		m.clusterLeaderConfig = c
 		m.clusterLeaderZNodeName = clusterLeader
-		go m.handleClusterLeaderConfigChanged(w)
+		go m.handleClusterLeaderConfigChanged(clusterLeader, w)
 	}
 
 	if m.regionLeaderZNodeName != regionLeader {
 		c, w, err := m.FetchControllerConfig(regionLeader)
 		if err != nil {
-			return nil, err
+			return watcher, err
 		}
 		m.regionLeaderConfig = c
 		m.regionLeaderZNodeName = regionLeader
-		go m.handleRegionLeaderConfigChanged(w)
+		go m.handleRegionLeaderConfigChanged(regionLeader, w)
 	}
 	return watcher, nil
 }
