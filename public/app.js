@@ -199,6 +199,7 @@ var NodeStateRow = React.createClass({
     var FAIL = node.Fail ? "FAIL":"OK";
     var READ = node.Readable ? "Read":"-";
     var WRITE = node.Writable ? "Write":"-";
+    var EMPTY = (node.Role=="master")&&(!node.Fail)&&(node.Ranges.length==0) ? "EmptyMaster":"-";
     return (
         <tr className="nodeRow">
           <td>{node.State}</td>
@@ -209,6 +210,7 @@ var NodeStateRow = React.createClass({
           <td>{node.Role}</td>
           <td>{node.Ip}:{node.Port}</td>
           <td>{node.Id}</td>
+          <td>{EMPTY}</td>
           <td>{node.Version}</td>
           <td>
             <button onClick={this.enableRead}>+r</button>
