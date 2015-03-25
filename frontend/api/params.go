@@ -29,3 +29,7 @@ type ToggleModeParams struct {
 	Perm   string `json:"perm"`
 	NodeId string `json:"node_id"`
 }
+
+type MakeReplicaSetParams struct {
+	NodeIds []string `json:"node_ids"`
+}

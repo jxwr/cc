@@ -48,6 +48,10 @@ func MasterRegion() string {
 	return meta.appConfig.MasterRegion
 }
 
+func AllRegions() []string {
+	return meta.appConfig.Regions
+}
+
 func AutoFailover() bool {
 	return meta.appConfig.AutoFailover
 }

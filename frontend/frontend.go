@@ -32,6 +32,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.POST(api.RegionSnapshotPath, fe.HandleRegionSnapshot)
 	fe.Router.POST(api.MigrateCreatePath, fe.HandleMigrateCreate)
 	fe.Router.POST(api.NodePermPath, fe.HandleToggleMode)
+	fe.Router.POST(api.MakeReplicaSetPath, fe.HandleMakeReplicaSet)
 
 	return fe
 }
@@ -120,7 +121,26 @@ func (fe *FrontEnd) HandleMigrateCreate(c *gin.Context) {
 		Ranges:   ranges,
 	}
 
-	result, err := fe.C.ProcessCommand(&cmd, 2*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	if err != nil {
+		c.JSON(500, api.FailureResponse{
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, result)
+}
+
+func (fe *FrontEnd) HandleMakeReplicaSet(c *gin.Context) {
+	var params api.MakeReplicaSetParams
+	c.Bind(&params)
+
+	cmd := command.MakeReplicaSetCommand{
+		NodeIds: params.NodeIds,
+	}
+
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
 		c.JSON(500, api.FailureResponse{
 			Message: err.Error(),

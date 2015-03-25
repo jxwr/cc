@@ -171,6 +171,36 @@ func ClusterFailover(addr string) (string, error) {
 	return resp, nil
 }
 
+func ClusterReplicate(addr, targetId string) (string, error) {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "replicate", targetId))
+	if err != nil {
+		return "", err
+	}
+
+	return resp, nil
+}
+
+func ClusterMeet(seedAddr, newIp string, newPort int) (string, error) {
+	conn, err := redis.Dial("tcp", seedAddr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "meet", newIp, newPort))
+	if err != nil {
+		return "", err
+	}
+
+	return resp, nil
+}
+
 /// Info
 
 type RedisInfo map[string]string
