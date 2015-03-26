@@ -118,6 +118,14 @@ func (self *Cluster) BuildReplicaSets() error {
 	return nil
 }
 
+func (self *Cluster) ReplicaSets() []*ReplicaSet {
+	return self.replicaSets
+}
+
+func (self *Cluster) NumReplicaSets() int {
+	return len(self.replicaSets)
+}
+
 func (self *Cluster) String() string {
 	return ""
 }

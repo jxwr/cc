@@ -33,3 +33,9 @@ type ToggleModeParams struct {
 type MakeReplicaSetParams struct {
 	NodeIds []string `json:"node_ids"`
 }
+
+type RebalanceParams struct {
+	Method       string   `json:"method"`
+	TargetIds    []string `json:"target_ids"`
+	ShowPlanOnly bool     `json:"show_plan_only"`
+}

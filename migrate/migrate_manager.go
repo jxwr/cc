@@ -3,6 +3,7 @@ package migrate
 import (
 	"errors"
 	"log"
+	"time"
 
 	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/topo"
@@ -16,19 +17,69 @@ var (
 	ErrSourceNodeFail      = errors.New("mig: source node failure")
 	ErrTargetNodeFail      = errors.New("mig: target node failure")
 	ErrCanNotRecover       = errors.New("mig: can not recover")
+	ErrRebalanceTaskExist  = errors.New("mig: rebalancing task exist")
 )
 
 /// Migrate
 
 type MigrateManager struct {
-	tasks []*MigrateTask
+	tasks         []*MigrateTask
+	rebalanceTask *RebalanceTask
 }
 
 func NewMigrateManager() *MigrateManager {
-	m := &MigrateManager{
-		tasks: []*MigrateTask{},
-	}
+	m := &MigrateManager{tasks: []*MigrateTask{}}
 	return m
+}
+
+func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster) {
+	// 启动所有任务，失败则等待一会进行重试
+	for {
+		allRunning := true
+		for _, plan := range rbtask.Plans {
+			if plan.task == nil {
+				task, err := m.CreateTask(plan.SourceId, plan.TargetId, plan.Ranges, cluster)
+				if err == nil {
+					log.Println("Rebalance task created,", task)
+					plan.task = task
+					go task.Run()
+				} else {
+					allRunning = false
+				}
+			}
+		}
+		if allRunning {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+	// 等待结束
+	for {
+		allDone := true
+		for _, plan := range rbtask.Plans {
+			log.Println("Plan:", plan)
+			state := plan.task.CurrentState()
+			if state != StateDone && state != StateCancelled {
+				m.RemoveTask(plan.task)
+				allDone = false
+			}
+		}
+		if allDone {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+	m.rebalanceTask = nil
+}
+
+func (m *MigrateManager) RunRebalanceTask(plans []*MigratePlan, cluster *topo.Cluster) error {
+	if m.rebalanceTask != nil {
+		return ErrRebalanceTaskExist
+	}
+	rbtask := &RebalanceTask{plans}
+	m.rebalanceTask = rbtask
+	go m.rebalance(rbtask, cluster)
+	return nil
 }
 
 func (m *MigrateManager) CreateTask(sourceId, targetId string, ranges []topo.Range, cluster *topo.Cluster) (*MigrateTask, error) {

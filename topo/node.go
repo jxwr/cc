@@ -2,6 +2,7 @@ package topo
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"regexp"
 	"strconv"
@@ -11,6 +12,10 @@ import (
 type Range struct {
 	Left  int
 	Right int
+}
+
+func (r Range) NumSlots() int {
+	return (r.Right - r.Left + 1)
 }
 
 type Node struct {
@@ -154,6 +159,53 @@ func (s *Node) SetRoom(val string) *Node {
 
 func (s *Node) AddRange(r Range) {
 	s.Ranges = append(s.Ranges, r)
+}
+
+func (s *Node) Empty() bool {
+	return len(s.Ranges) == 0
+}
+
+func (s *Node) NumSlots() int {
+	total := 0
+	for _, r := range s.Ranges {
+		total += r.NumSlots()
+	}
+	return total
+}
+
+func (s *Node) RangesSplitN(n int) [][]Range {
+	total := s.NumSlots()
+	numSlotsPerPart := int(math.Ceil(float64(total) / float64(n)))
+
+	parts := [][]Range{}
+	ranges := []Range{}
+	need := numSlotsPerPart
+	for i := len(s.Ranges) - 1; i >= 0; i-- {
+		rang := s.Ranges[i]
+		num := rang.NumSlots()
+		if need > num {
+			need -= num
+			ranges = append(ranges, rang)
+		} else if need == num {
+			ranges = append(ranges, rang)
+			parts = append(parts, ranges)
+			ranges = []Range{}
+			need = numSlotsPerPart
+		} else {
+			ranges = append(ranges, Range{
+				Left:  rang.Right - need + 1,
+				Right: rang.Right,
+			})
+			parts = append(parts, ranges)
+			remain := Range{rang.Left, rang.Right - need}
+			ranges = []Range{remain}
+			need = numSlotsPerPart - remain.NumSlots()
+		}
+	}
+	if len(ranges) > 0 {
+		parts = append(parts, ranges)
+	}
+	return parts
 }
 
 func (s *Node) Compare(t *Node) bool {

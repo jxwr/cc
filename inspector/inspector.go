@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -59,7 +58,6 @@ func (self *Inspector) buildNode(line string) (*topo.Node, error) {
 		}
 		ranges = append(ranges, word)
 	}
-	sort.Strings(ranges)
 
 	for _, r := range ranges {
 		xs = strings.Split(r, "-")
