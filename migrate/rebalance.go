@@ -7,8 +7,6 @@ import (
 	"github.com/jxwr/cc/topo"
 )
 
-var rebalanceTask *RebalanceTask
-
 type MigratePlan struct {
 	SourceId string       `json:"source_id"`
 	TargetId string       `json:"target_id"`
@@ -48,6 +46,7 @@ func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []str
 	}
 
 	var ts []*topo.Node
+	// 如果没传TargetId，则选择所有可以作为迁移目标的rs
 	if len(targetIds) == 0 {
 		for _, node := range tm {
 			ts = append(ts, node)
@@ -66,5 +65,6 @@ func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []str
 		return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
 	}
 	plans := rebalancer(ss, ts)
+
 	return plans, nil
 }
