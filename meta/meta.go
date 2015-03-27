@@ -140,7 +140,6 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 	initCh <- nil
 
 	// 开始各种Watch
-	tickChan := time.NewTicker(time.Second * 60).C
 	for {
 		select {
 		case event := <-meta.zsession:
@@ -157,9 +156,6 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 				}
 			}
 		case <-watcher:
-			watcher, err = meta.ElectLeader()
-			log.Println(err)
-		case <-tickChan:
 			watcher, err = meta.ElectLeader()
 			log.Println(err)
 		}
