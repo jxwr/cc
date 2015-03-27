@@ -35,7 +35,7 @@ func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []str
 	for _, rs := range rss {
 		master := rs.Master()
 		// 忽略主挂掉和region覆盖不全的rs
-		if master.Fail || !rs.CoverAllRegions(regions) {
+		if master.Fail || !rs.IsCoverAllRegions(regions) {
 			continue
 		}
 		if master.Empty() {

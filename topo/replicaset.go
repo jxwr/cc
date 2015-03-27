@@ -57,7 +57,7 @@ func (s *ReplicaSet) FindNode(nodeId string) *Node {
 }
 
 // 该RS是否覆盖所有Region
-func (s *ReplicaSet) CoverAllRegions(regions []string) bool {
+func (s *ReplicaSet) IsCoverAllRegions(regions []string) bool {
 	regionMap := map[string]bool{}
 	for _, r := range regions {
 		regionMap[r] = false

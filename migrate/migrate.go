@@ -33,8 +33,7 @@ var stateNames = map[int32]string{
 }
 
 type MigrateTask struct {
-	Ranges []topo.Range
-
+	ranges           []topo.Range
 	source           atomic.Value
 	target           atomic.Value
 	currRangeIndex   int // current range index
@@ -45,7 +44,7 @@ type MigrateTask struct {
 
 func NewMigrateTask(sourceRS, targetRS *topo.ReplicaSet, ranges []topo.Range) *MigrateTask {
 	t := &MigrateTask{
-		Ranges: ranges,
+		ranges: ranges,
 		state:  StateRunning,
 	}
 	t.ReplaceSourceReplicaSet(sourceRS)
@@ -165,7 +164,7 @@ func (t *MigrateTask) streamPub() {
 		SourceId:       t.SourceNode().Id,
 		TargetId:       t.TargetNode().Id,
 		State:          stateNames[t.CurrentState()],
-		Ranges:         t.Ranges,
+		Ranges:         t.ranges,
 		CurrRangeIndex: t.currRangeIndex,
 		CurrSlot:       t.currSlot,
 	}
@@ -173,7 +172,7 @@ func (t *MigrateTask) streamPub() {
 }
 
 func (t *MigrateTask) Run() {
-	for i, r := range t.Ranges {
+	for i, r := range t.ranges {
 		if r.Left < 0 {
 			r.Left = 0
 		}
