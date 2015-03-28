@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/topo"
@@ -15,7 +16,9 @@ type MigratePlan struct {
 }
 
 type RebalanceTask struct {
-	Plans []*MigratePlan `json:"plans"`
+	Plans     []*MigratePlan `json:"plans"`
+	StartTime *time.Time     `json:"start_time"`
+	EndTime   *time.Time     `json:"end_time"`
 }
 
 type Rebalancer func(ss []*topo.Node, ts []*topo.Node) []*MigratePlan

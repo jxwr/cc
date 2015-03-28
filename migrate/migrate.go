@@ -40,12 +40,14 @@ type MigrateTask struct {
 	currSlot         int // current slot
 	state            int32
 	backupReplicaSet *topo.ReplicaSet
+	lastPubTime      time.Time
 }
 
 func NewMigrateTask(sourceRS, targetRS *topo.ReplicaSet, ranges []topo.Range) *MigrateTask {
 	t := &MigrateTask{
-		ranges: ranges,
-		state:  StateRunning,
+		ranges:      ranges,
+		state:       StateRunning,
+		lastPubTime: time.Now(),
 	}
 	t.ReplaceSourceReplicaSet(sourceRS)
 	t.ReplaceTargetReplicaSet(targetRS)
@@ -159,7 +161,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	return nkeys, nil
 }
 
-func (t *MigrateTask) streamPub() {
+func (t *MigrateTask) streamPub(careSpeed bool) {
 	data := &streams.MigrateStateStreamData{
 		SourceId:       t.SourceNode().Id,
 		TargetId:       t.TargetNode().Id,
@@ -168,7 +170,15 @@ func (t *MigrateTask) streamPub() {
 		CurrRangeIndex: t.currRangeIndex,
 		CurrSlot:       t.currSlot,
 	}
-	streams.MigrateStateStream.Pub(data)
+	if careSpeed {
+		now := time.Now()
+		if now.Sub(t.lastPubTime) > 50*time.Millisecond {
+			streams.MigrateStateStream.Pub(data)
+			t.lastPubTime = now
+		}
+	} else {
+		streams.MigrateStateStream.Pub(data)
+	}
 }
 
 func (t *MigrateTask) Run() {
@@ -182,13 +192,13 @@ func (t *MigrateTask) Run() {
 		t.currRangeIndex = i
 		t.currSlot = r.Left
 		for t.currSlot <= r.Right {
-			t.streamPub()
+			t.streamPub(true)
 			// 尽量在迁移完一个完整Slot或遇到错误时，再进行状态的转换
 			// 只是尽量而已，还是有可能停在一个Slot内部
 
 			if t.CurrentState() == StateCancelling {
 				t.SetState(StateCancelled)
-				t.streamPub()
+				t.streamPub(false)
 				return
 			}
 
@@ -216,7 +226,7 @@ func (t *MigrateTask) Run() {
 	}
 	t.currSlot--
 	t.SetState(StateDone)
-	t.streamPub()
+	t.streamPub(false)
 }
 
 func (t *MigrateTask) BackupReplicaSet() *topo.ReplicaSet {

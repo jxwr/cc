@@ -20,11 +20,13 @@ type MigrateStateStreamData struct {
 }
 
 var (
-	NodeStateStream    = NewStream("NodeStateStream", 4096)
-	MigrateStateStream = NewStream("MigrateStateStream", 4096)
+	NodeStateStream      = NewStream("NodeStateStream", 4096)
+	MigrateStateStream   = NewStream("MigrateStateStream", 4096)
+	RebalanceStateStream = NewStream("RebalanceStateStream", 4096)
 )
 
 func StartAllStreams() {
 	go NodeStateStream.Run()
 	go MigrateStateStream.Run()
+	go RebalanceStateStream.Run()
 }

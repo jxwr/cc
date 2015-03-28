@@ -27,7 +27,7 @@ func (self *RebalanceCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	}
 
 	// 是否立即执行？
-	if !self.ShowPlanOnly {
+	if !self.ShowPlanOnly && len(plans) > 0 {
 		err = mm.RunRebalanceTask(plans, cluster)
 		if err != nil {
 			return nil, err

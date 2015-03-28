@@ -40,6 +40,10 @@ func CutTailRebalancer(ss []*topo.Node, ts []*topo.Node) (plans []*MigratePlan) 
 	numSource := len(ss)
 	numTarget := len(ts)
 
+	if numSource == 0 || numTarget == 0 {
+		return
+	}
+
 	// [s] [s] [s] | [t] [t]
 	if numSource >= numTarget {
 		ratio := int(math.Ceil(float64(numSource) / float64(numTarget)))

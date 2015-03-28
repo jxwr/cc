@@ -15,6 +15,10 @@ var migrateSocket = Rx.DOM.fromWebSocket(
   WS_HOST +'/migrate/state', null, openingObserver, closingObserver);
 var RxMigration = migrateSocket.map(function(e){ return JSON.parse(e.data); });
 
+var rebalanceSocket = Rx.DOM.fromWebSocket(
+  WS_HOST +'/rebalance/state', null, openingObserver, closingObserver);
+var RxRebalance = rebalanceSocket.map(function(e){ return JSON.parse(e.data); });
+
 /// react
 
 var MigratingRow = React.createClass({
@@ -36,9 +40,9 @@ var MigrationTable = React.createClass({
     var rows = mig.Ranges.map(function(range, idx){
       var obj = {left: range.Left, right: range.Right};
       if (idx > mig.CurrRangeIndex)
-        obj.state = "Todo";
+        obj.state = 'Todo';
       if (idx < mig.CurrRangeIndex)
-        obj.state = "Done";
+        obj.state = 'Done';
       if (idx == mig.CurrRangeIndex)
         obj.state = mig.State
       return <MigratingRow obj={obj} />;
@@ -85,21 +89,34 @@ var MigrationCtrl = React.createClass({
     $.ajax({
       url: HTTP_HOST+'/migrate/create',
       contentType: 'application/json',
-      type: "POST",
+      type: 'POST',
       data: JSON.stringify({
         source_id: source_id,
         target_id: target_id,
         ranges: ranges
       })});
   },
+  handleRebalance: function(event) {
+    event.preventDefault();
+    $.ajax({
+      url: HTTP_HOST+'/migrate/rebalance',
+      contentType: 'application/json',
+      type: 'POST',
+      data: JSON.stringify({
+        method: 'default',
+      })});
+  },
   render: function() {
     return (
-      <form className="migrationCtrl" onSubmit={this.handleSubmit}>
+      <div>
+        <form className="migrationCtrl" onSubmit={this.handleSubmit}>
         From:<input type="text" ref="source_id"/>
         To:<input type="text" ref="target_id"/>
         Ranges:<input type="text" ref="ranges"/>
         <button>Migrate</button>
-      </form>
+        </form>
+        <button onClick={this.handleRebalance}>Rebalance</button>
+      </div>
     );
   }
 });
@@ -240,6 +257,17 @@ var NodeStateTable = React.createClass({
   }
 });
 
+var RebalanceStateTable = React.createClass({
+  render: function() {
+    var task = this.props.task;
+    return (
+      <div>
+        {task}
+      </div>
+    );
+  }
+});
+
 var Main = React.createClass({
   componentDidMount: function() {
     var self = this;
@@ -269,6 +297,17 @@ var Main = React.createClass({
       function (){
         console.log('Closed');
       });
+
+    RxRebalance.subscribe(
+      function (obj) {
+        self.setState({task: obj});
+      },
+      function (e) {
+        console.log('Error: ', e);
+      },
+      function (){
+        console.log('Closed');
+      });
   },
   render: function() {
     var nodes = this.props.nodes;
@@ -276,6 +315,7 @@ var Main = React.createClass({
     return (
       <div className="Main">
         <NodeStateTable nodes={nodes} />
+        <RebalanceStateTable />
         <MigrationCtrl />
         <MigrationPanel migMap={migMap} />
         <NodeRangeTable nodes={nodes} />
