@@ -9,16 +9,16 @@ import (
 )
 
 type MigratePlan struct {
-	SourceId string       `json:"source_id"`
-	TargetId string       `json:"target_id"`
-	Ranges   []topo.Range `json:"ranges"`
+	SourceId string
+	TargetId string
+	Ranges   []topo.Range
 	task     *MigrateTask
 }
 
 type RebalanceTask struct {
-	Plans     []*MigratePlan `json:"plans"`
-	StartTime *time.Time     `json:"start_time"`
-	EndTime   *time.Time     `json:"end_time"`
+	Plans     []*MigratePlan
+	StartTime *time.Time
+	EndTime   *time.Time
 }
 
 type Rebalancer func(ss []*topo.Node, ts []*topo.Node) []*MigratePlan

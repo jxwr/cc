@@ -241,40 +241,15 @@ var NodeStateRow = React.createClass({
 });
 
 var NodeStateTable = React.createClass({
-  render: function() {
-    var props = this.props;
-    var keys = _.keys(props.nodes).sort();
-    var nodes = keys.map(function (key) {
-      return (
-          <NodeStateRow node={props.nodes[key]} />
-      );
-    });
-    return (
-        <table className="nodeTable">
-          {nodes}
-        </table>
-    );
-  }
-});
-
-var RebalanceStateTable = React.createClass({
-  render: function() {
-    var task = this.props.task;
-    return (
-      <div>
-        {task}
-      </div>
-    );
-  }
-});
-
-var Main = React.createClass({
+  getInitialState: function() {
+    return {nodes: {}};
+  },
   componentDidMount: function() {
     var self = this;
     // 也许该用rx-react之类的Addon
     RxNodeState.subscribe(
       function (obj) {
-        var nodes = self.props.nodes;
+        var nodes = self.state.nodes;
         nodes[obj.Id] = obj;
         self.setState({nodes: nodes});
       },
@@ -284,7 +259,60 @@ var Main = React.createClass({
       function (){
         console.log('Closed');
       });
+  },
+  render: function() {
+    var state = this.state;
+    var keys = _.keys(state.nodes).sort();
+    var nodes = keys.map(function (key) {
+      return (
+          <NodeStateRow node={state.nodes[key]} />
+      );
+    });
+    return (
+      <div>
+        <table className="nodeTable">
+          {nodes}
+        </table>
+        <NodeRangeTable nodes={state.nodes} />
+      </div>
+    );
+  }
+});
 
+var RebalanceStateTable = React.createClass({
+  getInitialState: function() {
+    return {task: {}};
+  },
+  componentDidMount: function() {
+    var self = this;
+    RxRebalance.subscribe(
+      function (obj) {
+        console.log("rst", obj);
+        self.setState({task: obj});
+      },
+      function (e) {
+        console.log('Error: ', e);
+      },
+      function (){
+        console.log('Closed');
+      });
+  },
+  render: function() {
+    var task = this.state.task || {};
+    console.log("render",task);
+    return (
+      <ul>
+        <li>{task.Plans||"-"}</li>
+        <li>{task.StartTime||"-"}</li>
+        <li>{task.EndTime||"-"}</li>
+      </ul>
+    );
+  }
+});
+
+var Main = React.createClass({
+  componentDidMount: function() {
+    var self = this;
     RxMigration.subscribe(
       function (obj) {
         var migMap = self.props.migMap;
@@ -297,28 +325,17 @@ var Main = React.createClass({
       function (){
         console.log('Closed');
       });
-
-    RxRebalance.subscribe(
-      function (obj) {
-        self.setState({task: obj});
-      },
-      function (e) {
-        console.log('Error: ', e);
-      },
-      function (){
-        console.log('Closed');
-      });
   },
   render: function() {
-    var nodes = this.props.nodes;
     var migMap = this.props.migMap;
     return (
       <div className="Main">
-        <NodeStateTable nodes={nodes} />
+        <NodeStateTable />
         <RebalanceStateTable />
         <MigrationCtrl />
+        <MigrationCtrl />
+        <MigrationCtrl />
         <MigrationPanel migMap={migMap} />
-        <NodeRangeTable nodes={nodes} />
       </div>
     );
   }

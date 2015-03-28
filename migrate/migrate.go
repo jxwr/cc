@@ -82,7 +82,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	targetNode := t.TargetNode()
 
 	// for test
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// 需要将Source分片的所有节点标记为MIGRATING，最大限度避免从地域的读造成的数据不一致
 	// 这样操作降低问题的严重性，但由于是异步同步数据，读取到旧数据还是有小概率发生
@@ -172,7 +172,7 @@ func (t *MigrateTask) streamPub(careSpeed bool) {
 	}
 	if careSpeed {
 		now := time.Now()
-		if now.Sub(t.lastPubTime) > 50*time.Millisecond {
+		if now.Sub(t.lastPubTime) > 100*time.Millisecond {
 			streams.MigrateStateStream.Pub(data)
 			t.lastPubTime = now
 		}
