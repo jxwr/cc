@@ -78,6 +78,14 @@ func IsClusterLeader() bool {
 	return meta.selfZNodeName == meta.clusterLeaderZNodeName
 }
 
+func ClusterLeaderZNodeName() string {
+	return meta.clusterLeaderZNodeName
+}
+
+func RegionLeaderZNodeName() string {
+	return meta.regionLeaderZNodeName
+}
+
 func IsDoingFailover() (bool, error) {
 	return meta.IsDoingFailover()
 }
@@ -148,6 +156,7 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 	initCh <- nil
 
 	// 开始各种Watch
+	tickChan := time.NewTicker(time.Second * 60).C
 	for {
 		select {
 		case event := <-meta.zsession:
@@ -165,7 +174,29 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 			}
 		case <-watcher:
 			watcher, err = meta.ElectLeader()
-			log.Println(err)
+			if err != nil {
+				log.Println("Leader election error,", err)
+			}
+		case <-tickChan:
+			clusterLeader, regionLeader, _, err := meta.CheckLeaders(false)
+			log.Println("Check leaders,", err)
+			needElect := false
+			if clusterLeader == "" || regionLeader == "" {
+				log.Println("Leaders gone, will reelect leaders.")
+				needElect = true
+			} else if ClusterLeaderZNodeName() != clusterLeader {
+				log.Println("Cluster leader changed, reelect.")
+				needElect = true
+			} else if RegionLeaderZNodeName() != regionLeader {
+				log.Println("Region leader changed, reelect.")
+				needElect = true
+			}
+			if needElect {
+				watcher, err = meta.ElectLeader()
+				if err != nil {
+					log.Println("Leader election error,", err)
+				}
+			}
 		}
 	}
 }

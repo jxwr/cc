@@ -9,11 +9,19 @@ import (
 	"launchpad.net/gozk"
 )
 
-func (m *Meta) leaders() (string, string, <-chan zookeeper.Event, error) {
+func (m *Meta) CheckLeaders(watch bool) (string, string, <-chan zookeeper.Event, error) {
 	zkPath := m.ccDirPath
 	zconn := m.zconn
 
-	children, stat, watcher, err := zconn.ChildrenW(zkPath)
+	var children []string
+	var stat *zookeeper.Stat
+	var watcher <-chan zookeeper.Event
+	var err error
+	if watch {
+		children, stat, watcher, err = zconn.ChildrenW(zkPath)
+	} else {
+		children, stat, err = zconn.Children(zkPath)
+	}
 	if err != nil {
 		return "", "", watcher, err
 	}
@@ -114,7 +122,7 @@ func (m *Meta) handleRegionLeaderConfigChanged(znode string, watch <-chan zookee
 }
 
 func (m *Meta) ElectLeader() (<-chan zookeeper.Event, error) {
-	clusterLeader, regionLeader, watcher, err := m.leaders()
+	clusterLeader, regionLeader, watcher, err := m.CheckLeaders(true)
 	if err != nil {
 		return watcher, err
 	}
