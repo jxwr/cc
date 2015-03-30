@@ -13,7 +13,6 @@ var stateSocket = Rx.DOM.fromWebSocket(
   WS_HOST +'/node/state', null, openingObserver, closingObserver);
 var RxNodeState = stateSocket.map(function(e){ 
   var state = JSON.parse(e.data); 
-  delete state.Version;
   delete state.Room;
   delete state.Zone;
   delete state.PFail;
@@ -55,9 +54,6 @@ var NodeState = React.createClass({
   disableWrite: function() {
     this.toggleMode('disable', 'write');
   },
-  shouldComponentUpdate: function(nextProps, nextState) {
-    return !_.isEqual(nextProps.node,this.props.node);
-  },
   render: function() {
     var node = this.props.node;
     var role = node.Role == "master" ? "Master" : "Slave";
@@ -66,7 +62,6 @@ var NodeState = React.createClass({
     var read = node.Readable ? "r":"-";
     var write = node.Writable ? "w":"-";
     var mode = read+"/"+write;
-    console.log("render node");
     return (
         <div className="ui card">
         <div className="content">
@@ -99,7 +94,7 @@ var RegionState = React.createClass({
   render: function() {
     var nodes = this.props.nodes;
     var nodeStates = nodes.map(function(n) {
-      return <NodeState node={n} />
+      return <NodeState key={n.Id} node={n} />
     });
     return (
       <td>
@@ -128,9 +123,6 @@ var RangeBarItem = React.createClass({
 });
 
 var RangeBar = React.createClass({
-  shouldComponentUpdate: function(nextProps, nextState) {
-    return !_.isEqual(nextProps.ranges,this.props.ranges);
-  },
   render: function() {
     var style = {
       position: "relative",
@@ -148,7 +140,7 @@ var RangeBar = React.createClass({
     });
     var items = ranges.map(function (range) {
       return (
-          <RangeBarItem range={range} width={style.width} />
+          <RangeBarItem key={range.Left} range={range} width={style.width} />
       );
     });
     return (
@@ -173,6 +165,10 @@ var ReplicaSetState = React.createClass({
       data: JSON.stringify({
         method: 'default',
       })});
+  },
+  // For optimizing
+  shouldComponentUpdate: function(nextProps, nextState) {
+    return !_.isEqual(nextProps.shard,this.props.shard);
   },
   render: function() {
     var shard = this.props.shard;
@@ -221,6 +217,7 @@ var ReplicaSetState = React.createClass({
 });
 
 var ClusterState = React.createClass({
+  regionVersion: {},
   getInitialState: function() {
     return {nodes: {}};
   },
@@ -240,10 +237,8 @@ var ClusterState = React.createClass({
       });
   },
   render: function() {
-    var headers = AppConfig.Regions.map(function(region) {
-      return <th className="four wide">{region}</th>;
-    });
     var state = this.state;
+    var regionVersion = this.regionVersion;
     var regionNodes = _.groupBy(state.nodes, function(n) {
       return (n.ParentId == "-") ? n.Id : n.ParentId;
     });
@@ -257,11 +252,17 @@ var ClusterState = React.createClass({
         if (!shard.RegionNodes[node.Region]) 
           shard.RegionNodes[node.Region] = [];
         shard.RegionNodes[node.Region].push(node);
+        if (node.Version) regionVersion[node.Region] = node.Version;
+        // For optimizing
+        delete node.Version;
       }
       return shard;
     })
     var rows = shards.map(function(shard){
       return <ReplicaSetState shard={shard} />;
+    });
+    var headers = AppConfig.Regions.map(function(region) {
+      return <th className="four wide">{region}({regionVersion[region]})</th>;
     });
     return (
       <div>
