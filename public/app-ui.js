@@ -130,7 +130,7 @@ var RangeBar = React.createClass({
       height: "10px",
       backgroundColor: "lightgrey"
     };
-    var id = this.props.nodeId;
+    var node = this.props.node;
     var ranges = this.props.ranges;
     var rangePairs = ranges.map(function (range) {
       return [range.Left,range.Right];
@@ -144,13 +144,70 @@ var RangeBar = React.createClass({
       );
     });
     return (
-      <div>
-        <div>{id}</div>
+      <div className="ui segment">
+        <div className="ui top left attached label">{node.Id} - {node.Ip}:{node.Port}</div>
         <div className="rangeBar" style={style}>
         {items}
         </div>
         <div>{rangePairTexts.join(',')}</div>
       </div>
+    );
+  }
+});
+
+var MigrationForm = React.createClass({
+  toggle: function() {
+    var m = this.props.sourceMaster;
+    if(!m) return;
+    $('.'+m.Id+'.mig.segment').toggle();
+  },
+  handleCreateMigrateTask: function() {
+    var m = this.props.sourceMaster;
+    if(!m) return;
+    var select = this.refs[m.Id+'_target'].getDOMNode();
+    var targetId = select.options[select.selectedIndex].value;
+    var ranges = this.refs[m.Id+'_ranges'].getDOMNode().value.trim();
+    ranges = ranges.split(',');
+    if (targetId == "" || ranges.length == 0) return;
+    console.log(targetId, ranges);
+    $.ajax({
+      url: HTTP_HOST+'/migrate/create',
+      contentType: 'application/json',
+      type: 'POST',
+      data: JSON.stringify({
+        source_id: m.Id,
+        target_id: targetId,
+        ranges: ranges
+      })});
+  },
+  render: function() {
+    var source = this.props.sourceMaster;
+    if (!source) return <div></div>;
+    var masterNodes = this.props.masterNodes;
+    var idOptions = masterNodes.map(function(n) {
+      if (!source || n.Id == source.Id) return null;
+      return <option key={n.Id} value={n.Id}>{n.Id} - {n.Ip}:{n.Port}</option>;
+    }).filter(function(n) { return n != null; });
+    return (
+        <div>
+          <div className="compact ui icon button" onClick={this.toggle}>
+            <i className="content icon"></i>
+          </div>
+          <div className={source.Id+" mig ui segment"} style={{display:"none"}}>
+            <div className="ui form">
+              <div className="field">
+                <label>Migrate ranges</label>
+                <input ref={source.Id+"_ranges"} type="text"/>
+              </div>
+              <div className="field">
+                <label>to</label>
+                <select ref={source.Id+"_target"}>{idOptions}</select>
+              </div>
+              <div className="ui tiny blue submit button"
+                   onClick={this.handleCreateMigrateTask}>Migrate</div>
+            </div>
+          </div>
+        </div>
     );
   }
 });
@@ -168,10 +225,12 @@ var ReplicaSetState = React.createClass({
   },
   // For optimizing
   shouldComponentUpdate: function(nextProps, nextState) {
-    return !_.isEqual(nextProps.shard,this.props.shard);
+    return !(_.isEqual(nextProps.shard, this.props.shard) && 
+             _.isEqual(nextProps.masterNodes, this.props.masterNodes));
   },
   render: function() {
     var shard = this.props.shard;
+    var masterNodes = this.props.masterNodes;
     var coverAllRegions = true;
     var regions = AppConfig.Regions.map(function(region) {
       var nodes = shard.RegionNodes[region];
@@ -183,33 +242,36 @@ var ReplicaSetState = React.createClass({
     });
     var rangeBar = <div>No Master Found</div>;
     // 是否是空节点
-    var emptyMaster = null;
+    var tags = null;
+    var emptyMaster = false;
     if (shard.Master) {
       master = shard.Master;
-      rangeBar = <RangeBar nodeId={master.Id} ranges={master.Ranges} />;
+      rangeBar = <RangeBar node={master} ranges={master.Ranges} />;
       if ((!master.Fail)&&(master.Ranges.length==0)) {
-        emptyMaster = (
-          <div>
-            <span className="ui small yellow tag label">Empty</span>
-            <span className="ui small yellow tag label">
+        emptyMaster = true;
+        tags = (
+          <span>
+            <span className="compat ui yellow tag label">Empty</span>
+            <span className="compat ui yellow tag label">
               {coverAllRegions?"CoverAllRegions":"NotCorverAllRegions"}
             </span>
-          </div>
+          </span>
         );
       }
     }
     // 能否进行Rebalance（Master,NotDead,CoverAllRegions,NoSlot）
     var rebalanceBtn = null;
     if (emptyMaster && coverAllRegions) {
-      rebalanceBtn = <button onClick={this.handleRebalance}>Rebalance</button>;
+      rebalanceBtn = <button className="blue compact tiny ui button" 
+                             onClick={this.handleRebalance}>Rebalance To This Node</button>;
     }
     return (
         <tr>
         {regions}
         <td>
-          {emptyMaster}
+          {tags} {rebalanceBtn}
           {rangeBar}
-          {rebalanceBtn}
+          <MigrationForm sourceMaster={shard.Master} masterNodes={masterNodes} />
         </td>
         </tr>
     );
@@ -242,12 +304,14 @@ var ClusterState = React.createClass({
     var regionNodes = _.groupBy(state.nodes, function(n) {
       return (n.ParentId == "-") ? n.Id : n.ParentId;
     });
+    var masterNodes = [];
     var shards = _.map(regionNodes, function(nodes) {
       var shard = {Master:null, RegionNodes:{}};
       for (var i = 0; i < nodes.length; i++) {
         var node = nodes[i];
         if (node.Role == "master") {
           shard.Master = node;
+          masterNodes.push(node);
         }
         if (!shard.RegionNodes[node.Region]) 
           shard.RegionNodes[node.Region] = [];
@@ -259,7 +323,7 @@ var ClusterState = React.createClass({
       return shard;
     })
     var rows = shards.map(function(shard){
-      return <ReplicaSetState shard={shard} />;
+      return <ReplicaSetState shard={shard} masterNodes={masterNodes} />;
     });
     var headers = AppConfig.Regions.map(function(region) {
       return <th className="four wide">{region}({regionVersion[region]})</th>;
@@ -313,7 +377,7 @@ var AppInfo = React.createClass({
   }
 });
 
-var MigrationRow = React.createClass({
+var MigrationTask = React.createClass({
   render: function() {
     var obj = this.props.obj;
     return (
@@ -325,7 +389,7 @@ var MigrationRow = React.createClass({
   }
 });
 
-var MigrationTable = React.createClass({
+var MigrationTaskTable = React.createClass({
   render: function() {
     var task = this.props.task;
     var name = task.SourceId.substring(0,6)+' to '+task.TargetId.substring(0,6);
@@ -337,7 +401,7 @@ var MigrationTable = React.createClass({
         obj.state = 'Done';
       if (idx == task.CurrRangeIndex)
         obj.state = task.State
-      return <MigrationRow obj={obj} />;
+      return <MigrationTask obj={obj} />;
     });
     return (
       <div className="ui card floated left">
@@ -353,7 +417,7 @@ var MigrationTable = React.createClass({
   }
 });
 
-var MigrationPanel = React.createClass({
+var MigrationTaskPanel = React.createClass({
   getInitialState: function() {
     return {tasks: {}};
   },
@@ -371,51 +435,35 @@ var MigrationPanel = React.createClass({
       function (){
         console.log('Closed');
       });
-  },  
+  },
+  toggle: function() {
+    $(".mig-task-panel").toggle();
+  },
   render: function() {
     var tasks = this.state.tasks;
     var keys = _.keys(tasks).sort();
     var migs = keys.map(function (key) {
       return (
-        <MigrationTable task={tasks[key]} />
+        <MigrationTaskTable task={tasks[key]} />
       );
     });
+    var style = {
+      position: "fixed",
+      left: "20px",
+      top: "20px",
+      zIndex: 10
+    };
     var panel = null;
     if (migs.length > 0)
-      panel = <div className="ui segment"> {migs} </div>;
+      panel = (
+        <div className="taskPanel ui purple inverted segment" style={style}>
+          <a className="ui left corner label" onClick={this.toggle}>
+            <i className="content icon"></i>
+          </a>
+          <div className="mig-task-panel">{migs}</div>
+        </div>
+      );
     return panel;
-  }
-});
-
-var MigrationCtrl = React.createClass({
-  handleSubmit: function(event) {
-    event.preventDefault();
-    var source_id = this.refs['source_id'].getDOMNode().value.trim();
-    var target_id = this.refs['target_id'].getDOMNode().value.trim();
-    var ranges = this.refs['ranges'].getDOMNode().value.trim();
-    ranges = ranges.split(',');
-    if (source_id == "" || target_id == "" || ranges.length == 0) return;
-    $.ajax({
-      url: HTTP_HOST+'/migrate/create',
-      contentType: 'application/json',
-      type: 'POST',
-      data: JSON.stringify({
-        source_id: source_id,
-        target_id: target_id,
-        ranges: ranges
-      })});
-  },
-  render: function() {
-    return (
-      <div>
-        <form className="migrationCtrl" onSubmit={this.handleSubmit}>
-        From:<input type="text" ref="source_id" style={{width:"300px"}}/>
-        To:<input type="text" ref="target_id" style={{width:"300px"}}/>
-        Ranges:<input type="text" ref="ranges"/>
-        <button>Migrate</button>
-        </form>
-      </div>
-    );
   }
 });
 
@@ -428,14 +476,10 @@ var Main = React.createClass({
           <AppInfo info={data} />
         </div>
         <div className="ui segment">
-          <h4>Migration</h4>
-          <MigrationCtrl />
-          <MigrationPanel />
-        </div>
-        <div className="ui segment">
           <h4>ClusterState</h4>
           <ClusterState />
         </div>
+        <MigrationTaskPanel />
       </div>
     );
   }
