@@ -36,6 +36,14 @@ type Meta struct {
 
 var meta *Meta
 
+func GetAppConfig() *AppConfig {
+	return meta.appConfig
+}
+
+func ClusterLeaderConfig() *ControllerConfig {
+	return meta.clusterLeaderConfig
+}
+
 func AppName() string {
 	return meta.appName
 }

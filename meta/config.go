@@ -12,28 +12,28 @@ import (
 )
 
 type AppConfig struct {
-	AppName      string   `json:"appname"`
-	AutoFailover bool     `json:"autofailover"`
-	MasterRegion string   `json:"master_region"`
-	Regions      []string `json:"regions"`
+	AppName      string
+	AutoFailover bool
+	MasterRegion string
+	Regions      []string
 }
 
 type ControllerConfig struct {
-	Ip       string `json:"ip"`
-	HttpPort int    `json:"http_port"`
-	WsPort   int    `json:"ws_port"`
-	Region   string `json:"region"`
+	Ip       string
+	HttpPort int
+	WsPort   int
+	Region   string
 }
 
 type FailoverRecord struct {
-	AppName   string       `json:"appname"`
-	NodeId    string       `json:"node_id"`
-	NodeAddr  string       `json:"node_addr"`
-	Timestamp time.Time    `json:"timestamp"`
-	Region    string       `json:"region"`
-	Tag       string       `json:"tag"`
-	Role      string       `json:"role"`
-	Ranges    []topo.Range `json:"ranges"`
+	AppName   string
+	NodeId    string
+	NodeAddr  string
+	Timestamp time.Time
+	Region    string
+	Tag       string
+	Role      string
+	Ranges    []topo.Range
 }
 
 func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
