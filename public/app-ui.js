@@ -11,7 +11,14 @@ var closingObserver = Rx.Observer.create(function() { console.log('Closing socke
 
 var stateSocket = Rx.DOM.fromWebSocket(
   WS_HOST +'/node/state', null, openingObserver, closingObserver);
-var RxNodeState = stateSocket.map(function(e){ return JSON.parse(e.data); });
+var RxNodeState = stateSocket.map(function(e){ 
+  var state = JSON.parse(e.data); 
+  delete state.Version;
+  delete state.Room;
+  delete state.Zone;
+  delete state.PFail;
+  return state; 
+});
 
 var migrateSocket = Rx.DOM.fromWebSocket(
   WS_HOST +'/migrate/state', null, openingObserver, closingObserver);
@@ -48,6 +55,9 @@ var NodeState = React.createClass({
   disableWrite: function() {
     this.toggleMode('disable', 'write');
   },
+  shouldComponentUpdate: function(nextProps, nextState) {
+    return !_.isEqual(nextProps.node,this.props.node);
+  },
   render: function() {
     var node = this.props.node;
     var role = node.Role == "master" ? "Master" : "Slave";
@@ -56,6 +66,7 @@ var NodeState = React.createClass({
     var read = node.Readable ? "r":"-";
     var write = node.Writable ? "w":"-";
     var mode = read+"/"+write;
+    console.log("render node");
     return (
         <div className="ui card">
         <div className="content">
@@ -117,6 +128,9 @@ var RangeBarItem = React.createClass({
 });
 
 var RangeBar = React.createClass({
+  shouldComponentUpdate: function(nextProps, nextState) {
+    return !_.isEqual(nextProps.ranges,this.props.ranges);
+  },
   render: function() {
     var style = {
       position: "relative",
