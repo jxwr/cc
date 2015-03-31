@@ -17,6 +17,7 @@ func (m *Meta) CheckLeaders(watch bool) (string, string, <-chan zookeeper.Event,
 	var stat *zookeeper.Stat
 	var watcher <-chan zookeeper.Event
 	var err error
+
 	if watch {
 		children, stat, watcher, err = zconn.ChildrenW(zkPath)
 	} else {
@@ -25,9 +26,8 @@ func (m *Meta) CheckLeaders(watch bool) (string, string, <-chan zookeeper.Event,
 	if err != nil {
 		return "", "", watcher, err
 	}
-	if stat.NumChildren() == 0 {
-		return "", "", watcher, fmt.Errorf("meta: no node in controller leader directory")
-	}
+
+	log.Println("Total controllers ", stat.NumChildren())
 
 	needRejoin := true
 	clusterMinSeq := -1
