@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/jxwr/cc/utils/net"
 	"launchpad.net/gozk"
 )
 
@@ -120,11 +121,17 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 		return
 	}
 
+	localIp, err := net.LocalIP()
+	if err != nil {
+		log.Println("meta: can not get local ip", err)
+	}
+
 	meta = &Meta{
 		appName:     appName,
 		wsPort:      wsPort,
 		httpPort:    httpPort,
 		localRegion: localRegion,
+		localIp:     localIp,
 		ccDirPath:   "/r3/app/" + appName + "/controller",
 		zconn:       zconn,
 		zsession:    session,

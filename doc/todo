@@ -12,3 +12,11 @@ TODO:
 - MarkDoingFailover()
   UnmarkDogingFailover()
 - meta原子操作
+
+# 2015/04/01
+
+- AppInfo改变
+- websocket重连
+- 增删节点
+- tag
+

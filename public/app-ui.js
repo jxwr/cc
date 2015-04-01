@@ -3,8 +3,8 @@ $.get('/app/info', function(data){
 var AppConfig = data.AppConfig;
 var Leader = data.Leader;
 
-var HTTP_HOST = 'http://127.0.0.1:'+Leader.HttpPort;
-var WS_HOST = 'ws://127.0.0.1:'+Leader.WsPort;
+var HTTP_HOST = 'http://'+Leader.Ip+':'+Leader.HttpPort;
+var WS_HOST = 'ws://'+Leader.Ip+':'+Leader.WsPort;
 
 var openingObserver = Rx.Observer.create(function() { console.log('Opening socket'); });
 var closingObserver = Rx.Observer.create(function() { console.log('Closing socket'); });

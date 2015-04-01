@@ -8,7 +8,7 @@ import (
 	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/topo"
-	"github.com/jxwr/cc/util"
+	"github.com/jxwr/cc/utils"
 )
 
 func SendRegionTopoSnapshot(nodes []*topo.Node) error {
@@ -19,7 +19,7 @@ func SendRegionTopoSnapshot(nodes []*topo.Node) error {
 	}
 
 	var resp api.MapResp
-	fail, err := util.HttpPost(api.RegionSnapshotPath, params, &resp, 30*time.Second)
+	fail, err := utils.HttpPost(api.RegionSnapshotPath, params, &resp, 30*time.Second)
 	if err != nil {
 		return err
 	}
