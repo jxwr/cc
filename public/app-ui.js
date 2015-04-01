@@ -6,6 +6,8 @@ var Leader = data.Leader;
 var HTTP_HOST = 'http://'+Leader.Ip+':'+Leader.HttpPort;
 var WS_HOST = 'ws://'+Leader.Ip+':'+Leader.WsPort;
 
+console.log("HttpHost", HTTP_HOST);
+
 var openingObserver = Rx.Observer.create(function() { console.log('Opening socket'); });
 var closingObserver = Rx.Observer.create(function() { console.log('Closing socket'); });
 

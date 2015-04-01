@@ -8,28 +8,40 @@ import (
 )
 
 func LocalIP() (string, error) {
-	ifs, err := net.Interfaces()
+	ifaces, err := net.Interfaces()
 	if err != nil {
 		return "", err
 	}
-
-	for _, v := range ifs {
-		addrs, _ := v.Addrs()
-		if len(addrs) == 0 {
-			continue
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue // interface down
+		}
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue // loopback interface
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return "", err
 		}
 		for _, addr := range addrs {
-			v4 := addr.(*net.IPNet).IP.To4()
-			if len(v4) != 4 {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
 				continue
 			}
-			if v4[0] != 127 {
-				return addr.(*net.IPNet).IP.String(), nil
+			ip = ip.To4()
+			if ip == nil {
+				continue // not an ipv4 address
 			}
+			return ip.String(), nil
 		}
-		return "127.0.0.1", nil
 	}
-	return "", errors.New("unknown-ip")
+	return "", errors.New("are you connected to the network?")
 }
 
 func Hostname() (string, error) {
