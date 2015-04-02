@@ -439,7 +439,10 @@ var ClusterState = React.createClass({
       }
       return shard;
     })
-    // StandbyNode的定义是：NoSlots,NoSlaves&&NotCoverAllRegions,NotDead,NotFree
+    // 逻辑稍复杂，ClusterState分三个区域：
+    // 1. FreeNodes;    未加入集群，但作为Seed的节点
+    // 2. StandbyNodes; 加入集群，但未使用的节点(定义是：NoSlots,NoSlaves&&NotCoverAllRegions,NotDead,NotFree)
+    // 3. OnlineNodes   正常工作的节点
     var standbyNodes = [];
     var standbyNodeTable = null;
     var onlineMasters = [];
