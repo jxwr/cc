@@ -275,9 +275,5 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 
 	self.MergeSeeds(cluster.LocalRegionNodes())
 	self.ClusterTopo = cluster
-
-	for _, se := range self.Seeds {
-		log.Println("Seed:", se.Addr())
-	}
 	return cluster, nil
 }
