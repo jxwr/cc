@@ -6,7 +6,8 @@ var Leader = data.Leader;
 var HTTP_HOST = 'http://'+Leader.Ip+':'+Leader.HttpPort;
 var WS_HOST = 'ws://'+Leader.Ip+':'+Leader.WsPort;
 
-console.log("HttpHost", HTTP_HOST);
+if (location.origin != HTTP_HOST)
+  location = HTTP_HOST + location.pathname;
 
 var openingObserver = Rx.Observer.create(function() { console.log('Opening socket'); });
 var closingObserver = Rx.Observer.create(function() { console.log('Closing socket'); });
@@ -64,8 +65,9 @@ var NodeState = React.createClass({
     var read = node.Readable ? "r":"-";
     var write = node.Writable ? "w":"-";
     var mode = read+"/"+write;
+    var empty = node.Role=="master" ? (node.Ranges.length>0 ? "HasSlots":"Empty"): "";
     return (
-        <div className="ui card">
+        <div className="ui card" onClick={this.handleClick}>
         <div className="content">
           <div className="header">
             <i className={failCol+" circle icon"}></i>
@@ -74,7 +76,7 @@ var NodeState = React.createClass({
           </div>
           <div className="meta">
             <span className="ui">{node.Tag}</span>
-            <span className="ui right floated">{node.Version}</span>
+            <span className="ui right floated">{empty}</span>
           </div>
           <div className="description">
             <button onClick={this.enableRead}>+r</button>
@@ -280,6 +282,38 @@ var ReplicaSetState = React.createClass({
   }
 });
 
+var StandbyMasterTable = React.createClass({
+  getInitialState: function() {
+    return {nodes: {}};
+  },
+  // For optimizing
+  shouldComponentUpdate: function(nextProps, nextState) {
+    return !(_.isEqual(nextProps.nodes, this.props.nodes));
+  },
+  render: function() {
+    var standbyMasters = this.props.nodes;
+    if (standbyMasters.length == 0) return null;
+    var headers = AppConfig.Regions.map(function(region) {
+      return <th className="four wide">Standby Nodes - {region}</th>;
+    });
+    var regions = AppConfig.Regions.map(function(region) {
+      var nodes = standbyMasters.filter(function(n) { return n.Region == region; });
+      var comps = nodes.map(function(n) { return <NodeState key={n.Id} node={n} />; });
+      return <td className="four wide">{comps}</td>;
+    });
+    return (
+        <table className="ui yellow inverted table">
+          <thead>
+            <tr>{headers}</tr>
+          </thead>
+          <tbody>
+            <tr>{regions}</tr>
+          </tbody>
+        </table>
+    );
+  }
+});
+
 var ClusterState = React.createClass({
   regionVersion: {},
   getInitialState: function() {
@@ -313,7 +347,6 @@ var ClusterState = React.createClass({
         var node = nodes[i];
         if (node.Role == "master") {
           shard.Master = node;
-          masterNodes.push(node);
         }
         if (!shard.RegionNodes[node.Region]) 
           shard.RegionNodes[node.Region] = [];
@@ -324,14 +357,33 @@ var ClusterState = React.createClass({
       }
       return shard;
     })
-    var rows = shards.map(function(shard){
-      return <ReplicaSetState shard={shard} masterNodes={masterNodes} />;
-    });
+    var standbyMasters = [];
+    var standbyMasterTable = null;
+    var onlineMasters = [];
+    // StandbyMaster的定义是：NoSlots,NoSlaves&&NotCoverAllRegions,NotDead
+    var onlineShards = _.filter(shards, function(shard) {
+      var master = shard.Master;
+      if (!master) return true;
+      if (master.Fail) return true;
+      var online = false;
+      if (master.Ranges.length > 0) online = true;
+      if (_.isEqual(_.keys(shard.RegionNodes).sort(),AppConfig.Regions.sort())) online = true;
+      if (_.flatten(_.values(shard.RegionNodes)) > 1) online = true;
+      if (online)
+        onlineMasters.push(master);
+      else
+        standbyMasters.push(master);
+      return online;
+    })
     var headers = AppConfig.Regions.map(function(region) {
-      return <th className="four wide">{region}({regionVersion[region]})</th>;
+      return <th className="four wide">Region: {region}({regionVersion[region]})</th>;
+    });
+    var rows = onlineShards.map(function(shard) {
+      return <ReplicaSetState shard={shard} masterNodes={onlineMasters} />;
     });
     return (
       <div>
+      <StandbyMasterTable nodes={standbyMasters} />
       <table className="ui striped green table">
         <thead>
           <tr>
@@ -492,4 +544,18 @@ React.render(
     document.getElementById('content')
 );
 
+// AppInfo变化后，（粗暴的）重新加载页面
+var failCount = 0;
+Rx.Observable.timer(0, 2000).timeInterval().subscribe(
+  function (x) {
+    $.get('/app/info', function(newData){
+      if (failCount > 5 || !_.isEqual(newData, data)) 
+        location.reload(true);
+      else
+        failCount = 0;
+    })
+    .fail(function() {
+      failCount++;
+    });
+  });
 });

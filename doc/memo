@@ -535,3 +535,18 @@ UI需要展示的内容：
 5. 日志
 6. 操作Feed流
 7. 事件Feed流
+
+# 2015/04/01
+
+添加节点，向Cluster发送MEET，之后节点加入集群，但是可能处于三种情况：
+1. Empty，集群此时是空的，尚未分配slots
+2. Imcomplete，由于某种原因，slots没有覆盖完整
+3. Complete，slots覆盖完整
+
+一个节点被视为是“新加入的节点”，需要满足：
+1. NoSlots
+2. NoSlaves&&NotCoverAllRegions
+3. NotFail
+这类节点可以进行操作：
+1. 和其他节点组成ReplicaSet
+2. 摘除

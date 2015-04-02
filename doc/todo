@@ -15,8 +15,8 @@ TODO:
 
 # 2015/04/01
 
-- AppInfo改变
-- websocket重连
+- AppInfo改变, 简单重新加载页面
+- websocket重连，不处理
 - 增删节点
 - tag
 
