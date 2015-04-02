@@ -66,6 +66,15 @@ var NodeState = React.createClass({
         node_id: this.props.node.Id,
       })});
   },
+  handleForget: function() {
+    $.ajax({
+      url: HTTP_HOST+'/node/forget',
+      contentType: 'application/json',
+      type: "POST",
+      data: JSON.stringify({
+        node_id: this.props.node.Id,
+      })});
+  },
   render: function() {
     var node = this.props.node;
     var role = node.Role == "master" ? "Master" : "Slave";
@@ -76,6 +85,7 @@ var NodeState = React.createClass({
     var mode = read+"/"+write;
     var empty = node.Role=="master" ? (node.Ranges.length>0 ? "HasSlots":"Empty"): "";
     var meetBtn = node.Free ? <button onClick={this.handleMeet}>Meet</button> : null;
+    var forgetBtn = node.Standby ? <button onClick={this.handleForget}>Forget</button> : null;
     return (
         <div className="ui card" onClick={this.handleClick}>
         <div className="content">
@@ -93,7 +103,7 @@ var NodeState = React.createClass({
             <button onClick={this.disableRead}>-r</button>
             <button onClick={this.enableWrite}>+w</button>
             <button onClick={this.disableWrite}>-w</button>
-            {meetBtn}
+            {meetBtn}{forgetBtn}
           </div>
         </div>
         <div>
@@ -357,6 +367,16 @@ var FreeNodeTable = React.createClass({
   }
 });
 
+function IsStandbyNode(shard, node) {
+  if (node.Role != "master") return false;
+  if (node.Free) return false;
+  if (node.Fail) return false;
+  if (node.Ranges.length > 0) return false;
+  if (_.isEqual(_.keys(shard.RegionNodes).sort(),AppConfig.Regions.sort())) return false;
+  if (_.flatten(_.values(shard.RegionNodes)) > 1) return false;
+  return true;
+}
+
 var ClusterState = React.createClass({
   regionVersion: {},
   lastCheckTime: 0,
@@ -426,17 +446,16 @@ var ClusterState = React.createClass({
     var onlineShards = _.filter(shards, function(shard) {
       var master = shard.Master;
       if (!master) return true;
-      if (master.Free) return true;
-      if (master.Fail) return true;
-      var online = false;
-      if (master.Ranges.length > 0) online = true;
-      if (_.isEqual(_.keys(shard.RegionNodes).sort(),AppConfig.Regions.sort())) online = true;
-      if (_.flatten(_.values(shard.RegionNodes)) > 1) online = true;
-      if (online)
-        onlineMasters.push(master);
-      else
+      if (master.Free) return false;
+      if (IsStandbyNode(shard, master)) {
         standbyNodes.push(master);
-      return online;
+        master.Standby = true;
+        return false;
+      } else {
+        onlineMasters.push(master);
+        master.Standby = false;
+        return true;
+      }
     })
     var headers = AppConfig.Regions.map(function(region) {
       return <th className="four wide">Region: {region}({regionVersion[region]})</th>;

@@ -8,5 +8,6 @@ const (
 	RebalancePath      = "/migrate/rebalance"
 	NodePermPath       = "/node/perm"
 	NodeMeetPath       = "/node/meet"
+	NodeForgetPath     = "/node/forget"
 	MakeReplicaSetPath = "/replicaset/make"
 )

@@ -43,3 +43,7 @@ type RebalanceParams struct {
 type MeetNodeParams struct {
 	NodeId string `json:"node_id"`
 }
+
+type ForgetNodeParams struct {
+	NodeId string `json:"node_id"`
+}

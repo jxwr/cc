@@ -201,6 +201,41 @@ func ClusterMeet(seedAddr, newIp string, newPort int) (string, error) {
 	return resp, nil
 }
 
+func ClusterForget(seedAddr, nodeId string) (string, error) {
+	conn, err := redis.Dial("tcp", seedAddr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "forget", nodeId))
+	if err != nil {
+		return "", err
+	}
+
+	return resp, nil
+}
+
+func ClusterReset(addr string, hard bool) (string, error) {
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	flag := "soft"
+	if hard {
+		flag = "hard"
+	}
+
+	resp, err := redis.String(conn.Do("cluster", "reset", flag))
+	if err != nil {
+		return "", err
+	}
+
+	return resp, nil
+}
+
 /// Info
 
 type RedisInfo map[string]string
