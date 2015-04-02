@@ -57,6 +57,15 @@ var NodeState = React.createClass({
   disableWrite: function() {
     this.toggleMode('disable', 'write');
   },
+  handleMeet: function() {
+    $.ajax({
+      url: HTTP_HOST+'/node/meet',
+      contentType: 'application/json',
+      type: "POST",
+      data: JSON.stringify({
+        node_id: this.props.node.Id,
+      })});
+  },
   render: function() {
     var node = this.props.node;
     var role = node.Role == "master" ? "Master" : "Slave";
@@ -66,6 +75,7 @@ var NodeState = React.createClass({
     var write = node.Writable ? "w":"-";
     var mode = read+"/"+write;
     var empty = node.Role=="master" ? (node.Ranges.length>0 ? "HasSlots":"Empty"): "";
+    var meetBtn = node.Free ? <button onClick={this.handleMeet}>Meet</button> : null;
     return (
         <div className="ui card" onClick={this.handleClick}>
         <div className="content">
@@ -83,6 +93,7 @@ var NodeState = React.createClass({
             <button onClick={this.disableRead}>-r</button>
             <button onClick={this.enableWrite}>+w</button>
             <button onClick={this.disableWrite}>-w</button>
+            {meetBtn}
           </div>
         </div>
         <div>
@@ -408,13 +419,14 @@ var ClusterState = React.createClass({
       }
       return shard;
     })
-    // StandbyNode的定义是：NoSlots,NoSlaves&&NotCoverAllRegions,NotDead
+    // StandbyNode的定义是：NoSlots,NoSlaves&&NotCoverAllRegions,NotDead,NotFree
     var standbyNodes = [];
     var standbyNodeTable = null;
     var onlineMasters = [];
     var onlineShards = _.filter(shards, function(shard) {
       var master = shard.Master;
       if (!master) return true;
+      if (master.Free) return true;
       if (master.Fail) return true;
       var online = false;
       if (master.Ranges.length > 0) online = true;

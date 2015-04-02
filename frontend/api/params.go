@@ -39,3 +39,7 @@ type RebalanceParams struct {
 	TargetIds    []string `json:"target_ids"`
 	ShowPlanOnly bool     `json:"show_plan_only"`
 }
+
+type MeetNodeParams struct {
+	NodeId string `json:"node_id"`
+}

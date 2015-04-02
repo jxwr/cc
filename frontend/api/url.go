@@ -7,5 +7,6 @@ const (
 	MigrateCreatePath  = "/migrate/create"
 	RebalancePath      = "/migrate/rebalance"
 	NodePermPath       = "/node/perm"
+	NodeMeetPath       = "/node/meet"
 	MakeReplicaSetPath = "/replicaset/make"
 )

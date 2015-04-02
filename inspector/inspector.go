@@ -149,6 +149,7 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 		if err != nil || len(node.Ranges) > 0 || !node.IsMaster() {
 			return false, nil
 		} else {
+			log.Println("Free Node,", node.Addr())
 			return true, node
 		}
 	}
