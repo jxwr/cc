@@ -122,6 +122,39 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 	return cluster, nil
 }
 
+func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
+	resp, err := redis.ClusterNodes(seed.Addr())
+	if err != nil {
+		return false, nil
+	}
+	numNode := 0
+	lines := strings.Split(resp, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		numNode++
+	}
+	if numNode != 1 {
+		return false, nil
+	}
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		node, err := self.buildNode(line)
+		// 只看到自己，是主，且没有slots，才认为是FreeNode
+		if err != nil || len(node.Ranges) > 0 || !node.IsMaster() {
+			return false, nil
+		} else {
+			return true, node
+		}
+	}
+	return false, nil
+}
+
 func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) error {
 	resp, err := redis.ClusterNodes(seed.Addr())
 	if err != nil {
@@ -167,6 +200,23 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 	return nil
 }
 
+func (self *Inspector) HasSeed(seed *topo.Node) bool {
+	for _, s := range self.Seeds {
+		if s.Id == seed.Id {
+			return true
+		}
+	}
+	return false
+}
+
+func (self *Inspector) MergeSeeds(seeds []*topo.Node) {
+	for _, seed := range seeds {
+		if !self.HasSeed(seed) {
+			self.Seeds = append(self.Seeds, seed)
+		}
+	}
+}
+
 // 生成ClusterSnapshot
 func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 	self.mutex.Lock()
@@ -200,7 +250,14 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 		for _, seed := range seeds[1:] {
 			err := self.checkClusterTopo(seed, cluster)
 			if err != nil {
-				return nil, err
+				free, node := self.isFreeNode(seed)
+				if free {
+					node.Free = true
+					log.Println("Found free node", node.Addr())
+					cluster.AddNode(node)
+				} else {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -216,9 +273,11 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 
 	cluster.BuildReplicaSets()
 
-	// 用LocalRegion节点作为Seeds
-	self.Seeds = cluster.LocalRegionNodes()
+	self.MergeSeeds(cluster.LocalRegionNodes())
 	self.ClusterTopo = cluster
 
+	for _, se := range self.Seeds {
+		log.Println("Seed:", se.Addr())
+	}
 	return cluster, nil
 }

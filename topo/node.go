@@ -29,6 +29,7 @@ type Node struct {
 	Writable  bool
 	PFail     bool
 	Fail      bool
+	Free      bool // 是否是游离于集群之外的节点（ClusterNodes信息里只有一个节点，主，无slots）
 	Role      string
 	Tag       string
 	Region    string
@@ -47,6 +48,9 @@ func NewNodeFromString(addr string) *Node {
 	port, err := strconv.Atoi(xs[1])
 	if err != nil {
 		return nil
+	}
+	if xs[0] == "" {
+		xs[0] = "127.0.0.1"
 	}
 	return NewNode(xs[0], port)
 }

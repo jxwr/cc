@@ -282,7 +282,7 @@ var ReplicaSetState = React.createClass({
   }
 });
 
-var StandbyMasterTable = React.createClass({
+var StandbyNodeTable = React.createClass({
   getInitialState: function() {
     return {nodes: {}};
   },
@@ -291,13 +291,13 @@ var StandbyMasterTable = React.createClass({
     return !(_.isEqual(nextProps.nodes, this.props.nodes));
   },
   render: function() {
-    var standbyMasters = this.props.nodes;
-    if (standbyMasters.length == 0) return null;
+    var standbyNodes = this.props.nodes;
+    if (standbyNodes.length == 0) return null;
     var headers = AppConfig.Regions.map(function(region) {
       return <th className="four wide">Standby Nodes - {region}</th>;
     });
     var regions = AppConfig.Regions.map(function(region) {
-      var nodes = standbyMasters.filter(function(n) { return n.Region == region; });
+      var nodes = standbyNodes.filter(function(n) { return n.Region == region; });
       var comps = nodes.map(function(n) { return <NodeState key={n.Id} node={n} />; });
       return <td className="four wide">{comps}</td>;
     });
@@ -314,18 +314,66 @@ var StandbyMasterTable = React.createClass({
   }
 });
 
-var ClusterState = React.createClass({
-  regionVersion: {},
+var FreeNodeTable = React.createClass({
   getInitialState: function() {
     return {nodes: {}};
+  },
+  // For optimizing
+  shouldComponentUpdate: function(nextProps, nextState) {
+    return !(_.isEqual(nextProps.nodes, this.props.nodes));
+  },
+  render: function() {
+    var freeNodes = this.props.nodes;
+    if (freeNodes.length == 0) return null;
+    var headers = AppConfig.Regions.map(function(region) {
+      return <th className="four wide">Free Nodes - {region}</th>;
+    });
+    var regions = AppConfig.Regions.map(function(region) {
+      var nodes = freeNodes.filter(function(n) { return n.Region == region; });
+      var comps = nodes.map(function(n) { return <NodeState key={n.Id} node={n} />; });
+      return <td className="four wide">{comps}</td>;
+    });
+    return (
+        <table className="ui purple inverted table">
+          <thead>
+            <tr>{headers}</tr>
+          </thead>
+          <tbody>
+            <tr>{regions}</tr>
+          </tbody>
+        </table>
+    );
+  }
+});
+
+var ClusterState = React.createClass({
+  regionVersion: {},
+  lastCheckTime: 0,
+  getInitialState: function() {
+    return {nodes: {}, nodesLastShowTime: {}};
   },
   componentDidMount: function() {
     var self = this;
     RxNodeState.subscribe(
       function (obj) {
         var nodes = self.state.nodes;
+        var nodesLastShowTime = self.state.nodesLastShowTime;
         nodes[obj.Id] = obj;
+        nodesLastShowTime[obj.Id] = Date.now();
         self.setState({nodes: nodes});
+        // 每秒检查一次5s没有汇报的节点删除掉
+        var now = Date.now();
+        if (now - self.lastCheckTime > 1000) {
+          self.lastCheckTime = now;
+          for (var key in nodes) {
+            var node = nodes[key];
+            if (now - nodesLastShowTime[node.Id] > 5000) {
+              nodesLastShowTime[node.Id] = 0;
+              console.log(key, "expired");
+              delete nodes[key];
+            }
+          }
+        }
       },
       function (e) {
         console.log('Error: ', e);
@@ -341,10 +389,13 @@ var ClusterState = React.createClass({
       return (n.ParentId == "-") ? n.Id : n.ParentId;
     });
     var masterNodes = [];
+    var freeNodes = [];
     var shards = _.map(regionNodes, function(nodes) {
       var shard = {Master:null, RegionNodes:{}};
       for (var i = 0; i < nodes.length; i++) {
         var node = nodes[i];
+        if (node.Free) 
+          freeNodes.push(node);
         if (node.Role == "master") {
           shard.Master = node;
         }
@@ -357,10 +408,10 @@ var ClusterState = React.createClass({
       }
       return shard;
     })
-    var standbyMasters = [];
-    var standbyMasterTable = null;
+    // StandbyNode的定义是：NoSlots,NoSlaves&&NotCoverAllRegions,NotDead
+    var standbyNodes = [];
+    var standbyNodeTable = null;
     var onlineMasters = [];
-    // StandbyMaster的定义是：NoSlots,NoSlaves&&NotCoverAllRegions,NotDead
     var onlineShards = _.filter(shards, function(shard) {
       var master = shard.Master;
       if (!master) return true;
@@ -372,7 +423,7 @@ var ClusterState = React.createClass({
       if (online)
         onlineMasters.push(master);
       else
-        standbyMasters.push(master);
+        standbyNodes.push(master);
       return online;
     })
     var headers = AppConfig.Regions.map(function(region) {
@@ -383,7 +434,8 @@ var ClusterState = React.createClass({
     });
     return (
       <div>
-      <StandbyMasterTable nodes={standbyMasters} />
+      <FreeNodeTable nodes={freeNodes} />
+      <StandbyNodeTable nodes={standbyNodes} />
       <table className="ui striped green table">
         <thead>
           <tr>

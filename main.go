@@ -36,6 +36,7 @@ func main() {
 
 	seedNodes := []*topo.Node{}
 	for _, addr := range strings.Split(seeds, ",") {
+		log.Println(addr)
 		n := topo.NewNodeFromString(addr)
 		if n == nil {
 			log.Fatalf("invalid seeds %s", addr)
