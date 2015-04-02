@@ -22,6 +22,12 @@ func (self *ForgetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	if !target.Free == false {
 		return nil, ErrNodeIsFree
 	}
+	if len(target.Ranges) > 0 {
+		return nil, ErrNodeNotEmpty
+	}
+	if !target.IsMaster() {
+		return nil, ErrNodeNotMaster
+	}
 	var err error
 	forgetCount := 0
 	allForgetDone := true
