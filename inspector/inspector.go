@@ -36,7 +36,7 @@ func NewInspector(seeds []*topo.Node) *Inspector {
 	return sp
 }
 
-func (self *Inspector) buildNode(line string) (*topo.Node, error) {
+func (self *Inspector) buildNode(line string) (*topo.Node, bool, error) {
 	xs := strings.Split(line, " ")
 	mod, tag, id, addr, flags, parent := xs[0], xs[1], xs[2], xs[3], xs[4], xs[5]
 	node := topo.NewNodeFromString(addr)
@@ -77,6 +77,10 @@ func (self *Inspector) buildNode(line string) (*topo.Node, error) {
 	node.SetTag(tag)
 	node.SetReadable(mod[0] == 'r')
 	node.SetWritable(mod[1] == 'w')
+	myself := false
+	if strings.Contains(flags, "myself") {
+		myself = true
+	}
 	if strings.Contains(flags, "master") {
 		node.SetRole("master")
 	} else {
@@ -88,13 +92,13 @@ func (self *Inspector) buildNode(line string) (*topo.Node, error) {
 	}
 	xs = strings.Split(tag, ":")
 	if len(xs) != 3 {
-		return nil, ErrInvalidTag
+		return nil, myself, ErrInvalidTag
 	}
 	node.SetRegion(xs[0])
 	node.SetZone(xs[1])
 	node.SetRoom(xs[2])
 
-	return node, nil
+	return node, myself, nil
 }
 
 func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
@@ -112,9 +116,16 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 			continue
 		}
 
-		node, err := self.buildNode(line)
+		node, myself, err := self.buildNode(line)
 		if err != nil {
 			return nil, err
+		}
+		if myself {
+			info, err := redis.FetchClusterInfo(seed.Addr())
+			if err != nil {
+				return nil, err
+			}
+			log.Println(info)
 		}
 		cluster.AddNode(node)
 	}
@@ -144,8 +155,11 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 		if line == "" {
 			continue
 		}
-		node, err := self.buildNode(line)
+		node, myself, err := self.buildNode(line)
 		// 只看到自己，是主，且没有slots，才认为是FreeNode
+		if !myself {
+			return false, nil
+		}
 		if err != nil || len(node.Ranges) > 0 || !node.IsMaster() {
 			return false, nil
 		} else {
@@ -169,7 +183,7 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			continue
 		}
 
-		s, err := self.buildNode(line)
+		s, myself, err := self.buildNode(line)
 		if err != nil {
 			return err
 		}
@@ -184,6 +198,14 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			fmt.Println(s)
 			fmt.Println(node)
 			return ErrNodesInfoNotSame
+		}
+
+		if myself {
+			info, err := redis.FetchClusterInfo(seed.Addr())
+			if err != nil {
+				return err
+			}
+			node.ClusterInfo = info
 		}
 
 		if len(s.Migrating) != 0 {

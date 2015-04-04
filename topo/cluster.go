@@ -8,6 +8,20 @@ var (
 	ErrInvalidParentId = errors.New("topo: invalid parent id, master not exist")
 )
 
+type ClusterInfo struct {
+	ClusterState                 string
+	ClusterSlotsAssigned         int
+	ClusterSlotsOk               int
+	ClusterSlotsPfail            int
+	ClusterSlotsFail             int
+	ClusterKnownNodes            int
+	ClusterSize                  int
+	ClusterCurrentEpoch          int
+	ClusterMyEpoch               int
+	ClusterStatsMessagesSent     int
+	ClusterStatsMessagesReceived int
+}
+
 type Cluster struct {
 	localRegion      string
 	localRegionNodes []*Node

@@ -38,6 +38,7 @@ type Node struct {
 	Ranges    []Range
 	FailCount int
 	hostname  string
+	ClusterInfo
 }
 
 func NewNodeFromString(addr string) *Node {

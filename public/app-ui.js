@@ -19,6 +19,8 @@ var RxNodeState = stateSocket.map(function(e){
   delete state.Room;
   delete state.Zone;
   delete state.PFail;
+  delete state.ClusterStatsMessagesSend;
+  delete state.ClusterStatsMessagesReceived;
   return state; 
 });
 
@@ -96,6 +98,7 @@ var NodeState = React.createClass({
           </div>
           <div className="meta">
             <span className="ui">{node.Tag}</span>
+            <span className="ui">{node.ClusterMyEpoch}</span>
             <span className="ui right floated">{empty}</span>
           </div>
           <div className="description">

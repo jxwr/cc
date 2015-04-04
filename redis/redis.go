@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/jxwr/cc/topo"
 )
 
 var (
@@ -94,6 +95,63 @@ func ClusterNodes(addr string) (string, error) {
 	}
 
 	return resp, nil
+}
+
+func FetchClusterInfo(addr string) (topo.ClusterInfo, error) {
+	clusterInfo := topo.ClusterInfo{}
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return clusterInfo, ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "info"))
+	if err != nil {
+		return clusterInfo, err
+	}
+
+	lines := strings.Split(resp, "\r\n")
+	for _, line := range lines {
+		xs := strings.Split(line, ":")
+		if len(xs) != 2 {
+			continue
+		}
+		switch xs[0] {
+		case "cluster_state":
+			clusterInfo.ClusterState = xs[1]
+		case "cluster_slots_assigned":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterSlotsAssigned = n
+		case "cluster_slots_ok":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterSlotsOk = n
+		case "cluster_slots_pfail":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterSlotsPfail = n
+		case "cluster_slots_fail":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterSlotsFail = n
+		case "cluster_known_nodes":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterKnownNodes = n
+		case "cluster_size":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterSize = n
+		case "cluster_current_epoch":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterCurrentEpoch = n
+		case "cluster_my_epoch":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterMyEpoch = n
+		case "cluster_stats_messages_sent":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterStatsMessagesSent = n
+		case "cluster_stats_messages_received":
+			n, _ := strconv.Atoi(xs[1])
+			clusterInfo.ClusterStatsMessagesReceived = n
+		}
+	}
+	return clusterInfo, nil
 }
 
 func DisableRead(addr, id string) (string, error) {
