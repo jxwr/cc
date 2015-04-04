@@ -121,11 +121,11 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 			return nil, err
 		}
 		if myself {
-			info, err := redis.FetchClusterInfo(seed.Addr())
+			info, err := redis.FetchClusterInfo(node.Addr())
 			if err != nil {
 				return nil, err
 			}
-			log.Println(info)
+			node.ClusterInfo = info
 		}
 		cluster.AddNode(node)
 	}
@@ -201,7 +201,7 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 		}
 
 		if myself {
-			info, err := redis.FetchClusterInfo(seed.Addr())
+			info, err := redis.FetchClusterInfo(node.Addr())
 			if err != nil {
 				return err
 			}
