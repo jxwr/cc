@@ -395,6 +395,16 @@ func init() {
 		Apply:      nil,
 	})
 
+	// (c2) 从在Failover过程中恢复了，结束FailoverEnd状态
+	RedisNodeStateModel.AddTransition(&fsm.Transition{
+		From:       StateWaitFailoverEnd,
+		To:         StateOffline,
+		Input:      Input{ANY, ANY, FINE, S, ANY},
+		Priority:   0,
+		Constraint: nil,
+		Apply:      nil,
+	})
+
 	/// State: (Offline)
 
 	// (d0) 节点恢复读标记
