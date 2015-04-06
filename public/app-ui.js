@@ -628,7 +628,15 @@ var LogPanel = React.createClass({
     RxLog.subscribe(
       function (obj) {
         var logs = self.state.logs;
-        logs.push(obj);
+        if (logs.length > 0 && obj.Message == logs[logs.length-1].Message) {
+          var lastLog = logs[logs.length-1];
+          // 相同的日志，显示一个计数，避免刷屏
+          if (!lastLog.Repeat) lastLog.Repeat = 1;
+          lastLog.Time = obj.Time + " ("+ lastLog.Repeat +" times)";
+          lastLog.Repeat++;
+        } else {
+          logs.push(obj);
+        }
         logs = logs.slice(-100);
         self.setState({logs: logs});
       },
@@ -660,7 +668,7 @@ var LogPanel = React.createClass({
       return (
           <tr>
           <td className="ui one wide">{obj.Level}</td>
-          <td className="ui two wide">{obj.Time}</td>
+          <td className="ui three wide">{obj.Time}</td>
           <td className="ui two wide">{obj.Target}</td>
           <td>{obj.Message}</td>
           </tr>
