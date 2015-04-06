@@ -2,7 +2,6 @@ package inspector
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +15,7 @@ import (
 var (
 	ErrNoSeed           = errors.New("inspector: no seed node found")
 	ErrInvalidTag       = errors.New("inspector: invalid tag")
+	ErrEmptyTag         = errors.New("inspector: empty tag")
 	ErrNodeNotExist     = errors.New("inspector: node not exist")
 	ErrNodesInfoNotSame = errors.New("inspector: cluster nodes info of seeds are different")
 )
@@ -24,6 +24,7 @@ type Inspector struct {
 	mutex       *sync.RWMutex
 	LocalRegion string
 	Seeds       []*topo.Node
+	SeedIndex   int
 	ClusterTopo *topo.Cluster
 }
 
@@ -91,14 +92,27 @@ func (self *Inspector) buildNode(line string) (*topo.Node, bool, error) {
 		node.IncrPFailCount()
 	}
 	xs = strings.Split(tag, ":")
-	if len(xs) != 3 {
+	if len(xs) == 3 {
+		node.SetRegion(xs[0])
+		node.SetZone(xs[1])
+		node.SetRoom(xs[2])
+	} else if node.Tag != "-" {
 		return nil, myself, ErrInvalidTag
 	}
-	node.SetRegion(xs[0])
-	node.SetZone(xs[1])
-	node.SetRoom(xs[2])
 
 	return node, myself, nil
+}
+
+func (self *Inspector) MeetNode(node *topo.Node) {
+	for _, seed := range self.Seeds {
+		if seed.Ip == node.Ip && seed.Port == node.Port {
+			continue
+		}
+		_, err := redis.ClusterMeet(seed.Addr(), node.Ip, node.Port)
+		if err == nil {
+			break
+		}
+	}
 }
 
 func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
@@ -115,11 +129,11 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 		if line == "" {
 			continue
 		}
-
 		node, myself, err := self.buildNode(line)
 		if err != nil {
 			return nil, err
 		}
+		// 遇到myself，读取该节点的ClusterInfo
 		if myself {
 			info, err := redis.FetchClusterInfo(node.Addr())
 			if err != nil {
@@ -195,8 +209,14 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 
 		// 对比节点数据是否相同
 		if !node.Compare(s) {
-			fmt.Println(s)
-			fmt.Println(node)
+			glog.Infof("%v vs %v different", s, node)
+			if s.Tag == "-" && node.Tag != "-" {
+				// 可能存在处于不被Cluster接受的节点，节点可以看见Cluster，但Cluster看不到它。
+				// 一种复现情况情况：某个一节已经死了，系统将其Forget，但是OP并未被摘除该节点，
+				// 而是恢复了该节点。
+				glog.Warningf("remeet node %s", seed.Addr())
+				self.MeetNode(seed)
+			}
 			return ErrNodesInfoNotSame
 		}
 
@@ -219,7 +239,6 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			node.IncrPFailCount()
 		}
 	}
-
 	return nil
 }
 
@@ -262,7 +281,9 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 	}
 
 	// 随机选一个节点，获取nodes数据作为基准，再用其他节点的数据与基准做对比
-	seed := seeds[0]
+	seed := seeds[self.SeedIndex]
+	self.SeedIndex++
+	self.SeedIndex %= len(seeds)
 	cluster, err := self.initClusterTopo(seed)
 	if err != nil {
 		return nil, err

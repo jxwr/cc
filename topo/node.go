@@ -255,3 +255,7 @@ func (s *Node) MachineRoom() string {
 	}
 	return xs[1]
 }
+
+func (s *Node) String() string {
+	return fmt.Sprintf("%s(%s)", s.Addr(), s.Id)
+}
