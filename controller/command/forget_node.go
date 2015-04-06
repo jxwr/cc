@@ -49,9 +49,11 @@ func (self *ForgetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
 			forgetCount, len(cs.AllNodeStates())-1)
 	}
 	// 2. 重置
-	_, err = redis.ClusterReset(target.Addr(), false)
-	if err != nil {
-		return nil, fmt.Errorf("Reset node %s(%s) failed, %v", target.Id, target.Addr(), err)
+	if !target.Fail {
+		_, err = redis.ClusterReset(target.Addr(), false)
+		if err != nil {
+			return nil, fmt.Errorf("Reset node %s(%s) failed, %v", target.Id, target.Addr(), err)
+		}
 	}
 	return nil, nil
 }

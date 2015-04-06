@@ -2,12 +2,13 @@ package main
 
 import (
 	"flag"
-	"log"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/jxwr/cc/controller"
 	"github.com/jxwr/cc/frontend"
 	"github.com/jxwr/cc/inspector"
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/streams"
 	"github.com/jxwr/cc/topo"
@@ -36,19 +37,19 @@ func main() {
 
 	seedNodes := []*topo.Node{}
 	for _, addr := range strings.Split(seeds, ",") {
-		log.Println(addr)
+		glog.Info(addr)
 		n := topo.NewNodeFromString(addr)
 		if n == nil {
-			log.Fatalf("invalid seeds %s", addr)
+			glog.Fatal("invalid seeds %s", addr)
 		}
 		seedNodes = append(seedNodes, n)
 	}
 	if httpPort == 0 {
-		log.Fatalf("invalid http port")
+		glog.Fatal("invalid http port")
 		flag.PrintDefaults()
 	}
 	if wsPort == 0 {
-		log.Fatalf("invalid websocket port")
+		glog.Fatal("invalid websocket port")
 		flag.PrintDefaults()
 	}
 
@@ -56,10 +57,11 @@ func main() {
 	go meta.Run(appName, localRegion, httpPort, wsPort, zkHosts, initCh)
 	err := <-initCh
 	if err != nil {
-		log.Fatal(err)
+		glog.Fatal(err)
 	}
 
 	streams.StartAllStreams()
+	streams.LogStream.Sub(log.WriteFileHandler)
 
 	sp := inspector.NewInspector(seedNodes)
 	go sp.Run()

@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-func stateServer(stream *streams.Stream, ws *websocket.Conn) {
+func marshalServer(stream *streams.Stream, ws *websocket.Conn) {
 	callback := func(ns interface{}) bool {
 		data, err := json.Marshal(ns)
 		if err != nil {
@@ -31,21 +31,26 @@ func stateServer(stream *streams.Stream, ws *websocket.Conn) {
 }
 
 func nodeStateServer(ws *websocket.Conn) {
-	stateServer(streams.NodeStateStream, ws)
+	marshalServer(streams.NodeStateStream, ws)
 }
 
 func migrateStateServer(ws *websocket.Conn) {
-	stateServer(streams.MigrateStateStream, ws)
+	marshalServer(streams.MigrateStateStream, ws)
 }
 
 func rebalanceStateServer(ws *websocket.Conn) {
-	stateServer(streams.RebalanceStateStream, ws)
+	marshalServer(streams.RebalanceStateStream, ws)
+}
+
+func logServer(ws *websocket.Conn) {
+	marshalServer(streams.LogStream, ws)
 }
 
 func RunWebsockServer(bindAddr string) {
 	http.Handle("/node/state", websocket.Handler(nodeStateServer))
 	http.Handle("/migrate/state", websocket.Handler(migrateStateServer))
 	http.Handle("/rebalance/state", websocket.Handler(rebalanceStateServer))
+	http.Handle("/log", websocket.Handler(logServer))
 
 	err := http.ListenAndServe(bindAddr, nil)
 	if err != nil {

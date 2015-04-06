@@ -3,11 +3,11 @@ package inspector
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/golang/glog"
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/topo"
@@ -163,7 +163,7 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 		if err != nil || len(node.Ranges) > 0 || !node.IsMaster() {
 			return false, nil
 		} else {
-			log.Println("Free Node,", node.Addr())
+			glog.Infof("Free Node %s", node.Addr())
 			return true, node
 		}
 	}
@@ -276,7 +276,7 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 				free, node := self.isFreeNode(seed)
 				if free {
 					node.Free = true
-					log.Println("Found free node", node.Addr())
+					glog.Infof("Found free node %s", node.Addr())
 					cluster.AddNode(node)
 				} else {
 					return nil, err
@@ -288,7 +288,7 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 	// 构造LocalRegion视图
 	for _, s := range cluster.LocalRegionNodes() {
 		if s.PFailCount() > cluster.NumLocalRegionNode()/2 {
-			log.Printf("Found %d/%d PFAIL state on %s, set FAIL",
+			glog.Infof("Found %d/%d PFAIL state on %s, set FAIL",
 				s.PFailCount(), cluster.NumLocalRegionNode(), s.Addr())
 			s.SetFail(true)
 		}

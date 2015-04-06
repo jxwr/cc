@@ -2,10 +2,10 @@ package meta
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
+	"github.com/golang/glog"
 	"launchpad.net/gozk"
 )
 
@@ -27,7 +27,7 @@ func (m *Meta) CheckLeaders(watch bool) (string, string, <-chan zookeeper.Event,
 		return "", "", watcher, err
 	}
 
-	log.Println("Total controllers ", stat.NumChildren())
+	glog.Infof("Total controllers %d", stat.NumChildren())
 
 	needRejoin := true
 	clusterMinSeq := -1
@@ -80,19 +80,19 @@ func (m *Meta) handleClusterLeaderConfigChanged(znode string, watch <-chan zooke
 		event := <-watch
 		if event.Type == zookeeper.EVENT_CHANGED {
 			if m.clusterLeaderZNodeName != znode {
-				log.Println("meta: region leader has changed")
+				glog.Info("meta: region leader has changed")
 				break
 			}
 			c, w, err := m.FetchControllerConfig(znode)
 			if err == nil {
 				m.clusterLeaderConfig = c
-				log.Println("meta: cluster leader config changed.")
+				glog.Info("meta: cluster leader config changed.")
 			} else {
-				log.Printf("meta: fetch controller config failed, %v", err)
+				glog.Infof("meta: fetch controller config failed, %v", err)
 			}
 			watch = w
 		} else {
-			log.Printf("meta: unexpected event coming, %v", event)
+			glog.Infof("meta: unexpected event coming, %v", event)
 			break
 		}
 	}
@@ -103,19 +103,19 @@ func (m *Meta) handleRegionLeaderConfigChanged(znode string, watch <-chan zookee
 		event := <-watch
 		if event.Type == zookeeper.EVENT_CHANGED {
 			if m.regionLeaderZNodeName != znode {
-				log.Println("meta: region leader has changed")
+				glog.Info("meta: region leader has changed")
 				break
 			}
 			c, w, err := m.FetchControllerConfig(znode)
 			if err == nil {
 				m.regionLeaderConfig = c
-				log.Println("meta: region leader config changed.")
+				glog.Info("meta: region leader config changed.")
 			} else {
-				log.Printf("meta: fetch controller config failed, %v", err)
+				glog.Infof("meta: fetch controller config failed, %v", err)
 			}
 			watch = w
 		} else {
-			log.Printf("meta: unexpected event coming, %v", event)
+			glog.Infof("meta: unexpected event coming, %v", event)
 			break
 		}
 	}
@@ -130,7 +130,7 @@ func (m *Meta) ElectLeader() (<-chan zookeeper.Event, error) {
 		return watcher, fmt.Errorf("meta: get leaders failed.")
 	}
 
-	log.Println("leader:", clusterLeader, regionLeader)
+	glog.Infof("meta: clusterleader:%s, regionleader:%s", clusterLeader, regionLeader)
 
 	if m.clusterLeaderZNodeName != clusterLeader {
 		// 获取ClusterLeader配置

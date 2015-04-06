@@ -15,6 +15,9 @@ func (self *EnableReadCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	if target == nil {
 		return nil, ErrNodeNotExist
 	}
+	if target.Fail {
+		return nil, ErrNodeIsDead
+	}
 	var err error
 	for _, ns := range cs.AllNodeStates() {
 		_, err = redis.EnableRead(ns.Addr(), target.Id)

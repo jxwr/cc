@@ -15,6 +15,9 @@ func (self *MeetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	if target == nil {
 		return nil, ErrNodeNotExist
 	}
+	if target.Fail {
+		return nil, ErrNodeIsDead
+	}
 	if target.Free == false {
 		return nil, ErrNodeNotFree
 	}

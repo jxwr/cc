@@ -3,10 +3,10 @@ package state
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 	"time"
 
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/topo"
 )
@@ -37,7 +37,7 @@ func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 	cs.version++
 	now := time.Now()
 
-	log.Println("Update region", region, len(nodes), "nodes")
+	log.Verbosef("CLUSTER", "Update region %s %d nodes", region, len(nodes))
 
 	// 添加不存在的节点，版本号+1
 	for _, n := range nodes {
@@ -83,7 +83,7 @@ func (cs *ClusterState) BuildClusterSnapshot() {
 	err := cluster.BuildReplicaSets()
 	// 出现这种情况，很可能是启动时节点还不全
 	if err != nil {
-		log.Println("Build cluster snapshot failed", err)
+		log.Info("CLUSTER", "Build cluster snapshot failed ", err)
 		return
 	}
 	cs.cluster = cluster
@@ -215,13 +215,13 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 	select {
 	case err := <-c:
 		if err != nil {
-			log.Printf("Failover finished with error(%v)\n", err)
+			log.Eventf(old.Addr(), "Failover finished with error(%v)", err)
 		} else {
-			log.Printf("Failover success")
+			log.Eventf(old.Addr(), "Failover success, new master %s(%s)", new.Addr(), new.Id())
 		}
 		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 	case <-time.After(20 * time.Minute):
-		log.Printf("Failover finished with error(timedout)\n")
+		log.Eventf(old.Addr(), "Failover timedout, new master %s(%s)", new.Addr(), new.Id())
 		// 判断是否主从是否已经切换
 		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 	}
@@ -234,22 +234,29 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 	} else {
 		info, err := redis.FetchInfo(node.Addr(), "Replication")
 		if err == nil && info.Get("role") == "master" {
-			roleChanged = true
+			for { // 等Cluster刷新
+				node := cs.FindNode(newMasterId)
+				if !node.IsMaster() {
+					time.Sleep(1 * time.Second)
+				} else {
+					roleChanged = true
+				}
+			}
 		}
 	}
 
 	if roleChanged {
-		log.Printf("New master %s(%s) role change success\n", node.Id, node.Addr())
+		log.Eventf(old.Addr(), "New master %s(%s) role change success", node.Id, node.Addr())
 		// 处理迁移过程中的异常问题，将故障节点（旧主）的slots转移到新主上
 		oldNode := cs.FindNode(oldMasterId)
 		if oldNode.Fail && oldNode.IsMaster() && len(oldNode.Ranges) != 0 {
 			for _, r := range oldNode.Ranges {
-				log.Printf("Fix migration task %d-%d\n", r.Left, r.Right)
+				log.Eventf(old.Addr(), "Fix migration task %d-%d", r.Left, r.Right)
 
 				for i := r.Left; i <= r.Right; i++ {
 					for _, ns := range cs.AllNodeStates() {
 						if ns.node.IsMaster() {
-							log.Printf("setslot %d node %s", i, new.Id())
+							log.Warningf(old.Addr(), "setslot %d node %s", i, new.Id())
 
 							redis.SetSlot(ns.Addr(), i, redis.SLOT_NODE, new.Id())
 						}
@@ -257,8 +264,10 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 				}
 			}
 		} else {
-			log.Println("Good, no slot need to be fix after failover.")
+			log.Info(old.Addr(), "Good, no slot need to be fix after failover.")
 		}
+	} else {
+		log.Warningf(old.Addr(), "Failover failed, please check cluster state.")
 	}
 
 	// 打开新主的写入，因为给slave加Write没有效果

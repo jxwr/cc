@@ -2,9 +2,9 @@ package inspector
 
 import (
 	"fmt"
-	"log"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/topo"
@@ -39,12 +39,12 @@ func (self *Inspector) Run() {
 			}
 			cluster, err := self.BuildClusterTopo()
 			if err != nil {
-				log.Println("build cluster topo failed,", err)
+				glog.Infof("build cluster topo failed, %v", err)
 				continue
 			}
 			err = SendRegionTopoSnapshot(cluster.LocalRegionNodes())
 			if err != nil {
-				log.Println("send snapshot failed,", err)
+				glog.Infof("send snapshot failed, %v", err)
 			}
 		}
 	}

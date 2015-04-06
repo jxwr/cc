@@ -2,11 +2,11 @@ package migrate
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/streams"
 	"github.com/jxwr/cc/topo"
@@ -55,7 +55,7 @@ func NewMigrateTask(sourceRS, targetRS *topo.ReplicaSet, ranges []topo.Range) *M
 }
 
 func (t *MigrateTask) TaskName() string {
-	return fmt.Sprintf("Mig[%s->%s]", t.SourceNode().Id, t.TargetNode().Id)
+	return fmt.Sprintf("Mig(%s->%s)", t.SourceNode().Id, t.TargetNode().Id)
 }
 
 func (t *MigrateTask) setSlotToNode(rs *topo.ReplicaSet, slot int, targetId string) error {
@@ -90,8 +90,8 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_MIGRATING, targetNode.Id)
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
-				log.Printf("mig: %s %s is not the owner of hash slot %d\n",
-					t.TaskName(), sourceNode.Id, slot)
+				log.Warningf(t.TaskName(), "mig: %s is not the owner of hash slot %d",
+					sourceNode.Id, slot)
 				return 0, nil
 			}
 			return 0, err
@@ -101,8 +101,8 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	err := redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_IMPORTING, sourceNode.Id)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "ERR I'm already the owner of hash slot") {
-			log.Printf("mig: %s %s already the owner of hash slot %d\n",
-				t.TaskName(), targetNode.Id, slot)
+			log.Warningf(t.TaskName(), "mig: %s already the owner of hash slot %d",
+				targetNode.Id, slot)
 			// 逻辑到此，说明Target已经包含该slot，但是Source处于Migrating状态
 			// 迁移实际已经完成，需要清理Source的Migrating状态
 			srs := t.SourceReplicaSet()
@@ -214,12 +214,13 @@ func (t *MigrateTask) Run() {
 			// 正常运行
 			nkeys, err := t.migrateSlot(t.currSlot, 100)
 			if err != nil {
-				log.Printf("mig: %s Migrate slot %d error, %d keys have done, %v\n",
-					t.TaskName(), t.currSlot, nkeys, err)
+				log.Warningf(t.TaskName(),
+					"mig: Migrate slot %d error, %d keys have done, %v",
+					t.currSlot, nkeys, err)
 				time.Sleep(500 * time.Millisecond)
 			} else {
-				log.Printf("mig: %s Migrate slot %d done, total %d keys\n",
-					t.TaskName(), t.currSlot, nkeys)
+				log.Infof(t.TaskName(), "mig: Migrate slot %d done, total %d keys",
+					t.currSlot, nkeys)
 				t.currSlot++
 			}
 		}

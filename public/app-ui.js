@@ -28,6 +28,16 @@ var migrateSocket = Rx.DOM.fromWebSocket(
   WS_HOST +'/migrate/state', null, openingObserver, closingObserver);
 var RxMigration = migrateSocket.map(function(e){ return JSON.parse(e.data); });
 
+var logSocket = Rx.DOM.fromWebSocket(
+  WS_HOST +'/log', null, openingObserver, closingObserver);
+var RxLog = logSocket.map(function(e){ 
+  var log = JSON.parse(e.data); 
+  log.Time = new Date(log.Time).toLocaleString(); 
+  return log; 
+}).filter(function(e){
+  return e.Level != "VERBOSE";
+});
+
 var StateColorMap = {
   "RUNNING": "green",
   "OFFLINE": "yellow",
@@ -326,7 +336,7 @@ var StandbyNodeTable = React.createClass({
       return <td className="four wide">{comps}</td>;
     });
     return (
-        <table className="ui yellow inverted table">
+        <table className="ui orange inverted table">
           <thead>
             <tr>{headers}</tr>
           </thead>
@@ -373,7 +383,6 @@ var FreeNodeTable = React.createClass({
 function IsStandbyNode(shard, node) {
   if (node.Role != "master") return false;
   if (node.Free) return false;
-  if (node.Fail) return false;
   if (node.Ranges.length > 0) return false;
   if (_.isEqual(_.keys(shard.RegionNodes).sort(),AppConfig.Regions.sort())) return false;
   if (_.flatten(_.values(shard.RegionNodes)) > 1) return false;
@@ -444,7 +453,7 @@ var ClusterState = React.createClass({
     })
     // 逻辑稍复杂，ClusterState分三个区域：
     // 1. FreeNodes;    未加入集群，但作为Seed的节点
-    // 2. StandbyNodes; 加入集群，但未使用的节点(定义是：NoSlots,NoSlaves&&NotCoverAllRegions,NotDead,NotFree)
+    // 2. StandbyNodes; 加入集群，但未使用的节点(定义是：NoSlots,NoSlaves&&NotCoverAllRegions,NotFree)
     // 3. OnlineNodes   正常工作的节点
     var standbyNodes = [];
     var standbyNodeTable = null;
@@ -610,6 +619,64 @@ var MigrationTaskPanel = React.createClass({
   }
 });
 
+var LogPanel = React.createClass({
+  getInitialState: function() {
+    return {logs: []};
+  },
+  componentDidMount: function() {
+    var self = this;
+    RxLog.subscribe(
+      function (obj) {
+        var logs = self.state.logs;
+        logs.push(obj);
+        logs = logs.slice(-100);
+        self.setState({logs: logs});
+      },
+      function (e) {
+        console.log('Error: ', e);
+      },
+      function (){
+        console.log('Closed');
+      });
+  },
+  componentWillUpdate: function() {
+    var node = this.getDOMNode();
+    this.shouldScrollBottom = node.scrollTop + node.offsetHeight === node.scrollHeight;
+    console.log(node.scrollHeight);
+  },
+  componentDidUpdate: function() {
+    if (this.shouldScrollBottom) {
+      var node = this.getDOMNode();
+      node.scrollTop = node.scrollHeight
+    }
+  },
+  render: function() {
+    var logs = this.state.logs;
+    var style = {
+      maxHeight: "200px",
+      overflow: "auto",
+    };
+    var logRows = _.map(logs, function(obj) {
+      return (
+          <tr>
+          <td className="ui one wide">{obj.Level}</td>
+          <td className="ui two wide">{obj.Time}</td>
+          <td className="ui two wide">{obj.Target}</td>
+          <td>{obj.Message}</td>
+          </tr>
+        );
+    });
+    var panel = (
+        <div style={style}>
+          <table className="ui very compact celled striped inverted table">
+          {logRows}
+          </table>
+        </div>
+      );
+    return panel;
+  }
+});
+
 var Main = React.createClass({
   render: function() {
     return (
@@ -617,6 +684,10 @@ var Main = React.createClass({
         <div className="ui segment">
           <h4>AppInfo</h4>
           <AppInfo info={data} />
+        </div>
+        <div className="ui segment">
+          <h4>LogPanel</h4>
+          <LogPanel />
         </div>
         <div className="ui segment">
           <h4>ClusterState</h4>

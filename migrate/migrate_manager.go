@@ -2,9 +2,9 @@ package migrate
 
 import (
 	"errors"
-	"log"
 	"time"
 
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/streams"
 	"github.com/jxwr/cc/topo"
@@ -106,13 +106,14 @@ func (m *MigrateManager) FindTaskBySource(nodeId string) *MigrateTask {
 func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Cluster) error {
 	fromNode := cluster.FindNode(task.SourceNode().Id)
 	toNode := cluster.FindNode(task.TargetNode().Id)
+	tname := task.TaskName()
 
 	if fromNode == nil {
-		log.Printf("mig: source node not exist\n")
+		log.Infof(tname, "mig: source node %s(%s) not exist", fromNode.Addr(), fromNode.Id)
 		return ErrNodeNotFound
 	}
 	if toNode == nil {
-		log.Printf("mig: target node not exist\n")
+		log.Infof(tname, "mig: target node %s(%s) not exist", toNode.Addr(), toNode.Id)
 		return ErrNodeNotFound
 	}
 
@@ -120,7 +121,7 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 	if !fromNode.IsMaster() {
 		rs := cluster.FindReplicaSetByNode(fromNode.Id)
 		if rs == nil {
-			log.Printf("mig: %s role changed, but new replica set not found\n", fromNode.Id)
+			log.Infof(tname, "mig: %s role changed, but new replica set not found", fromNode.Id)
 			return ErrReplicatSetNotFound
 		}
 		task.ReplaceSourceReplicaSet(rs)
@@ -128,7 +129,7 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 	if !toNode.IsMaster() {
 		rs := cluster.FindReplicaSetByNode(toNode.Id)
 		if rs == nil {
-			log.Printf("mig: %s role changed, but new replica set not found\n", toNode.Id)
+			log.Infof(tname, "mig: %s role changed, but new replica set not found\n", toNode.Id)
 			return ErrReplicatSetNotFound
 		}
 		task.ReplaceTargetReplicaSet(rs)
@@ -136,7 +137,7 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 
 	// 如果是源节点挂了，直接取消，等待主从切换之后重建任务
 	if fromNode.Fail {
-		log.Printf("mig: cancel migration task %s\n", task.TaskName())
+		log.Infof(tname, "mig: cancel migration task %s\n", task.TaskName())
 		task.SetState(StateCancelling)
 		return ErrSourceNodeFail
 	}
@@ -157,23 +158,23 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 		brs := task.BackupReplicaSet()
 		if brs == nil {
 			task.SetState(StateCancelling)
-			log.Println("mig: no backup replicaset found, controller maybe restarted after target master failure, can not do recovery.")
+			log.Info(tname, "mig: no backup replicaset found, controller maybe restarted after target master failure, can not do recovery.")
 			return ErrCanNotRecover
 		}
 		slaves := brs.Slaves()
 		if len(slaves) == 0 {
 			task.SetState(StateCancelling)
-			log.Println("mig: the dead target master has no slave, cannot do recovery.")
+			log.Info(tname, "mig: the dead target master has no slave, cannot do recovery.")
 			return ErrCanNotRecover
 		} else {
 			rs := cluster.FindReplicaSetByNode(slaves[0].Id)
 			if rs == nil {
 				task.SetState(StateCancelling)
-				log.Println("mig: no replicaset for slave of dead target master found")
+				log.Info(tname, "mig: no replicaset for slave of dead target master found")
 				return ErrCanNotRecover
 			}
 			task.ReplaceTargetReplicaSet(rs)
-			log.Printf("mig: recover dead target node to %s()\n",
+			log.Infof(tname, "mig: recover dead target node to %s(%s)",
 				rs.Master().Id, rs.Master().Addr())
 		}
 	}
@@ -190,7 +191,7 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 				continue
 			}
 
-			log.Printf("Will recover migrating task for %s\n", node.Id)
+			log.Infof(node.Addr(), "Will recover migrating task for %s\n", node.Id)
 
 			for id, slots := range node.Migrating {
 				// 根据slot生成ranges
@@ -211,7 +212,7 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 
 				task, err := m.CreateTask(node.Id, rs.Master().Id, ranges, cluster)
 				if err != nil {
-					log.Println("Can not recover migrate task,", err)
+					log.Infof(node.Addr(), "Can not recover migrate task, %v", err)
 				} else {
 					go func(t *MigrateTask) {
 						t.Run()
@@ -246,7 +247,7 @@ func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster)
 			if plan.task == nil {
 				task, err := m.CreateTask(plan.SourceId, plan.TargetId, plan.Ranges, cluster)
 				if err == nil {
-					log.Println("Rebalance task created,", task)
+					log.Infof(task.TaskName(), "Rebalance task created, %v", task)
 					plan.task = task
 					go task.Run()
 				} else {
@@ -264,7 +265,6 @@ func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster)
 	for {
 		allDone := true
 		for _, plan := range rbtask.Plans {
-			log.Println("Plan:", plan)
 			state := plan.task.CurrentState()
 			if state != StateDone && state != StateCancelled {
 				m.RemoveTask(plan.task)

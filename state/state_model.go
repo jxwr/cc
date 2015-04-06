@@ -1,10 +1,10 @@
 package state
 
 import (
-	"log"
 	"time"
 
 	"github.com/jxwr/cc/fsm"
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/redis"
 )
@@ -16,31 +16,37 @@ const (
 	StateOffline           = "OFFLINE"
 )
 
+func getNodeState(i interface{}) *NodeState {
+	ctx := i.(StateContext)
+	ns := ctx.NodeState
+	return ns
+}
+
 var (
 	RunningState = &fsm.State{
 		Name: StateRunning,
-		OnEnter: func(ctx interface{}) {
-			log.Println("Enter RUNNING state")
+		OnEnter: func(i interface{}) {
+			log.Event(getNodeState(i).Addr(), "Enter RUNNING state")
 		},
-		OnLeave: func(ctx interface{}) {
-			log.Println("Leave RUNNING state")
+		OnLeave: func(i interface{}) {
+			log.Event(getNodeState(i).Addr(), "Leave RUNNING state")
 		},
 	}
 
 	WaitFailoverBeginState = &fsm.State{
 		Name: StateWaitFailoverBegin,
-		OnEnter: func(ctx interface{}) {
-			log.Println("Enter WAIT_FAILOVER_BEGIN state")
+		OnEnter: func(i interface{}) {
+			log.Event(getNodeState(i).Addr(), "Enter WAIT_FAILOVER_BEGIN state")
 		},
-		OnLeave: func(ctx interface{}) {
-			log.Println("Leave WAIT_FAILOVER_BEGIN state")
+		OnLeave: func(i interface{}) {
+			log.Event(getNodeState(i).Addr(), "Leave WAIT_FAILOVER_BEGIN state")
 		},
 	}
 
 	WaitFailoverEndState = &fsm.State{
 		Name: StateWaitFailoverEnd,
 		OnEnter: func(i interface{}) {
-			log.Println("Enter WAIT_FAILOVER_END state")
+			log.Event(getNodeState(i).Addr(), "Enter WAIT_FAILOVER_END state")
 
 			ctx := i.(StateContext)
 			ns := ctx.NodeState
@@ -57,11 +63,11 @@ var (
 			}
 			err := meta.AddFailoverRecord(record)
 			if err != nil {
-				log.Printf("state: add failover record failed, %v", err)
+				log.Warningf(ns.Addr(), "state: add failover record failed, %v", err)
 			}
 		},
 		OnLeave: func(i interface{}) {
-			log.Println("Leave WAIT_FAILOVER_END state")
+			log.Event(getNodeState(i).Addr(), "Leave WAIT_FAILOVER_END state")
 
 			ctx := i.(StateContext)
 			ns := ctx.NodeState
@@ -69,7 +75,7 @@ var (
 			if ns.Role() == "master" {
 				err := meta.UnmarkFailoverDoing()
 				if err != nil {
-					log.Printf("state: unmark FAILOVER_DOING status failed, %v", err)
+					log.Warningf(ns.Addr(), "state: unmark FAILOVER_DOING status failed, %v", err)
 				}
 			}
 		},
@@ -77,11 +83,11 @@ var (
 
 	OfflineState = &fsm.State{
 		Name: StateOffline,
-		OnEnter: func(ctx interface{}) {
-			log.Println("Enter OFFLINE state")
+		OnEnter: func(i interface{}) {
+			log.Event(getNodeState(i).Addr(), "Enter OFFLINE state")
 		},
-		OnLeave: func(ctx interface{}) {
-			log.Println("Leave OFFLINE state")
+		OnLeave: func(i interface{}) {
+			log.Event(getNodeState(i).Addr(), "Leave OFFLINE state")
 		},
 	}
 )
@@ -113,7 +119,7 @@ var (
 				return false
 			}
 		}
-		log.Println("can failover slave")
+		log.Info(getNodeState(i).Addr(), "Can failover slave")
 		return true
 	}
 
@@ -124,19 +130,19 @@ var (
 
 		// 如果AutoFailover没开，且不是执行Failover的信号
 		if !meta.AutoFailover() && ctx.Input.Command != CMD_FAILOVER_BEGIN_SIGNAL {
-			log.Println("Check constraint failed, autofailover off or no FL begin signal")
+			log.Warning(ns.Addr(), "Check constraint failed, autofailover off or no FL begin signal")
 			return false
 		}
 
 		rs := cs.FindReplicaSetByNode(ns.Id())
 		if rs == nil {
-			log.Println("Check constraint failed, can not find replicaset by the failure node")
+			log.Warning(ns.Addr(), "Check constraint failed, can not find replicaset by the failure node")
 			return false
 		}
 		// Region至少还有一个节点
 		localRegionNodes := rs.RegionNodes(ns.node.Region)
 		if len(localRegionNodes) < 2 {
-			log.Printf("Check constraint failed, %s region nodes %d < 2\n",
+			log.Warningf(ns.Addr(), "Check constraint failed, %s region nodes %d < 2\n",
 				ns.node.Region, len(localRegionNodes))
 			return false
 		}
@@ -147,28 +153,28 @@ var (
 			}
 			nodeState := cs.FindNodeState(node.Id)
 			if node.Fail || nodeState.CurrentState() != StateRunning {
-				log.Println("Check constraint failed, more than one failure node")
+				log.Warning(ns.Addr(), "Check constraint failed, more than one failure node")
 				return false
 			}
 		}
 		// 是否有其他Failover正在进行
 		doing, err := meta.IsDoingFailover()
 		if err != nil {
-			log.Printf("Fetch failover status failed, %v", err)
+			log.Warningf(ns.Addr(), "Fetch failover status failed, %v", err)
 			return false
 		}
 		if doing {
-			log.Println("There is another failover doing")
+			log.Warning(ns.Addr(), "There is another failover doing")
 			return false
 		}
 		// 最近是否进行过Failover
 		lastTime, err := meta.LastFailoverTime()
 		if err != nil {
-			log.Printf("Get last failover time failed, %v", err)
+			log.Warningf(ns.Addr(), "Get last failover time failed, %v", err)
 			return false
 		}
-		if lastTime != nil && time.Since(*lastTime) < 30*time.Minute {
-			log.Printf("Failover too soon, lastTime: %v", *lastTime)
+		if lastTime != nil && time.Since(*lastTime) < 0*time.Minute {
+			log.Warningf(ns.Addr(), "Failover too soon, lastTime: %v", *lastTime)
 			return false
 		}
 
@@ -183,10 +189,10 @@ var (
 		}
 		err = meta.MarkFailoverDoing(record)
 		if err != nil {
-			log.Println("Can not mark FAILOVER_DOING status")
+			log.Warning(ns.Addr(), "Can not mark FAILOVER_DOING status")
 			return false
 		}
-		log.Println("Can do failover for master")
+		log.Info(ns.Addr(), "Can do failover for master")
 		return true
 	}
 
@@ -209,7 +215,7 @@ var (
 		for _, n := range cs.AllNodeStates() {
 			resp, err := redis.DisableRead(n.Addr(), ns.Id())
 			if err == nil {
-				log.Println("Disable read of slave:", resp, ns.Id())
+				log.Infof(ns.Addr(), "Disable read of slave: %s %s", resp, ns.Id())
 				break
 			}
 		}
@@ -223,7 +229,7 @@ var (
 		masterRegion := meta.MasterRegion()
 		masterId, err := cs.MaxReploffSlibing(ns.Id(), masterRegion, true)
 		if err != nil {
-			log.Printf("No slave can be used for failover %s\n", ns.Id())
+			log.Warningf(ns.Addr(), "No slave can be used for failover %s", ns.Id())
 			// 放到另一个线程做，避免死锁
 			go ns.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 		} else {
@@ -239,11 +245,11 @@ var (
 		for _, n := range cs.AllNodeStates() {
 			resp, err := redis.DisableRead(n.Addr(), ns.Id())
 			if err == nil {
-				log.Println("Disable read of the already dead master:", resp, ns.Id())
+				log.Infof(ns.Addr(), "Disable read of the already dead master: %s %s", resp, ns.Id())
 			}
 			resp, err = redis.DisableWrite(n.Addr(), ns.Id())
 			if err == nil {
-				log.Println("Disable read of the already dead master:", resp, ns.Id())
+				log.Infof(ns.Addr(), "Disable read of the already dead master: %s %s", resp, ns.Id())
 				break
 			}
 		}
