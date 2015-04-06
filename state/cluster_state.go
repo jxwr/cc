@@ -62,6 +62,7 @@ func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 		}
 		nodeState := cs.nodeStates[id]
 		if nodeState.version != cs.version {
+			log.Warningf("CLUSTER", "Delete node %s", nodeState.node)
 			delete(cs.nodeStates, id)
 		}
 	}
@@ -203,6 +204,16 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 	new := cs.FindNodeState(newMasterId)
 	old := cs.FindNodeState(oldMasterId)
 
+	if old == nil {
+		log.Warningf(oldMasterId, "Can't run failover task, the old dead master lost")
+		return
+	}
+	if new == nil {
+		log.Warningf(oldMasterId, "Can't run failover task, new master lost (%s)", newMasterId)
+		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
+		return
+	}
+
 	// 通过新主广播消息
 	redis.DisableRead(new.Addr(), old.Id())
 	redis.DisableWrite(new.Addr(), old.Id())
@@ -249,7 +260,7 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 		log.Eventf(old.Addr(), "New master %s(%s) role change success", node.Id, node.Addr())
 		// 处理迁移过程中的异常问题，将故障节点（旧主）的slots转移到新主上
 		oldNode := cs.FindNode(oldMasterId)
-		if oldNode.Fail && oldNode.IsMaster() && len(oldNode.Ranges) != 0 {
+		if oldNode != nil && oldNode.Fail && oldNode.IsMaster() && len(oldNode.Ranges) != 0 {
 			for _, r := range oldNode.Ranges {
 				log.Eventf(old.Addr(), "Fix migration task %d-%d", r.Left, r.Right)
 

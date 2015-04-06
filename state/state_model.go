@@ -153,7 +153,7 @@ var (
 			}
 			nodeState := cs.FindNodeState(node.Id)
 			if node.Fail || nodeState.CurrentState() != StateRunning {
-				log.Warning(ns.Addr(), "Check constraint failed, more than one failure node")
+				log.Warning(ns.Addr(), "Check constraint failed, more than one failure nodes")
 				return false
 			}
 		}
@@ -213,6 +213,9 @@ var (
 		ns := ctx.NodeState
 
 		for _, n := range cs.AllNodeStates() {
+			if n.Addr() == ns.Addr() {
+				continue
+			}
 			resp, err := redis.DisableRead(n.Addr(), ns.Id())
 			if err == nil {
 				log.Infof(ns.Addr(), "Disable read of slave: %s %s", resp, ns.Id())

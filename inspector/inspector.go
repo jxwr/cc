@@ -212,7 +212,7 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			glog.Infof("%v vs %v different", s, node)
 			if s.Tag == "-" && node.Tag != "-" {
 				// 可能存在处于不被Cluster接受的节点，节点可以看见Cluster，但Cluster看不到它。
-				// 一种复现情况情况：某个一节已经死了，系统将其Forget，但是OP并未被摘除该节点，
+				// 一种复现情况情况：某个节点已经死了，系统将其Forget，但是OP并未被摘除该节点，
 				// 而是恢复了该节点。
 				glog.Warningf("remeet node %s", seed.Addr())
 				self.MeetNode(seed)
@@ -244,7 +244,10 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 
 func (self *Inspector) HasSeed(seed *topo.Node) bool {
 	for _, s := range self.Seeds {
-		if s.Id == seed.Id {
+		if s.Addr() == seed.Addr() {
+			if s.Id == "" {
+				*s = *seed
+			}
 			return true
 		}
 	}
@@ -281,6 +284,9 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 	}
 
 	// 随机选一个节点，获取nodes数据作为基准，再用其他节点的数据与基准做对比
+	if self.SeedIndex >= len(seeds) {
+		self.SeedIndex = len(seeds) - 1
+	}
 	seed := seeds[self.SeedIndex]
 	self.SeedIndex++
 	self.SeedIndex %= len(seeds)
@@ -291,10 +297,13 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 
 	// 检查所有节点返回的信息是不是相同，如果不同说明正在变化中，直接返回等待重试
 	if len(seeds) > 1 {
-		for _, seed := range seeds[1:] {
-			err := self.checkClusterTopo(seed, cluster)
+		for _, s := range seeds {
+			if s == seed {
+				continue
+			}
+			err := self.checkClusterTopo(s, cluster)
 			if err != nil {
-				free, node := self.isFreeNode(seed)
+				free, node := self.isFreeNode(s)
 				if free {
 					node.Free = true
 					glog.Infof("Found free node %s", node.Addr())
