@@ -50,6 +50,15 @@ func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 			cs.nodeStates[n.Id] = nodeState
 		} else {
 			nodeState.version = cs.version
+			if nodeState.node.Fail != n.Fail {
+				log.Eventf(n.Addr(), "Fail state changed, %v -> %v", nodeState.node.Fail, n.Fail)
+			}
+			if nodeState.node.Readable != n.Readable {
+				log.Eventf(n.Addr(), "Readable state changed, %v -> %v", nodeState.node.Readable, n.Readable)
+			}
+			if nodeState.node.Writable != n.Writable {
+				log.Eventf(n.Addr(), "Writable state changed, %v -> %v", nodeState.node.Writable, n.Writable)
+			}
 			nodeState.node = n
 		}
 		nodeState.updateTime = now
@@ -267,7 +276,7 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 				for i := r.Left; i <= r.Right; i++ {
 					for _, ns := range cs.AllNodeStates() {
 						if ns.node.IsMaster() {
-							log.Warningf(old.Addr(), "setslot %d node %s", i, new.Id())
+							log.Verbosef(old.Addr(), "setslot %d node %s", i, new.Id())
 
 							redis.SetSlot(ns.Addr(), i, redis.SLOT_NODE, new.Id())
 						}
