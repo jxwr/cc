@@ -1,0 +1,44 @@
+
+场景：
+- Slave Dead
+  从故障后，如果Region内无其他节点故障，则可以进行AutoFailover（封禁）
+  封建后有两种选择：
+  a) 机器恢复后，将节点启动起来
+     - 手动enable-read
+  b) 原节点不要了，新加入一个
+     - osp add-unit, 新节点A会位于cc的seed中，Meet新节点
+     - 管理员将A设置为主的Slave
+     - Forget掉故障的Slave
+     - osp kill，摘除故障节点的关联
+  
+- Master Dead
+  a) 已自动重新选主(通常情况)，DeadMaster变成Standby
+     - Forget掉故障的节点
+     - osp kill，拆除故障节点关联
+     - osp add-unit，添加新节点
+     - Meet新节点，并设置新节点为新主的从
+  b) 主地域，主从都挂了，无法进行AutoFailover
+     最好是可以重新启动，否则就需要从其他地域迂回来恢复
+     - 主地域，主从都挂了，需要设置其他地域存活的节点为Master(SetAsMaster)
+     - 在主地域新添加一个节点，设置为新主的Slave
+     - 设置新节点为主(SetAsMaster)
+
+- Expand
+  a) 扩一个节点
+     - 每个地域osp add-unit, cc会展示出新出现的Free节点
+     - 将这些FreeNode组合成一个ReplicaSet
+     - Rebalance
+
+- Shrink
+  a) 缩一个节点
+     - 将某分片上的slots，完全迁移到其他节点（算法待实现）
+     - 将ReplicaSet拆开
+     - Forget这些节点，进入Free状态
+     - 摘除关联
+
+- Add Region
+  - 创建一个OspService，添加NumReplicaSet个节点
+  - 添加一个Controller，加关联
+  - 修改AppConfig，添加一个新地域
+  - cc将发现一组FreeNode（待自动）
+  - 一个一个挂载即可
