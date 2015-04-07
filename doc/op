@@ -42,3 +42,10 @@
   - 修改AppConfig，添加一个新地域
   - cc将发现一组FreeNode（待自动）
   - 一个一个挂载即可
+
+- 拆除Slave(TODO)
+  - Reset & Forget -> Free
+  - OSP摘除关联
+
+- 切换Master(TODO)
+  - SetAsMaster
