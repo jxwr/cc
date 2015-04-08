@@ -82,7 +82,7 @@ var NodeState = React.createClass({
   },
   handleForget: function() {
     $.ajax({
-      url: HTTP_HOST+'/node/forget',
+      url: HTTP_HOST+'/node/forgetAndReset',
       contentType: 'application/json',
       type: "POST",
       data: JSON.stringify({
@@ -112,14 +112,14 @@ var NodeState = React.createClass({
     var mode = read+"/"+write;
     var empty = node.Role=="master" ? (node.Ranges.length>0 ? "HasSlots":"Empty"): "";
     var meetBtn = node.Free ? <button onClick={this.handleMeet}>M</button> : null;
-    var forgetBtn = node.Standby ? <button onClick={this.handleForget}>F</button> : null;
+    var forgetBtn = node.Standby || node.Role == "slave" ? <button onClick={this.handleForget}>FR</button> : null;
     var options = _.map(GlobalNodes, function(n) {
       if (n.Id == node.Id) return null;
       return <option key={n.Id} value={n.Id}>{n.Ip}:{n.Port}</option>;
     }).filter(function(n) { return n != null; });
     var reparent = (
       <div>
-        <button onClick={this.handleReparent}>rp</button>
+        <button onClick={this.handleReparent}>RP</button>
         <select ref={node.Id+"_reparent"}>{options}</select>
       </div>
     );

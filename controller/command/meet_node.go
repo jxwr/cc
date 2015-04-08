@@ -2,6 +2,7 @@ package command
 
 import (
 	cc "github.com/jxwr/cc/controller"
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/redis"
 )
 
@@ -25,6 +26,7 @@ func (self *MeetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	for _, ns := range cs.AllNodeStates() {
 		_, err = redis.ClusterMeet(ns.Addr(), target.Ip, target.Port)
 		if err == nil {
+			log.Eventf(target.Addr(), "Meet.")
 			return nil, nil
 		}
 	}

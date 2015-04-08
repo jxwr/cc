@@ -2,18 +2,19 @@ package command
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	cc "github.com/jxwr/cc/controller"
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/redis"
 )
 
-type ForgetNodeCommand struct {
+type ForgetAndResetNodeCommand struct {
 	NodeId string
 }
 
-func (self *ForgetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
+// 似乎，只有同时进行Forget和Reset才有意义，否则都是一个不一致的状态
+func (self *ForgetAndResetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	cs := c.ClusterState
 	target := cs.FindNode(self.NodeId)
 	if target == nil {
@@ -24,9 +25,6 @@ func (self *ForgetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	}
 	if len(target.Ranges) > 0 {
 		return nil, ErrNodeNotEmpty
-	}
-	if !target.IsMaster() {
-		return nil, ErrNodeNotMaster
 	}
 	var err error
 	forgetCount := 0
@@ -39,9 +37,10 @@ func (self *ForgetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
 		_, err = redis.ClusterForget(ns.Addr(), target.Id)
 		if err != nil && !strings.HasPrefix(err.Error(), "ERR Unknown node") {
 			allForgetDone = false
-			log.Printf("Forget node failed, %v", err)
+			log.Warningf(target.Addr(), "Forget node %s(%s) failed, %v", ns.Addr(), ns.Id(), err)
 			continue
 		}
+		log.Eventf(target.Addr(), "Forget by %s(%s).", ns.Addr(), ns.Id())
 		forgetCount++
 	}
 	if !allForgetDone {
@@ -54,6 +53,7 @@ func (self *ForgetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Reset node %s(%s) failed, %v", target.Id, target.Addr(), err)
 		}
+		log.Eventf(target.Addr(), "Reset.")
 	}
 	return nil, nil
 }

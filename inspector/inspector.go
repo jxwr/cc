@@ -177,7 +177,6 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 		if err != nil || len(node.Ranges) > 0 || !node.IsMaster() {
 			return false, nil
 		} else {
-			glog.Infof("Free Node %s", node.Addr())
 			return true, node
 		}
 	}
@@ -287,9 +286,17 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 	if self.SeedIndex >= len(seeds) {
 		self.SeedIndex = len(seeds) - 1
 	}
-	seed := seeds[self.SeedIndex]
-	self.SeedIndex++
-	self.SeedIndex %= len(seeds)
+	var seed *topo.Node
+	for i := 0; i < len(seeds); i++ {
+		seed = seeds[self.SeedIndex]
+		self.SeedIndex++
+		self.SeedIndex %= len(seeds)
+		if seed.Free {
+			glog.Info("Seed node is free, ", seed.Addr())
+		} else {
+			break
+		}
+	}
 	cluster, err := self.initClusterTopo(seed)
 	if err != nil {
 		return nil, err

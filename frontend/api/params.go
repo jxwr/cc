@@ -44,7 +44,7 @@ type MeetNodeParams struct {
 	NodeId string `json:"node_id"`
 }
 
-type ForgetNodeParams struct {
+type ForgetAndResetNodeParams struct {
 	NodeId string `json:"node_id"`
 }
 
