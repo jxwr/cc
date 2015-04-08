@@ -102,6 +102,15 @@ var NodeState = React.createClass({
         parent_id: targetId
       })});
   },
+  handleSetAsMaster: function() {
+    $.ajax({
+      url: HTTP_HOST+'/node/setAsMaster',
+      contentType: 'application/json',
+      type: "POST",
+      data: JSON.stringify({
+        node_id: this.props.node.Id,
+      })});
+  },
   render: function() {
     var node = this.props.node;
     var role = node.Role == "master" ? "Master" : "Slave";
@@ -113,6 +122,9 @@ var NodeState = React.createClass({
     var empty = node.Role=="master" ? (node.Ranges.length>0 ? "HasSlots":"Empty"): "";
     var meetBtn = node.Free ? <button onClick={this.handleMeet}>M</button> : null;
     var forgetBtn = node.Standby || node.Role == "slave" ? <button onClick={this.handleForget}>FR</button> : null;
+    var setAsMasterBtn = node.Role=="slave" ? (
+      <button onClick={this.handleSetAsMaster}>SetAsMaster</button>
+    ) : null;
     var options = _.map(GlobalNodes, function(n) {
       if (n.Id == node.Id) return null;
       return <option key={n.Id} value={n.Id}>{n.Ip}:{n.Port}</option>;
@@ -141,7 +153,7 @@ var NodeState = React.createClass({
             <button onClick={this.disableRead}>-r</button>
             <button onClick={this.enableWrite}>+w</button>
             <button onClick={this.disableWrite}>-w</button>
-            {meetBtn}{forgetBtn} <br/>
+            {meetBtn}{forgetBtn}{setAsMasterBtn} <br/>
             {reparent}
           </div>
         </div>

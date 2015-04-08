@@ -35,6 +35,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.POST(api.RebalancePath, fe.HandleRebalance)
 	fe.Router.POST(api.NodePermPath, fe.HandleToggleMode)
 	fe.Router.POST(api.NodeMeetPath, fe.HandleMeetNode)
+	fe.Router.POST(api.NodeSetAsMasterPath, fe.HandleSetAsMaster)
 	fe.Router.POST(api.NodeForgetAndResetPath, fe.HandleForgetAndResetNode)
 	fe.Router.POST(api.NodeReplicatePath, fe.HandleReplicate)
 	fe.Router.POST(api.MakeReplicaSetPath, fe.HandleMakeReplicaSet)
@@ -196,6 +197,23 @@ func (fe *FrontEnd) HandleMeetNode(c *gin.Context) {
 	c.Bind(&params)
 
 	cmd := command.MeetNodeCommand{params.NodeId}
+
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	if err != nil {
+		c.JSON(500, api.FailureResponse{
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, result)
+}
+
+func (fe *FrontEnd) HandleSetAsMaster(c *gin.Context) {
+	var params api.SetAsMasterParams
+	c.Bind(&params)
+
+	cmd := command.SetAsMasterCommand{params.NodeId}
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {

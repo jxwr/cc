@@ -15,6 +15,9 @@ func (self *SetAsMasterCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	if node == nil {
 		return nil, ErrNodeNotExist
 	}
+	if node.IsMaster() {
+		return nil, ErrNodeIsMaster
+	}
 	_, err := redis.ClusterFailover(node.Addr())
 	return nil, err
 }

@@ -11,5 +11,6 @@ const (
 	NodeForgetAndResetPath = "/node/forgetAndReset"
 	NodeReplicatePath      = "/node/replicate"
 	NodeResetPath          = "/node/reset"
+	NodeSetAsMasterPath    = "/node/setAsMaster"
 	MakeReplicaSetPath     = "/replicaset/make"
 )

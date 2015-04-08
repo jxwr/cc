@@ -44,6 +44,10 @@ type MeetNodeParams struct {
 	NodeId string `json:"node_id"`
 }
 
+type SetAsMasterParams struct {
+	NodeId string `json:"node_id"`
+}
+
 type ForgetAndResetNodeParams struct {
 	NodeId string `json:"node_id"`
 }

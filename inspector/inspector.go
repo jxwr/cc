@@ -282,7 +282,7 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 		return nil, ErrNoSeed
 	}
 
-	// 随机选一个节点，获取nodes数据作为基准，再用其他节点的数据与基准做对比
+	// 顺序选一个节点，获取nodes数据作为基准，再用其他节点的数据与基准做对比
 	if self.SeedIndex >= len(seeds) {
 		self.SeedIndex = len(seeds) - 1
 	}
