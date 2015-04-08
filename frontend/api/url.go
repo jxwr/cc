@@ -9,5 +9,6 @@ const (
 	NodePermPath       = "/node/perm"
 	NodeMeetPath       = "/node/meet"
 	NodeForgetPath     = "/node/forget"
+	NodeReplicatePath  = "/node/replicate"
 	MakeReplicaSetPath = "/replicaset/make"
 )

@@ -36,6 +36,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.POST(api.NodePermPath, fe.HandleToggleMode)
 	fe.Router.POST(api.NodeMeetPath, fe.HandleMeetNode)
 	fe.Router.POST(api.NodeForgetPath, fe.HandleForgetNode)
+	fe.Router.POST(api.NodeReplicatePath, fe.HandleReplicate)
 	fe.Router.POST(api.MakeReplicaSetPath, fe.HandleMakeReplicaSet)
 
 	return fe
@@ -212,6 +213,23 @@ func (fe *FrontEnd) HandleForgetNode(c *gin.Context) {
 	c.Bind(&params)
 
 	cmd := command.ForgetNodeCommand{params.NodeId}
+
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	if err != nil {
+		c.JSON(500, api.FailureResponse{
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, result)
+}
+
+func (fe *FrontEnd) HandleReplicate(c *gin.Context) {
+	var params api.ReplicateParams
+	c.Bind(&params)
+
+	cmd := command.ReplicateCommand{params.ChildId, params.ParentId}
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {

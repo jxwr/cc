@@ -6,6 +6,8 @@ var Leader = data.Leader;
 var HTTP_HOST = 'http://'+Leader.Ip+':'+Leader.HttpPort;
 var WS_HOST = 'ws://'+Leader.Ip+':'+Leader.WsPort;
 
+var GlobalNodes = [];
+
 if (location.origin != HTTP_HOST)
   location = HTTP_HOST + location.pathname;
 
@@ -19,7 +21,7 @@ var RxNodeState = stateSocket.map(function(e){
   delete state.Room;
   delete state.Zone;
   delete state.PFail;
-  delete state.ClusterStatsMessagesSend;
+  delete state.ClusterStatsMessagesSent;
   delete state.ClusterStatsMessagesReceived;
   return state; 
 });
@@ -87,6 +89,19 @@ var NodeState = React.createClass({
         node_id: this.props.node.Id,
       })});
   },
+  handleReparent: function() {
+    var node = this.props.node;
+    var select = this.refs[node.Id+'_reparent'].getDOMNode();
+    var targetId = select.options[select.selectedIndex].value;
+    $.ajax({
+      url: HTTP_HOST+'/node/replicate',
+      contentType: 'application/json',
+      type: "POST",
+      data: JSON.stringify({
+        child_id: node.Id,
+        parent_id: targetId
+      })});
+  },
   render: function() {
     var node = this.props.node;
     var role = node.Role == "master" ? "Master" : "Slave";
@@ -96,8 +111,18 @@ var NodeState = React.createClass({
     var write = node.Writable ? "w":"-";
     var mode = read+"/"+write;
     var empty = node.Role=="master" ? (node.Ranges.length>0 ? "HasSlots":"Empty"): "";
-    var meetBtn = node.Free ? <button onClick={this.handleMeet}>Meet</button> : null;
-    var forgetBtn = node.Standby ? <button onClick={this.handleForget}>Forget</button> : null;
+    var meetBtn = node.Free ? <button onClick={this.handleMeet}>M</button> : null;
+    var forgetBtn = node.Standby ? <button onClick={this.handleForget}>F</button> : null;
+    var options = _.map(GlobalNodes, function(n) {
+      if (n.Id == node.Id) return null;
+      return <option key={n.Id} value={n.Id}>{n.Ip}:{n.Port}</option>;
+    }).filter(function(n) { return n != null; });
+    var reparent = (
+      <div>
+        <button onClick={this.handleReparent}>rp</button>
+        <select ref={node.Id+"_reparent"}>{options}</select>
+      </div>
+    );
     return (
         <div className="ui card" onClick={this.handleClick}>
         <div className="content">
@@ -116,7 +141,8 @@ var NodeState = React.createClass({
             <button onClick={this.disableRead}>-r</button>
             <button onClick={this.enableWrite}>+w</button>
             <button onClick={this.disableWrite}>-w</button>
-            {meetBtn}{forgetBtn}
+            {meetBtn}{forgetBtn} <br/>
+            {reparent}
           </div>
         </div>
         <div>
@@ -403,6 +429,8 @@ var ClusterState = React.createClass({
         var nodesLastShowTime = self.state.nodesLastShowTime;
         nodes[obj.Id] = obj;
         nodesLastShowTime[obj.Id] = Date.now();
+        /* <><><> EVIL <><><> */
+        GlobalNodes = nodes;
         self.setState({nodes: nodes});
         // 每秒检查一次5s没有汇报的节点删除掉
         var now = Date.now();
@@ -650,7 +678,6 @@ var LogPanel = React.createClass({
   componentWillUpdate: function() {
     var node = this.getDOMNode();
     this.shouldScrollBottom = node.scrollTop + node.offsetHeight === node.scrollHeight;
-    console.log(node.scrollHeight);
   },
   componentDidUpdate: function() {
     if (this.shouldScrollBottom) {
@@ -688,7 +715,7 @@ var LogPanel = React.createClass({
 var Main = React.createClass({
   render: function() {
     return (
-      <div className="pusher">
+      <div>
         <div className="ui segment">
           <h4>AppInfo</h4>
           <AppInfo info={data} />
