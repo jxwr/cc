@@ -18,6 +18,61 @@ func (r Range) NumSlots() int {
 	return (r.Right - r.Left + 1)
 }
 
+type SummaryInfo struct {
+	UsedMemory              int64
+	Keys                    int64
+	Expires                 int64
+	MasterLinkStatus        string
+	MasterSyncLeftBytes     int64
+	ReplOffset              int64
+	Loading                 bool
+	RdbBgsaveInProgress     bool
+	InstantaneousOpsPerSec  int
+	InstantaneousInputKbps  float64
+	InstantaneousOutputKbps float64
+}
+
+func (s *SummaryInfo) ReadLine(line string) {
+	xs := strings.Split(strings.TrimSpace(line), " ")
+	xs = strings.Split(xs[1], ":")
+	s.SetField(xs[0], xs[1])
+}
+
+func (s *SummaryInfo) SetField(key, val string) {
+	switch key {
+	case "used_memory":
+		v, _ := strconv.ParseInt(val, 10, 64)
+		s.UsedMemory = v
+	case "db0_keys":
+		v, _ := strconv.ParseInt(val, 10, 64)
+		s.Keys = v
+	case "db0_expires":
+		v, _ := strconv.ParseInt(val, 10, 64)
+		s.Expires = v
+	case "master_link_status":
+		s.MasterLinkStatus = val
+	case "master_sync_left_bytes":
+		v, _ := strconv.ParseInt(val, 10, 64)
+		s.MasterSyncLeftBytes = v
+	case "repl_offset":
+		v, _ := strconv.ParseInt(val, 10, 64)
+		s.ReplOffset = v
+	case "loading":
+		s.Loading = (val == "1")
+	case "rdb_bgsave_in_progress":
+		s.RdbBgsaveInProgress = (val == "1")
+	case "instantaneous_ops_per_sec":
+		v, _ := strconv.Atoi(val)
+		s.InstantaneousOpsPerSec = v
+	case "instantaneous_input_kbps":
+		v, _ := strconv.ParseFloat(val, 64)
+		s.InstantaneousInputKbps = v
+	case "instantaneous_output_kbps":
+		v, _ := strconv.ParseFloat(val, 64)
+		s.InstantaneousOutputKbps = v
+	}
+}
+
 type Node struct {
 	Ip        string
 	Port      int
@@ -38,6 +93,7 @@ type Node struct {
 	Ranges    []Range
 	FailCount int
 	hostname  string
+	SummaryInfo
 	ClusterInfo
 }
 

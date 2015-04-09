@@ -123,8 +123,13 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 
 	cluster := topo.NewCluster(self.LocalRegion)
 
+	var summary topo.SummaryInfo
 	lines := strings.Split(resp, "\n")
 	for _, line := range lines {
+		if strings.HasPrefix(line, "# ") {
+			summary.ReadLine(line)
+			continue
+		}
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -140,6 +145,7 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 				return nil, err
 			}
 			node.ClusterInfo = info
+			node.SummaryInfo = summary
 		}
 		cluster.AddNode(node)
 	}
@@ -189,8 +195,13 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 		return err
 	}
 
+	var summary topo.SummaryInfo
 	lines := strings.Split(resp, "\n")
 	for _, line := range lines {
+		if strings.HasPrefix(line, "# ") {
+			summary.ReadLine(line)
+			continue
+		}
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -225,6 +236,7 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 				return err
 			}
 			node.ClusterInfo = info
+			node.SummaryInfo = summary
 		}
 
 		if len(s.Migrating) != 0 {

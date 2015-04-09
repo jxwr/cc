@@ -23,7 +23,12 @@ var RxNodeState = stateSocket.map(function(e){
   delete state.PFail;
   delete state.ClusterStatsMessagesSent;
   delete state.ClusterStatsMessagesReceived;
-  return state; 
+  delete state.UsedMemory;
+  delete state.Expires;
+  delete state.InstantaneousOpsPerSec;
+  delete state.InstantaneousInputKbps;
+  delete state.InstantaneousOutputKbps;
+  return state;
 });
 
 var migrateSocket = Rx.DOM.fromWebSocket(
@@ -121,7 +126,7 @@ var NodeState = React.createClass({
     var mode = read+"/"+write;
     var empty = node.Role=="master" ? (node.Ranges.length>0 ? "HasSlots":"Empty"): "";
     var meetBtn = node.Free ? <button onClick={this.handleMeet}>M</button> : null;
-    var forgetBtn = node.Standby || node.Role == "slave" ? <button onClick={this.handleForget}>FR</button> : null;
+    var forgetBtn = node.Standby || node.Role == "slave" ? <button onClick={this.handleForget}>ForgetAndReset</button> : null;
     var setAsMasterBtn = node.Role=="slave" ? (
       <button onClick={this.handleSetAsMaster}>SetAsMaster</button>
     ) : null;
@@ -144,17 +149,25 @@ var NodeState = React.createClass({
             <span>{node.Ip+":"+node.Port}</span>
           </div>
           <div className="meta">
-            <span className="ui">{node.Tag}</span>
-            <span className="ui">{node.ClusterMyEpoch}</span>
+            <span>{node.Tag}</span>
+            <span>{node.ClusterMyEpoch}</span>
             <span className="ui right floated">{empty}</span>
           </div>
           <div className="description">
+            <ul className="">
+              <li>repl:{node.ReplOffset}</li>
+              <li>keys:{node.Keys}</li>
+              <li>load:{node.Loading?"Loading":"-"}</li>
+              <li>link:{node.Role=="slave"?node.MasterLinkStatus:"-"}</li>
+              <li>left:{node.Role=="master"?node.MasterSyncLeftBytes:"-"}</li>
+              <li>dump:{node.RdbBgsaveInProgress?"bgsaving":"-"}</li>
+            </ul>
+            {meetBtn}{forgetBtn}{setAsMasterBtn}<br/>
             <button onClick={this.enableRead}>+r</button>
             <button onClick={this.disableRead}>-r</button>
             <button onClick={this.enableWrite}>+w</button>
             <button onClick={this.disableWrite}>-w</button>
-            {meetBtn}{forgetBtn}{setAsMasterBtn} <br/>
-            {reparent}
+            <br/>{reparent}
           </div>
         </div>
         <div>
