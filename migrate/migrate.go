@@ -77,6 +77,22 @@ func (t *MigrateTask) setSlotToNode(rs *topo.ReplicaSet, slot int, targetId stri
 	return nil
 }
 
+/// 迁移slot过程:
+/// 1. 标记所有Source分片节点为MIGRATING
+/// 2. 标记Target分片Master为IMPORTING
+/// 3. 从Source分片Master取keys迁移，直到空，数据迁移完成
+/// 4. 设置Target的Slave的slot归属到Target
+/// 5. 设置Target的Master的slot归属到Target
+/// 6. 设置Source所有节点的slot归属到Target
+/// 命令:
+/// 1. <Source Slaves> setslot $slot MIGRATING $targetId
+/// 2. <Source Master> setslot $slot MIGRATING $targetId
+/// 3. <Target Master> setslot $slot IMPORTING $sourceId
+/// ... migrating all keys
+/// 4. <Target Slaves> setslot $slot node $targetId
+/// 5. <Target Master> setslot $slot node $targetId
+/// 6. <Source Slaves> setslot $slot node $targetId
+/// 7. <Source Master> setslot $slot node $targetId
 func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	rs := t.SourceReplicaSet()
 	sourceNode := t.SourceNode()
@@ -105,6 +121,11 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			// 迁移实际已经完成，需要清理Source的Migrating状态
 			srs := t.SourceReplicaSet()
 			err = t.setSlotToNode(srs, slot, targetNode.Id)
+			if err != nil {
+				return 0, err
+			}
+			trs := t.TargetReplicaSet()
+			err = t.setSlotToNode(trs, slot, targetNode.Id)
 			return 0, err
 		}
 		return 0, err
@@ -128,7 +149,22 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			nkeys++
 		}
 		if len(keys) == 0 {
-			// 迁移完成，设置slot归属到新节点，该操作自动清理IMPORTING和MIGRATING状态
+			// 迁移完成，需要等SourceSlavess同步(DEL)完成，即SourceSlaves节点中该slot内已无key
+			slaveSyncDone := true
+			srs := t.SourceReplicaSet()
+			for _, node := range srs.AllNodes() {
+				keys, err := redis.GetKeysInSlot(node.Addr(), slot, keysPer)
+				if err != nil {
+					return nkeys, err
+				}
+				if len(keys) != 0 {
+					slaveSyncDone = false
+				}
+			}
+			if !slaveSyncDone {
+				return nkeys, fmt.Errorf("mig: source nodes not all empty, will retry.")
+			}
+			// 设置slot归属到新节点，该操作自动清理IMPORTING和MIGRATING状态
 			// 如果设置的是Source节点，设置slot归属时，Redis会确保该slot中已无剩余的key
 			trs := t.TargetReplicaSet()
 			// 优先设置从节点，保证当主的数据分布还未广播到从节点时主挂掉，slot信息也不会丢失
@@ -147,7 +183,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 				return nkeys, err
 			}
 			// 更新源节点上slot的归属
-			srs := t.SourceReplicaSet()
+			srs = t.SourceReplicaSet()
 			err = t.setSlotToNode(srs, slot, targetNode.Id)
 			if err != nil {
 				return nkeys, err

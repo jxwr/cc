@@ -550,3 +550,101 @@ UI需要展示的内容：
 这类节点可以进行操作：
 1. 和其他节点组成ReplicaSet
 2. 摘除
+
+# 2015/04/15 数据迁移
+
+迁移slot过程:
+1. <Source Slaves> setslot $slot MIGRATING $targetId
+2. <Source Master> setslot $slot MIGRATING $targetId
+3. <Target Master> setslot $slot IMPORTING $sourceId
+... migrating all keys
+4. <Target Slaves> setslot $slot node $targetId
+5. <Target Master> setslot $slot node $targetId
+6. <Source Slaves> setslot $slot node $targetId
+7. <Source Master> setslot $slot node $targetId
+
+以上每一步都可能失败和出错
+1. <Source Slaves> setslot $slot MIGRATING
+   - "ERR I'm not the owner of hash slot"
+2. <Source Master> setslot $slot MIGRATING
+   - "ERR I'm not the owner of hash slot"
+3. <Target Master> setslot $slot IMPORTING
+   - "ERR I'm already the owner of hash slot"
+... migrating all keys
+4. <Target Slaves> setslot $slot node $targetId
+5. <Target Master> setslot $slot node $targetId
+6. <Source Slaves> setslot $slot node $targetId
+7. <Source Master> setslot $slot node $targetId
+
+迁移实际要做的是一个状态变换，从TODO到DONE，分片粒度考虑：
+TODO:
+  Source: (HasData,Owner,None) --- (是否有数据，分片归属，状态)
+  Target: (NoData,NotOwner,None)
+TODO_1:
+  Source: (HasData,Owner,MIGRATING)
+  Target: (NoData,NotOwner,None)
+TODO_2:
+  Source: (HasData,Owner,MIGRATING)
+  Target: (NoData,NotOwner,IMPORTING)
+TODO_3:
+  Source: (NoData,Owner,MIGRATING)
+  Target: (HasData,NotOwner,IMPORTING)
+TODO_4:
+  Source: (NoData,Owner,MIGRATING)
+  Target: (HasData,Owner,None)
+DONE:
+  Source: (NoData,NotOwner,None)
+  Target: (HasData,Owner,None)
+
+实际操作需要考虑主从：
+TODO:
+  SourceMaster: (HasData,Owner,None)
+  SourceSlaves: (HasData,Owner,None)
+  TargetMaster: (NoData,NotOwner,None)
+  TargetSlaves: (NoData,NotOwner,None)
+TODO_1a:
+  SourceSlaves: (HasData,Owner,MIGRATING)
+  SourceMaster: (HasData,Owner,None)
+  TargetMaster: (NoData,NotOwner,None)
+  TargetSlaves: (NoData,NotOwner,None)
+TODO_1b:
+  SourceSlaves: (HasData,Owner,MIGRATING)
+  SourceMaster: (HasData,Owner,MIGRATING)
+  TargetMaster: (NoData,NotOwner,None)
+  TargetSlaves: (NoData,NotOwner,None)
+TODO_2a:
+  SourceSlaves: (HasData,Owner,MIGRATING)
+  SourceMaster: (HasData,Owner,MIGRATING)
+  TargetMaster: (NoData,NotOwner,IMPORTING)
+  TargetSlaves: (NoData,NotOwner,None)
+--- 执行Migrate ---
+TODO_3a: -- 主从同步有延迟
+  SourceSlaves: (HasData,Owner,MIGRATING)
+  SourceMaster: (NoData,Owner,MIGRATING)
+  TargetMaster: (HasData,NotOwner,IMPORTING)
+  TargetSlaves: (HasData,NotOwner,None)
+TODO_3b: -- 主从同步有延迟
+  SourceSlaves: (NoData,Owner,MIGRATING)
+  SourceMaster: (NoData,Owner,MIGRATING)
+  TargetMaster: (HasData,NotOwner,IMPORTING)
+  TargetSlaves: (HasData,NotOwner,None)
+TODO_4a:
+  SourceSlaves: (NoData,Owner,MIGRATING)
+  SourceMaster: (NoData,Owner,MIGRATING)
+  TargetMaster: (HasData,NotOwner,IMPORTING)
+  TargetSlaves: (HasData,Owner,None)
+TODO_4b:
+  SourceSlaves: (NoData,Owner,MIGRATING)
+  SourceMaster: (NoData,Owner,MIGRATING)
+  TargetMaster: (HasData,Owner,None)
+  TargetSlaves: (HasData,Owner,None)
+TODO_4c:
+  SourceSlaves: (NoData,NotOwner,None)
+  SourceMaster: (NoData,Owner,MIGRATING)
+  TargetMaster: (HasData,Owner,None)
+  TargetSlaves: (HasData,Owner,None)
+DONE(TODO_4d):
+  SourceSlaves: (NoData,NotOwner,None)
+  SourceMaster: (NoData,NotOwner,None)
+  TargetMaster: (HasData,Owner,None)
+  TargetSlaves: (HasData,Owner,None)
