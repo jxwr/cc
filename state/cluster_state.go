@@ -254,7 +254,7 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 	} else {
 		info, err := redis.FetchInfo(node.Addr(), "Replication")
 		if err == nil && info.Get("role") == "master" {
-			for { // 等Cluster刷新
+			for i := 0; i < 30; i++ { // 等Cluster刷新
 				node := cs.FindNode(newMasterId)
 				if !node.IsMaster() {
 					time.Sleep(1 * time.Second)
