@@ -24,21 +24,34 @@ const (
 	SLOT_IMPORTING = "IMPORTING"
 	SLOT_STABLE    = "STABLE"
 	SLOT_NODE      = "NODE"
+
+	NUM_RETRY = 3
 )
 
 /// Misc
 
 func IsAlive(addr string) bool {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return false
+	inner := func(addr string) bool {
+		conn, err := redis.Dial("tcp", addr)
+		if err != nil {
+			return false
+		}
+		defer conn.Close()
+		resp, err := redis.String(conn.Do("PING"))
+		if err != nil || resp != "PONG" {
+			return false
+		}
+		return true
 	}
-	defer conn.Close()
-	resp, err := redis.String(conn.Do("PING"))
-	if err != nil || resp != "PONG" {
-		return false
+	retry := NUM_RETRY
+	for retry > 0 {
+		alive := inner(addr)
+		if alive {
+			return alive
+		}
+		retry--
 	}
-	return true
+	return false
 }
 
 /// Cluster
@@ -83,18 +96,29 @@ func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool) error {
 }
 
 func ClusterNodes(addr string) (string, error) {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return "", ErrConnFailed
-	}
-	defer conn.Close()
+	inner := func(addr string) (string, error) {
+		conn, err := redis.Dial("tcp", addr)
+		if err != nil {
+			return "", ErrConnFailed
+		}
+		defer conn.Close()
 
-	resp, err := redis.String(conn.Do("cluster", "nodes", "extra"))
-	if err != nil {
-		return "", err
+		resp, err := redis.String(conn.Do("cluster", "nodes", "extra"))
+		if err != nil {
+			return "", err
+		}
+		return resp, nil
 	}
-
-	return resp, nil
+	retry := NUM_RETRY
+	var err error
+	for retry > 0 {
+		resp, err := inner(addr)
+		if err == nil {
+			return resp, nil
+		}
+		retry--
+	}
+	return "", err
 }
 
 func FetchClusterInfo(addr string) (topo.ClusterInfo, error) {
@@ -154,64 +178,46 @@ func FetchClusterInfo(addr string) (topo.ClusterInfo, error) {
 	return clusterInfo, nil
 }
 
+func ClusterChmod(addr, id, op string) (string, error) {
+	inner := func(addr, id, op string) (string, error) {
+		conn, err := redis.Dial("tcp", addr)
+		if err != nil {
+			return "", ErrConnFailed
+		}
+		defer conn.Close()
+
+		resp, err := redis.String(conn.Do("cluster", "chmod", op, id))
+		if err != nil {
+			return "", err
+		}
+		return resp, nil
+	}
+	retry := NUM_RETRY
+	var err error
+	for retry > 0 {
+		resp, err := inner(addr, id, op)
+		if err == nil {
+			return resp, nil
+		}
+		retry--
+	}
+	return "", err
+}
+
 func DisableRead(addr, id string) (string, error) {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return "", ErrConnFailed
-	}
-	defer conn.Close()
-
-	resp, err := redis.String(conn.Do("cluster", "chmod", "-r", id))
-	if err != nil {
-		return "", err
-	}
-
-	return resp, nil
+	return ClusterChmod(addr, id, "-r")
 }
 
 func EnableRead(addr, id string) (string, error) {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return "", ErrConnFailed
-	}
-	defer conn.Close()
-
-	resp, err := redis.String(conn.Do("cluster", "chmod", "+r", id))
-	if err != nil {
-		return "", err
-	}
-
-	return resp, nil
+	return ClusterChmod(addr, id, "+r")
 }
 
 func DisableWrite(addr, id string) (string, error) {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return "", ErrConnFailed
-	}
-	defer conn.Close()
-
-	resp, err := redis.String(conn.Do("cluster", "chmod", "-w", id))
-	if err != nil {
-		return "", err
-	}
-
-	return resp, nil
+	return ClusterChmod(addr, id, "-w")
 }
 
 func EnableWrite(addr, id string) (string, error) {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return "", ErrConnFailed
-	}
-	defer conn.Close()
-
-	resp, err := redis.String(conn.Do("cluster", "chmod", "+w", id))
-	if err != nil {
-		return "", err
-	}
-
-	return resp, nil
+	return ClusterChmod(addr, id, "+w")
 }
 
 func ClusterFailover(addr string) (string, error) {
@@ -221,11 +227,16 @@ func ClusterFailover(addr string) (string, error) {
 	}
 	defer conn.Close()
 
-	resp, err := redis.String(conn.Do("cluster", "failover", "force"))
+	// 先正常Failover试试，如果主挂了再试试Force
+	resp, err := redis.String(conn.Do("cluster", "failover"))
 	if err != nil {
-		return "", err
+		if strings.HasPrefix(err.Error(), "ERR Master is down or failed") {
+			resp, err = redis.String(conn.Do("cluster", "failover", "force"))
+		}
+		if err != nil {
+			return "", err
+		}
 	}
-
 	return resp, nil
 }
 
@@ -337,48 +348,83 @@ func (info *RedisInfo) GetInt64(key string) (int64, error) {
 /// Migrate
 
 func SetSlot(addr string, slot int, action, toId string) error {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return ErrConnFailed
-	}
-	defer conn.Close()
+	inner := func(addr string, slot int, action, toId string) error {
+		conn, err := redis.Dial("tcp", addr)
+		if err != nil {
+			return ErrConnFailed
+		}
+		defer conn.Close()
 
-	if action == SLOT_STABLE {
-		_, err = redis.String(conn.Do("cluster", "setslot", slot, action))
-	} else {
-		_, err = redis.String(conn.Do("cluster", "setslot", slot, action, toId))
+		if action == SLOT_STABLE {
+			_, err = redis.String(conn.Do("cluster", "setslot", slot, action))
+		} else {
+			_, err = redis.String(conn.Do("cluster", "setslot", slot, action, toId))
+		}
+		if err != nil {
+			return err
+		}
+		return nil
 	}
-
-	if err != nil {
-		return err
+	retry := NUM_RETRY
+	var err error
+	for retry > 0 {
+		err = inner(addr, slot, action, toId)
+		if err == nil {
+			return nil
+		}
+		retry--
 	}
-	return nil
+	return err
 }
 
 func GetKeysInSlot(addr string, slot, num int) ([]string, error) {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return nil, ErrConnFailed
-	}
-	defer conn.Close()
+	inner := func(addr string, slot, num int) ([]string, error) {
+		conn, err := redis.Dial("tcp", addr)
+		if err != nil {
+			return nil, ErrConnFailed
+		}
+		defer conn.Close()
 
-	resp, err := redis.Strings(conn.Do("cluster", "getkeysinslot", slot, num))
-	if err != nil {
-		return nil, err
+		resp, err := redis.Strings(conn.Do("cluster", "getkeysinslot", slot, num))
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
 	}
-	return resp, nil
+	retry := NUM_RETRY
+	var err error
+	for retry > 0 {
+		resp, err := inner(addr, slot, num)
+		if err == nil {
+			return resp, nil
+		}
+		retry--
+	}
+	return nil, err
 }
 
 func Migrate(addr, toIp string, toPort int, key string, timeout int) (string, error) {
-	conn, err := redis.Dial("tcp", addr)
-	if err != nil {
-		return "", ErrConnFailed
-	}
-	defer conn.Close()
+	inner := func(addr, toIp string, toPort int, key string, timeout int) (string, error) {
+		conn, err := redis.Dial("tcp", addr)
+		if err != nil {
+			return "", ErrConnFailed
+		}
+		defer conn.Close()
 
-	resp, err := redis.String(conn.Do("migrate", toIp, toPort, key, 0, timeout))
-	if err != nil {
-		return "", err
+		resp, err := redis.String(conn.Do("migrate", toIp, toPort, key, 0, timeout))
+		if err != nil {
+			return "", err
+		}
+		return resp, nil
 	}
-	return resp, nil
+	retry := NUM_RETRY
+	var err error
+	for retry > 0 {
+		resp, err := inner(addr, toIp, toPort, key, timeout)
+		if err == nil {
+			return resp, nil
+		}
+		retry--
+	}
+	return "", err
 }
