@@ -3,6 +3,7 @@ package meta
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/jxwr/cc/utils/net"
@@ -36,8 +37,11 @@ type Meta struct {
 }
 
 var meta *Meta
+var mutex = &sync.Mutex{}
 
 func GetAppConfig() *AppConfig {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return meta.appConfig
 }
 
@@ -54,15 +58,15 @@ func LocalRegion() string {
 }
 
 func MasterRegion() string {
-	return meta.appConfig.MasterRegion
+	return GetAppConfig().MasterRegion
 }
 
 func AllRegions() []string {
-	return meta.appConfig.Regions
+	return GetAppConfig().Regions
 }
 
 func AutoFailover() bool {
-	return meta.appConfig.AutoFailover
+	return GetAppConfig().AutoFailover
 }
 
 func LeaderHttpAddress() string {

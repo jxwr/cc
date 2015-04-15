@@ -12,10 +12,12 @@ import (
 )
 
 type AppConfig struct {
-	AppName      string
-	AutoFailover bool
-	MasterRegion string
-	Regions      []string
+	AppName              string
+	AutoFailover         bool
+	MasterRegion         string
+	Regions              []string
+	MigrateSlotsEachTime int
+	MigrateTimeout       int
 }
 
 type ControllerConfig struct {
@@ -42,7 +44,15 @@ func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 		if event.Type == zookeeper.EVENT_CHANGED {
 			a, w, err := m.FetchAppConfig()
 			if err == nil {
+				if a.MigrateSlotsEachTime == 0 {
+					a.MigrateSlotsEachTime = 100
+				}
+				if a.MigrateTimeout == 0 {
+					a.MigrateTimeout = 5000
+				}
+				mutex.Lock()
 				m.appConfig = a
+				mutex.Unlock()
 				log.Println("meta: app config changed.", a)
 			} else {
 				log.Printf("meta: fetch app config failed, %v", err)

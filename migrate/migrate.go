@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jxwr/cc/log"
+	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/streams"
 	"github.com/jxwr/cc/topo"
@@ -81,9 +82,6 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	sourceNode := t.SourceNode()
 	targetNode := t.TargetNode()
 
-	// for test
-	time.Sleep(10 * time.Millisecond)
-
 	// 需要将Source分片的所有节点标记为MIGRATING，最大限度避免从地域的读造成的数据不一致
 	// 这样操作降低问题的严重性，但由于是异步同步数据，读取到旧数据还是有小概率发生
 	for _, node := range rs.AllNodes() {
@@ -117,13 +115,13 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	// 一共迁移多少个key
 	nkeys := 0
 	for {
-		// TODO: 流控，和迁移重试
-		keys, err := redis.GetKeysInSlot(sourceNode.Addr(), slot, 100)
+		app := meta.GetAppConfig()
+		keys, err := redis.GetKeysInSlot(sourceNode.Addr(), slot, app.MigrateSlotsEachTime)
 		if err != nil {
 			return nkeys, err
 		}
 		for _, key := range keys {
-			_, err := redis.Migrate(sourceNode.Addr(), targetNode.Ip, targetNode.Port, key, 15000)
+			_, err := redis.Migrate(sourceNode.Addr(), targetNode.Ip, targetNode.Port, key, app.MigrateTimeout)
 			if err != nil {
 				return nkeys, err
 			}
