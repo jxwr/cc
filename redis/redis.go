@@ -111,8 +111,9 @@ func ClusterNodes(addr string) (string, error) {
 	}
 	retry := NUM_RETRY
 	var err error
+	var resp string
 	for retry > 0 {
-		resp, err := inner(addr)
+		resp, err = inner(addr)
 		if err == nil {
 			return resp, nil
 		}
@@ -194,8 +195,9 @@ func ClusterChmod(addr, id, op string) (string, error) {
 	}
 	retry := NUM_RETRY
 	var err error
+	var resp string
 	for retry > 0 {
-		resp, err := inner(addr, id, op)
+		resp, err = inner(addr, id, op)
 		if err == nil {
 			return resp, nil
 		}
@@ -321,7 +323,6 @@ func FetchInfo(addr, section string) (*RedisInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		infomap := map[string]string{}
 		lines := strings.Split(resp, "\r\n")
 		for _, line := range lines {
@@ -339,8 +340,10 @@ func FetchInfo(addr, section string) (*RedisInfo, error) {
 	}
 	retry := NUM_RETRY
 	var err error
+	var redisInfo *RedisInfo
 	for retry > 0 {
-		redisInfo, err := inner(addr, section)
+		redisInfo, err = inner(addr, section)
+		fmt.Println(redisInfo, err)
 		if err == nil {
 			return redisInfo, nil
 		}
@@ -393,8 +396,9 @@ func GetKeysInSlot(addr string, slot, num int) ([]string, error) {
 	}
 	retry := NUM_RETRY
 	var err error
+	var resp []string
 	for retry > 0 {
-		resp, err := inner(addr, slot, num)
+		resp, err = inner(addr, slot, num)
 		if err == nil {
 			return resp, nil
 		}
@@ -419,8 +423,9 @@ func Migrate(addr, toIp string, toPort int, key string, timeout int) (string, er
 	}
 	retry := NUM_RETRY
 	var err error
+	var resp string
 	for retry > 0 {
-		resp, err := inner(addr, toIp, toPort, key, timeout)
+		resp, err = inner(addr, toIp, toPort, key, timeout)
 		if err == nil {
 			return resp, nil
 		}
