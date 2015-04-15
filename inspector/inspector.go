@@ -162,7 +162,7 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 	lines := strings.Split(resp, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" {
+		if line == "" || strings.HasPrefix(line, "# ") {
 			continue
 		}
 		numNode++
@@ -172,7 +172,7 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 	}
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" {
+		if line == "" || strings.HasPrefix(line, "# ") {
 			continue
 		}
 		node, myself, err := self.buildNode(line)
