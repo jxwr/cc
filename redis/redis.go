@@ -239,6 +239,18 @@ func ClusterFailover(addr string) (string, error) {
 			return "", err
 		}
 	}
+	// 30s
+	for i := 0; i < 30; i++ {
+		info, err := FetchInfo(addr, "Replication")
+		if err != nil {
+			return resp, err
+		}
+		if info.Get("role") == "slave" {
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
+	}
 	return resp, nil
 }
 
