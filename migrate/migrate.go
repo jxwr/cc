@@ -135,12 +135,12 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 
 	// 一共迁移多少个key
 	nkeys := 0
+	app := meta.GetAppConfig()
 	for {
 		keys, err := redis.GetKeysInSlot(sourceNode.Addr(), slot, keysPer)
 		if err != nil {
 			return nkeys, err
 		}
-		app := meta.GetAppConfig()
 		for _, key := range keys {
 			_, err := redis.Migrate(sourceNode.Addr(), targetNode.Ip, targetNode.Port, key, app.MigrateTimeout)
 			if err != nil {

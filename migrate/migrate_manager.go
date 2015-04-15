@@ -184,10 +184,9 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 	// 处理主节点的迁移任务重建
 	for _, node := range cluster.AllNodes() {
-		// 如果已经存在该节点的迁移任务，先跳过，等结束后再处理
-		task := m.FindTaskBySource(node.Id)
-		if task != nil {
-			continue
+		// 如果存在迁移任务，先跳过，等结束后再处理
+		if len(m.tasks) > 0 {
+			break
 		}
 		if node.IsMaster() && !node.Fail && len(node.Migrating) != 0 {
 			log.Infof(node.Addr(), "Will recover migrating task for %s\n", node.Id)
@@ -266,8 +265,9 @@ func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster)
 		for _, plan := range rbtask.Plans {
 			state := plan.task.CurrentState()
 			if state != StateDone && state != StateCancelled {
-				m.RemoveTask(plan.task)
 				allDone = false
+			} else {
+				m.RemoveTask(plan.task)
 			}
 		}
 		if allDone {
