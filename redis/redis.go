@@ -348,33 +348,21 @@ func (info *RedisInfo) GetInt64(key string) (int64, error) {
 /// Migrate
 
 func SetSlot(addr string, slot int, action, toId string) error {
-	inner := func(addr string, slot int, action, toId string) error {
-		conn, err := redis.Dial("tcp", addr)
-		if err != nil {
-			return ErrConnFailed
-		}
-		defer conn.Close()
+	conn, err := redis.Dial("tcp", addr)
+	if err != nil {
+		return ErrConnFailed
+	}
+	defer conn.Close()
 
-		if action == SLOT_STABLE {
-			_, err = redis.String(conn.Do("cluster", "setslot", slot, action))
-		} else {
-			_, err = redis.String(conn.Do("cluster", "setslot", slot, action, toId))
-		}
-		if err != nil {
-			return err
-		}
-		return nil
+	if action == SLOT_STABLE {
+		_, err = redis.String(conn.Do("cluster", "setslot", slot, action))
+	} else {
+		_, err = redis.String(conn.Do("cluster", "setslot", slot, action, toId))
 	}
-	retry := NUM_RETRY
-	var err error
-	for retry > 0 {
-		err = inner(addr, slot, action, toId)
-		if err == nil {
-			return nil
-		}
-		retry--
+	if err != nil {
+		return err
 	}
-	return err
+	return nil
 }
 
 func GetKeysInSlot(addr string, slot, num int) ([]string, error) {

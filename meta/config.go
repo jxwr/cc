@@ -12,12 +12,12 @@ import (
 )
 
 type AppConfig struct {
-	AppName              string
-	AutoFailover         bool
-	MasterRegion         string
-	Regions              []string
-	MigrateSlotsEachTime int
-	MigrateTimeout       int
+	AppName             string
+	AutoFailover        bool
+	MasterRegion        string
+	Regions             []string
+	MigrateKeysEachTime int
+	MigrateTimeout      int
 }
 
 type ControllerConfig struct {
@@ -44,8 +44,8 @@ func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 		if event.Type == zookeeper.EVENT_CHANGED {
 			a, w, err := m.FetchAppConfig()
 			if err == nil {
-				if a.MigrateSlotsEachTime == 0 {
-					a.MigrateSlotsEachTime = 100
+				if a.MigrateKeysEachTime == 0 {
+					a.MigrateKeysEachTime = 100
 				}
 				if a.MigrateTimeout == 0 {
 					a.MigrateTimeout = 5000
@@ -85,6 +85,12 @@ func (m *Meta) FetchAppConfig() (*AppConfig, <-chan zookeeper.Event, error) {
 	}
 	if len(c.Regions) == 0 {
 		return nil, watch, fmt.Errorf("meta: regions empty")
+	}
+	if c.MigrateKeysEachTime == 0 {
+		c.MigrateKeysEachTime = 100
+	}
+	if c.MigrateTimeout == 0 {
+		c.MigrateTimeout = 5000
 	}
 	return &c, watch, nil
 }
