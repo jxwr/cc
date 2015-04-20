@@ -77,6 +77,24 @@ func (t *MigrateTask) setSlotToNode(rs *topo.ReplicaSet, slot int, targetId stri
 	return nil
 }
 
+func (t *MigrateTask) setSlotStable(rs *topo.ReplicaSet, slot int) error {
+	// 先清理从节点的MIGRATING状态
+	for _, node := range rs.Slaves() {
+		if node.Fail {
+			continue
+		}
+		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_STABLE, "")
+		if err != nil {
+			return err
+		}
+	}
+	err := redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_STABLE, "")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 /// 迁移slot过程:
 /// 1. 标记所有Source分片节点为MIGRATING
 /// 2. 标记Target分片Master为IMPORTING
@@ -99,13 +117,18 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	targetNode := t.TargetNode()
 
 	// 需要将Source分片的所有节点标记为MIGRATING，最大限度避免从地域的读造成的数据不一致
-	// 这样操作降低问题的严重性，但由于是异步同步数据，读取到旧数据还是有小概率发生
 	for _, node := range rs.AllNodes() {
 		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_MIGRATING, targetNode.Id)
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
 				log.Warningf(t.TaskName(), "mig: %s is not the owner of hash slot %d",
 					sourceNode.Id, slot)
+				srs := t.SourceReplicaSet()
+				err2 := t.setSlotStable(srs, slot)
+				if err2 != nil {
+					log.Warningf(t.TaskName(), "mig: failed to clean MIGRATING state of source server.")
+					return 0, err2
+				}
 				return 0, nil
 			}
 			return 0, err
