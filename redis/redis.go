@@ -25,39 +25,35 @@ const (
 	SLOT_STABLE    = "STABLE"
 	SLOT_NODE      = "NODE"
 
-	NUM_RETRY = 3
+	NUM_RETRY     = 3
+	CONN_TIMEOUT  = 1 * time.Second
+	READ_TIMEOUT  = 2 * time.Second
+	WRITE_TIMEOUT = 2 * time.Second
 )
+
+func dial(addr string) (redis.Conn, error) {
+	return redis.DialTimeout("tcp", addr, CONN_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT)
+}
 
 /// Misc
 
 func IsAlive(addr string) bool {
-	inner := func(addr string) bool {
-		conn, err := redis.Dial("tcp", addr)
-		if err != nil {
-			return false
-		}
-		defer conn.Close()
-		resp, err := redis.String(conn.Do("PING"))
-		if err != nil || resp != "PONG" {
-			return false
-		}
-		return true
+	conn, err := dial(addr)
+	if err != nil {
+		return false
 	}
-	retry := NUM_RETRY
-	for retry > 0 {
-		alive := inner(addr)
-		if alive {
-			return alive
-		}
-		retry--
+	defer conn.Close()
+	resp, err := redis.String(conn.Do("PING"))
+	if err != nil || resp != "PONG" {
+		return false
 	}
-	return false
+	return true
 }
 
 /// Cluster
 
 func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool) error {
-	conn, err := redis.Dial("tcp", addr)
+	conn, err := dial(addr)
 	if err != nil {
 		return err
 	}
@@ -97,7 +93,7 @@ func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool) error {
 
 func ClusterNodes(addr string) (string, error) {
 	inner := func(addr string) (string, error) {
-		conn, err := redis.Dial("tcp", addr)
+		conn, err := dial(addr)
 		if err != nil {
 			return "", ErrConnFailed
 		}
@@ -124,7 +120,7 @@ func ClusterNodes(addr string) (string, error) {
 
 func FetchClusterInfo(addr string) (topo.ClusterInfo, error) {
 	clusterInfo := topo.ClusterInfo{}
-	conn, err := redis.Dial("tcp", addr)
+	conn, err := dial(addr)
 	if err != nil {
 		return clusterInfo, ErrConnFailed
 	}
@@ -181,7 +177,7 @@ func FetchClusterInfo(addr string) (topo.ClusterInfo, error) {
 
 func ClusterChmod(addr, id, op string) (string, error) {
 	inner := func(addr, id, op string) (string, error) {
-		conn, err := redis.Dial("tcp", addr)
+		conn, err := dial(addr)
 		if err != nil {
 			return "", ErrConnFailed
 		}
@@ -223,7 +219,7 @@ func EnableWrite(addr, id string) (string, error) {
 }
 
 func ClusterFailover(addr string) (string, error) {
-	conn, err := redis.Dial("tcp", addr)
+	conn, err := dial(addr)
 	if err != nil {
 		return "", ErrConnFailed
 	}
@@ -255,7 +251,7 @@ func ClusterFailover(addr string) (string, error) {
 }
 
 func ClusterReplicate(addr, targetId string) (string, error) {
-	conn, err := redis.Dial("tcp", addr)
+	conn, err := dial(addr)
 	if err != nil {
 		return "", ErrConnFailed
 	}
@@ -300,7 +296,7 @@ func ClusterForget(seedAddr, nodeId string) (string, error) {
 }
 
 func ClusterReset(addr string, hard bool) (string, error) {
-	conn, err := redis.Dial("tcp", addr)
+	conn, err := dial(addr)
 	if err != nil {
 		return "", ErrConnFailed
 	}
@@ -325,7 +321,7 @@ type RedisInfo map[string]string
 
 func FetchInfo(addr, section string) (*RedisInfo, error) {
 	inner := func(addr, section string) (*RedisInfo, error) {
-		conn, err := redis.Dial("tcp", addr)
+		conn, err := dial(addr)
 		if err != nil {
 			return nil, ErrConnFailed
 		}
@@ -375,7 +371,7 @@ func (info *RedisInfo) GetInt64(key string) (int64, error) {
 /// Migrate
 
 func SetSlot(addr string, slot int, action, toId string) error {
-	conn, err := redis.Dial("tcp", addr)
+	conn, err := dial(addr)
 	if err != nil {
 		return ErrConnFailed
 	}
@@ -394,7 +390,7 @@ func SetSlot(addr string, slot int, action, toId string) error {
 
 func GetKeysInSlot(addr string, slot, num int) ([]string, error) {
 	inner := func(addr string, slot, num int) ([]string, error) {
-		conn, err := redis.Dial("tcp", addr)
+		conn, err := dial(addr)
 		if err != nil {
 			return nil, ErrConnFailed
 		}
@@ -421,7 +417,7 @@ func GetKeysInSlot(addr string, slot, num int) ([]string, error) {
 
 func Migrate(addr, toIp string, toPort int, key string, timeout int) (string, error) {
 	inner := func(addr, toIp string, toPort int, key string, timeout int) (string, error) {
-		conn, err := redis.Dial("tcp", addr)
+		conn, err := dial(addr)
 		if err != nil {
 			return "", ErrConnFailed
 		}

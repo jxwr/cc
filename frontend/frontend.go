@@ -181,7 +181,7 @@ func (fe *FrontEnd) HandleRebalance(c *gin.Context) {
 func (fe *FrontEnd) HandleAppInfo(c *gin.Context) {
 	cmd := command.AppInfoCommand{}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := cmd.Execute(fe.C)
 	if err != nil {
 		c.JSON(500, api.FailureResponse{
 			Message: err.Error(),
