@@ -11,13 +11,20 @@ import (
 	"launchpad.net/gozk"
 )
 
+const (
+	DEFAULT_AUTOFAILOVER_INTERVAL  time.Duration = 5 * time.Minute // 5min
+	DEFAULT_MIGRATE_KEYS_EACH_TIME               = 100
+	DEFAULT_MIGRATE_TIMEOUT                      = 5000
+)
+
 type AppConfig struct {
-	AppName             string
-	AutoFailover        bool
-	MasterRegion        string
-	Regions             []string
-	MigrateKeysEachTime int
-	MigrateTimeout      int
+	AppName              string
+	AutoFailover         bool
+	AutoFailoverInterval time.Duration
+	MasterRegion         string
+	Regions              []string
+	MigrateKeysEachTime  int
+	MigrateTimeout       int
 }
 
 type ControllerConfig struct {
@@ -45,10 +52,13 @@ func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 			a, w, err := m.FetchAppConfig()
 			if err == nil {
 				if a.MigrateKeysEachTime == 0 {
-					a.MigrateKeysEachTime = 100
+					a.MigrateKeysEachTime = DEFAULT_MIGRATE_KEYS_EACH_TIME
 				}
 				if a.MigrateTimeout == 0 {
-					a.MigrateTimeout = 5000
+					a.MigrateTimeout = DEFAULT_MIGRATE_TIMEOUT
+				}
+				if a.AutoFailoverInterval == 0 {
+					a.AutoFailoverInterval = DEFAULT_AUTOFAILOVER_INTERVAL
 				}
 				mutex.Lock()
 				m.appConfig = a
@@ -87,10 +97,13 @@ func (m *Meta) FetchAppConfig() (*AppConfig, <-chan zookeeper.Event, error) {
 		return nil, watch, fmt.Errorf("meta: regions empty")
 	}
 	if c.MigrateKeysEachTime == 0 {
-		c.MigrateKeysEachTime = 100
+		c.MigrateKeysEachTime = DEFAULT_MIGRATE_KEYS_EACH_TIME
 	}
 	if c.MigrateTimeout == 0 {
-		c.MigrateTimeout = 5000
+		c.MigrateTimeout = DEFAULT_MIGRATE_TIMEOUT
+	}
+	if c.AutoFailoverInterval == 0 {
+		c.AutoFailoverInterval = DEFAULT_AUTOFAILOVER_INTERVAL
 	}
 	return &c, watch, nil
 }

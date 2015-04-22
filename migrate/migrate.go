@@ -56,7 +56,7 @@ func NewMigrateTask(sourceRS, targetRS *topo.ReplicaSet, ranges []topo.Range) *M
 }
 
 func (t *MigrateTask) TaskName() string {
-	return fmt.Sprintf("Mig(%s->%s)", t.SourceNode().Id, t.TargetNode().Id)
+	return fmt.Sprintf("Mig(%s->%s)", t.SourceNode().Id[:6], t.TargetNode().Id[:6])
 }
 
 func (t *MigrateTask) setSlotToNode(rs *topo.ReplicaSet, slot int, targetId string) error {

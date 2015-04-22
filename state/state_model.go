@@ -173,7 +173,8 @@ var (
 			log.Warningf(ns.Addr(), "Get last failover time failed, %v", err)
 			return false
 		}
-		if lastTime != nil && time.Since(*lastTime) < 0*time.Minute {
+		app := meta.GetAppConfig()
+		if lastTime != nil && time.Since(*lastTime) < app.AutoFailoverInterval {
 			log.Warningf(ns.Addr(), "Failover too soon, lastTime: %v", *lastTime)
 			return false
 		}
