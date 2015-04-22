@@ -188,8 +188,11 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 		if len(m.tasks) > 0 {
 			break
 		}
-		if node.IsMaster() && !node.Fail && len(node.Migrating) != 0 {
-			log.Infof(node.Addr(), "Will recover migrating task for %s\n", node.Id)
+		if node.Fail {
+			continue
+		}
+		if len(node.Migrating) != 0 {
+			log.Infof(node.Addr(), "Will recover migrating task for %s from source node.\n", node.Id)
 
 			for id, slots := range node.Migrating {
 				// 根据slot生成ranges
@@ -216,11 +219,45 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 						t.Run()
 						m.RemoveTask(t)
 					}(task)
+					goto done
+				}
+			}
+		}
+		if len(node.Importing) != 0 {
+			log.Infof(node.Addr(), "Will recover migrating task for %s from target node.\n", node.Id)
+
+			for id, slots := range node.Importing {
+				// 根据slot生成ranges
+				ranges := []topo.Range{}
+				for _, slot := range slots {
+					// 如果是自己
+					if id == node.Id {
+						redis.SetSlot(node.Addr(), slot, redis.SLOT_STABLE, "")
+					} else {
+						ranges = append(ranges, topo.Range{Left: slot, Right: slot})
+					}
+				}
+
+				rs := cluster.FindReplicaSetByNode(id)
+				if rs.FindNode(id).IsStandbyMaster() {
+					continue
+				}
+
+				task, err := m.CreateTask(rs.Master().Id, node.Id, ranges, cluster)
+				if err != nil {
+					log.Infof(node.Addr(), "Can not recover migrate task, %v", err)
+				} else {
+					go func(t *MigrateTask) {
+						t.Run()
+						m.RemoveTask(t)
+					}(task)
+					goto done
 				}
 			}
 		}
 	}
 
+done:
 	for _, task := range m.tasks {
 		m.handleTaskChange(task, cluster)
 	}
@@ -280,4 +317,42 @@ func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster)
 	m.rebalanceTask.EndTime = &now
 	streams.RebalanceStateStream.Pub(*m.rebalanceTask)
 	m.rebalanceTask = nil
+}
+
+/// helpers
+
+func SetSlotToNode(rs *topo.ReplicaSet, slot int, targetId string) error {
+	// 先清理从节点的MIGRATING状态
+	for _, node := range rs.Slaves() {
+		if node.Fail {
+			continue
+		}
+		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_NODE, targetId)
+		if err != nil {
+			return err
+		}
+	}
+	err := redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_NODE, targetId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SetSlotStable(rs *topo.ReplicaSet, slot int) error {
+	// 先清理从节点的MIGRATING状态
+	for _, node := range rs.Slaves() {
+		if node.Fail {
+			continue
+		}
+		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_STABLE, "")
+		if err != nil {
+			return err
+		}
+	}
+	err := redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_STABLE, "")
+	if err != nil {
+		return err
+	}
+	return nil
 }

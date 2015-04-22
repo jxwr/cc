@@ -59,42 +59,6 @@ func (t *MigrateTask) TaskName() string {
 	return fmt.Sprintf("Mig(%s->%s)", t.SourceNode().Id[:6], t.TargetNode().Id[:6])
 }
 
-func (t *MigrateTask) setSlotToNode(rs *topo.ReplicaSet, slot int, targetId string) error {
-	// 先清理从节点的MIGRATING状态
-	for _, node := range rs.Slaves() {
-		if node.Fail {
-			continue
-		}
-		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_NODE, targetId)
-		if err != nil {
-			return err
-		}
-	}
-	err := redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_NODE, targetId)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (t *MigrateTask) setSlotStable(rs *topo.ReplicaSet, slot int) error {
-	// 先清理从节点的MIGRATING状态
-	for _, node := range rs.Slaves() {
-		if node.Fail {
-			continue
-		}
-		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_STABLE, "")
-		if err != nil {
-			return err
-		}
-	}
-	err := redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_STABLE, "")
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 /// 迁移slot过程:
 /// 1. 标记所有Source分片节点为MIGRATING
 /// 2. 标记Target分片Master为IMPORTING
@@ -116,25 +80,6 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	sourceNode := t.SourceNode()
 	targetNode := t.TargetNode()
 
-	// 需要将Source分片的所有节点标记为MIGRATING，最大限度避免从地域的读造成的数据不一致
-	for _, node := range rs.AllNodes() {
-		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_MIGRATING, targetNode.Id)
-		if err != nil {
-			if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
-				log.Warningf(t.TaskName(), "mig: %s is not the owner of hash slot %d",
-					sourceNode.Id, slot)
-				srs := t.SourceReplicaSet()
-				err2 := t.setSlotStable(srs, slot)
-				if err2 != nil {
-					log.Warningf(t.TaskName(), "mig: failed to clean MIGRATING state of source server.")
-					return 0, err2
-				}
-				return 0, nil
-			}
-			return 0, err
-		}
-	}
-
 	err := redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_IMPORTING, sourceNode.Id)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "ERR I'm already the owner of hash slot") {
@@ -143,15 +88,34 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			// 逻辑到此，说明Target已经包含该slot，但是Source处于Migrating状态
 			// 迁移实际已经完成，需要清理Source的Migrating状态
 			srs := t.SourceReplicaSet()
-			err = t.setSlotToNode(srs, slot, targetNode.Id)
+			err = SetSlotToNode(srs, slot, targetNode.Id)
 			if err != nil {
 				return 0, err
 			}
 			trs := t.TargetReplicaSet()
-			err = t.setSlotToNode(trs, slot, targetNode.Id)
+			err = SetSlotToNode(trs, slot, targetNode.Id)
 			return 0, err
 		}
 		return 0, err
+	}
+
+	// 需要将Source分片的所有节点标记为MIGRATING，最大限度避免从地域的读造成的数据不一致
+	for _, node := range rs.AllNodes() {
+		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_MIGRATING, targetNode.Id)
+		if err != nil {
+			if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
+				log.Warningf(t.TaskName(), "mig: %s is not the owner of hash slot %d",
+					sourceNode.Id, slot)
+				srs := t.SourceReplicaSet()
+				err2 := SetSlotStable(srs, slot)
+				if err2 != nil {
+					log.Warningf(t.TaskName(), "mig: failed to clean MIGRATING state of source server.")
+					return 0, err2
+				}
+				return 0, nil
+			}
+			return 0, err
+		}
 	}
 
 	/// 迁移的速度甚至迁移超时的配置可能都有不小问题，目前所有命令是短连接，且一次只迁移一个key
@@ -207,7 +171,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			}
 			// 更新源节点上slot的归属
 			srs = t.SourceReplicaSet()
-			err = t.setSlotToNode(srs, slot, targetNode.Id)
+			err = SetSlotToNode(srs, slot, targetNode.Id)
 			if err != nil {
 				return nkeys, err
 			}
