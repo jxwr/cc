@@ -14,7 +14,7 @@ import (
 const (
 	DEFAULT_AUTOFAILOVER_INTERVAL  time.Duration = 5 * time.Minute // 5min
 	DEFAULT_MIGRATE_KEYS_EACH_TIME               = 100
-	DEFAULT_MIGRATE_TIMEOUT                      = 5000
+	DEFAULT_MIGRATE_TIMEOUT                      = 2000
 )
 
 type AppConfig struct {

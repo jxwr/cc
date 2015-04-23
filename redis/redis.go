@@ -388,6 +388,33 @@ func SetSlot(addr string, slot int, action, toId string) error {
 	return nil
 }
 
+func CountKeysInSlot(addr string, slot int) (int, error) {
+	inner := func(addr string, slot int) (int, error) {
+		conn, err := dial(addr)
+		if err != nil {
+			return 0, ErrConnFailed
+		}
+		defer conn.Close()
+
+		resp, err := redis.Int(conn.Do("cluster", "countkeysinslot", slot))
+		if err != nil {
+			return 0, err
+		}
+		return resp, nil
+	}
+	retry := NUM_RETRY
+	var err error
+	var resp int
+	for retry > 0 {
+		resp, err = inner(addr, slot)
+		if err == nil {
+			return resp, nil
+		}
+		retry--
+	}
+	return 0, err
+}
+
 func GetKeysInSlot(addr string, slot, num int) ([]string, error) {
 	inner := func(addr string, slot, num int) ([]string, error) {
 		conn, err := dial(addr)

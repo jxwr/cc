@@ -42,6 +42,7 @@ type MigrateTask struct {
 	state            int32
 	backupReplicaSet *topo.ReplicaSet
 	lastPubTime      time.Time
+	totalKeysInSlot  int // counter of total keys migrated
 }
 
 func NewMigrateTask(sourceRS, targetRS *topo.ReplicaSet, ranges []topo.Range) *MigrateTask {
@@ -60,16 +61,16 @@ func (t *MigrateTask) TaskName() string {
 }
 
 /// 迁移slot过程:
-/// 1. 标记所有Source分片节点为MIGRATING
-/// 2. 标记Target分片Master为IMPORTING
+/// 1. 标记Target分片Master为IMPORTING
+/// 2. 标记所有Source分片节点为MIGRATING
 /// 3. 从Source分片Master取keys迁移，直到空，数据迁移完成
 /// 4. 设置Target的Slave的slot归属到Target
 /// 5. 设置Target的Master的slot归属到Target
 /// 6. 设置Source所有节点的slot归属到Target
 /// 命令:
-/// 1. <Source Slaves> setslot $slot MIGRATING $targetId
-/// 2. <Source Master> setslot $slot MIGRATING $targetId
-/// 3. <Target Master> setslot $slot IMPORTING $sourceId
+/// 1. <Target Master> setslot $slot IMPORTING $sourceId
+/// 2. <Source Slaves> setslot $slot MIGRATING $targetId
+/// 3. <Source Master> setslot $slot MIGRATING $targetId
 /// ... migrating all keys
 /// 4. <Target Slaves> setslot $slot node $targetId
 /// 5. <Target Master> setslot $slot node $targetId
@@ -212,11 +213,11 @@ func (t *MigrateTask) Run() {
 		}
 		t.currRangeIndex = i
 		t.currSlot = r.Left
+		t.totalKeysInSlot = 0
 		for t.currSlot <= r.Right {
 			t.streamPub(true)
-			// 尽量在迁移完一个完整Slot或遇到错误时，再进行状态的转换
-			// 只是尽量而已，还是有可能停在一个Slot内部
 
+			// 尽量在迁移完一个完整Slot或遇到错误时，再进行状态的转换
 			if t.CurrentState() == StateCancelling {
 				t.SetState(StateCancelled)
 				t.streamPub(false)
@@ -235,15 +236,23 @@ func (t *MigrateTask) Run() {
 			// 正常运行
 			app := meta.GetAppConfig()
 			nkeys, err := t.migrateSlot(t.currSlot, app.MigrateKeysEachTime)
+			t.totalKeysInSlot += nkeys
+			// Check remains again
+			seed := t.SourceNode()
+			remains, err := redis.CountKeysInSlot(seed.Addr(), t.currSlot)
+			if err != nil {
+				remains = -1
+			}
 			if err != nil {
 				log.Warningf(t.TaskName(),
-					"mig: Migrate slot %d error, %d keys have done, %v",
-					t.currSlot, nkeys, err)
+					"mig: Migrate slot %d error, %d keys done, total %d keys, remains %d keys, %v",
+					t.currSlot, nkeys, t.totalKeysInSlot, remains, err)
 				time.Sleep(500 * time.Millisecond)
 			} else {
-				log.Infof(t.TaskName(), "mig: Migrate slot %d done, total %d keys",
-					t.currSlot, nkeys)
+				log.Infof(t.TaskName(), "mig: Migrate slot %d done, %d keys done, total %d keys, remains %d keys",
+					t.currSlot, nkeys, t.totalKeysInSlot, remains)
 				t.currSlot++
+				t.totalKeysInSlot = 0
 			}
 		}
 	}
