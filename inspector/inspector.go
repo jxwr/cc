@@ -138,6 +138,9 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 		if err != nil {
 			return nil, err
 		}
+		if node.Ip == "127.0.0.1" {
+			node.Ip = seed.Ip
+		}
 		// 遇到myself，读取该节点的ClusterInfo
 		if myself {
 			info, err := redis.FetchClusterInfo(node.Addr())
@@ -211,7 +214,9 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 		if err != nil {
 			return err
 		}
-
+		if s.Ip == "127.0.0.1" {
+			s.Ip = seed.Ip
+		}
 		node := cluster.FindNode(s.Id)
 		if node == nil {
 			return ErrNodeNotExist
