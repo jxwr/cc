@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+
 	cc "github.com/jxwr/cc/controller"
 	"github.com/jxwr/cc/redis"
 )
@@ -17,6 +19,10 @@ func (self *SetAsMasterCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	}
 	if node.IsMaster() {
 		return nil, ErrNodeIsMaster
+	}
+	mm := c.MigrateManager
+	if len(mm.AllTasks()) > 0 {
+		return nil, fmt.Errorf("Migrate task exists, cancel task to continue.")
 	}
 	_, err := redis.ClusterFailover(node.Addr())
 	if err != nil {

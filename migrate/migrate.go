@@ -264,6 +264,14 @@ func (t *MigrateTask) Run() {
 				log.Warningf(t.TaskName(),
 					"Migrate slot %d error, %d keys done, total %d keys, remains %d keys, %v",
 					t.currSlot, nkeys, t.totalKeysInSlot, remains, err)
+				if strings.HasPrefix(err.Error(), "READONLY") {
+					log.Warningf(t.TaskName(), "Migrating across slaves nodes. "+
+						"Maybe a manual failover just happened, "+
+						"if cluster marks down after this point, "+
+						"we need recover it by ourself using cli commands.")
+					t.SetState(StateCancelled)
+					goto quit
+				}
 				time.Sleep(500 * time.Millisecond)
 			} else {
 				log.Infof(t.TaskName(), "Migrate slot %d done, %d keys done, total %d keys, remains %d keys",
@@ -275,6 +283,7 @@ func (t *MigrateTask) Run() {
 	}
 	t.currSlot--
 	t.SetState(StateDone)
+quit:
 	t.streamPub(false)
 }
 
