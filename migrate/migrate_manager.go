@@ -43,7 +43,7 @@ func (m *MigrateManager) CreateTask(sourceId, targetId string, ranges []topo.Ran
 	if sourceRS == nil || targetRS == nil {
 		return nil, ErrReplicatSetNotFound
 	}
-	task = NewMigrateTask(sourceRS, targetRS, ranges)
+	task = NewMigrateTask(cluster, sourceRS, targetRS, ranges)
 	m.AddTask(task)
 	return task, nil
 }

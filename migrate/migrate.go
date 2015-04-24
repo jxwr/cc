@@ -34,6 +34,7 @@ var stateNames = map[int32]string{
 }
 
 type MigrateTask struct {
+	cluster          *topo.Cluster
 	ranges           []topo.Range
 	source           atomic.Value
 	target           atomic.Value
@@ -45,8 +46,9 @@ type MigrateTask struct {
 	totalKeysInSlot  int // counter of total keys migrated
 }
 
-func NewMigrateTask(sourceRS, targetRS *topo.ReplicaSet, ranges []topo.Range) *MigrateTask {
+func NewMigrateTask(cluster *topo.Cluster, sourceRS, targetRS *topo.ReplicaSet, ranges []topo.Range) *MigrateTask {
 	t := &MigrateTask{
+		cluster:     cluster,
 		ranges:      ranges,
 		state:       StateRunning,
 		lastPubTime: time.Now(),
@@ -84,8 +86,8 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	err := redis.SetSlot(targetNode.Addr(), slot, redis.SLOT_IMPORTING, sourceNode.Id)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "ERR I'm already the owner of hash slot") {
-			log.Warningf(t.TaskName(), "mig: %s already the owner of hash slot %d",
-				targetNode.Id, slot)
+			log.Warningf(t.TaskName(), "%s already the owner of hash slot %d",
+				targetNode.Id[:6], slot)
 			// 逻辑到此，说明Target已经包含该slot，但是Source处于Migrating状态
 			// 迁移实际已经完成，需要清理Source的Migrating状态
 			srs := t.SourceReplicaSet()
@@ -93,8 +95,16 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			if err != nil {
 				return 0, err
 			}
+			err = SetSlotStable(srs, slot)
+			if err != nil {
+				return 0, err
+			}
 			trs := t.TargetReplicaSet()
 			err = SetSlotToNode(trs, slot, targetNode.Id)
+			if err != nil {
+				return 0, err
+			}
+			err = SetSlotStable(trs, slot)
 			return 0, err
 		}
 		return 0, err
@@ -105,13 +115,19 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 		err := redis.SetSlot(node.Addr(), slot, redis.SLOT_MIGRATING, targetNode.Id)
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "ERR I'm not the owner of hash slot") {
-				log.Warningf(t.TaskName(), "mig: %s is not the owner of hash slot %d",
+				log.Warningf(t.TaskName(), "%s is not the owner of hash slot %d",
 					sourceNode.Id, slot)
 				srs := t.SourceReplicaSet()
-				err2 := SetSlotStable(srs, slot)
-				if err2 != nil {
-					log.Warningf(t.TaskName(), "mig: failed to clean MIGRATING state of source server.")
-					return 0, err2
+				err = SetSlotStable(srs, slot)
+				if err != nil {
+					log.Warningf(t.TaskName(), "Failed to clean MIGRATING state of source server.")
+					return 0, err
+				}
+				trs := t.TargetReplicaSet()
+				err = SetSlotStable(trs, slot)
+				if err != nil {
+					log.Warningf(t.TaskName(), "Failed to clean MIGRATING state of target server.")
+					return 0, err
 				}
 				return 0, nil
 			}
@@ -141,11 +157,11 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			slaveSyncDone := true
 			srs := t.SourceReplicaSet()
 			for _, node := range srs.AllNodes() {
-				keys, err := redis.GetKeysInSlot(node.Addr(), slot, keysPer)
+				nkeys, err := redis.CountKeysInSlot(node.Addr(), slot)
 				if err != nil {
 					return nkeys, err
 				}
-				if len(keys) != 0 {
+				if nkeys > 0 {
 					slaveSyncDone = false
 				}
 			}
@@ -170,11 +186,12 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			if err != nil {
 				return nkeys, err
 			}
-			// 更新源节点上slot的归属
-			srs = t.SourceReplicaSet()
-			err = SetSlotToNode(srs, slot, targetNode.Id)
-			if err != nil {
-				return nkeys, err
+			// 更新节点上slot的归属
+			for _, rs := range t.cluster.ReplicaSets() {
+				err = SetSlotToNode(rs, slot, targetNode.Id)
+				if err != nil {
+					return nkeys, err
+				}
 			}
 			break
 		}
@@ -239,17 +256,17 @@ func (t *MigrateTask) Run() {
 			t.totalKeysInSlot += nkeys
 			// Check remains again
 			seed := t.SourceNode()
-			remains, err := redis.CountKeysInSlot(seed.Addr(), t.currSlot)
-			if err != nil {
+			remains, err2 := redis.CountKeysInSlot(seed.Addr(), t.currSlot)
+			if err2 != nil {
 				remains = -1
 			}
-			if err != nil {
+			if err != nil || remains > 0 {
 				log.Warningf(t.TaskName(),
-					"mig: Migrate slot %d error, %d keys done, total %d keys, remains %d keys, %v",
+					"Migrate slot %d error, %d keys done, total %d keys, remains %d keys, %v",
 					t.currSlot, nkeys, t.totalKeysInSlot, remains, err)
 				time.Sleep(500 * time.Millisecond)
 			} else {
-				log.Infof(t.TaskName(), "mig: Migrate slot %d done, %d keys done, total %d keys, remains %d keys",
+				log.Infof(t.TaskName(), "Migrate slot %d done, %d keys done, total %d keys, remains %d keys",
 					t.currSlot, nkeys, t.totalKeysInSlot, remains)
 				t.currSlot++
 				t.totalKeysInSlot = 0
