@@ -109,35 +109,24 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 	tname := task.TaskName()
 
 	if fromNode == nil {
-		log.Infof(tname, "mig: source node %s(%s) not exist", fromNode.Addr(), fromNode.Id)
+		log.Infof(tname, "Tource node %s(%s) not exist", fromNode.Addr(), fromNode.Id)
 		return ErrNodeNotFound
 	}
 	if toNode == nil {
-		log.Infof(tname, "mig: target node %s(%s) not exist", toNode.Addr(), toNode.Id)
+		log.Infof(tname, "Target node %s(%s) not exist", toNode.Addr(), toNode.Id)
 		return ErrNodeNotFound
 	}
 
-	// 角色变化说明该分片进行了主从切换，需要修正Task结构
-	if !fromNode.IsMaster() {
-		rs := cluster.FindReplicaSetByNode(fromNode.Id)
-		if rs == nil {
-			log.Infof(tname, "mig: %s role changed, but new replica set not found", fromNode.Id)
-			return ErrReplicatSetNotFound
-		}
-		task.ReplaceSourceReplicaSet(rs)
-	}
-	if !toNode.IsMaster() {
-		rs := cluster.FindReplicaSetByNode(toNode.Id)
-		if rs == nil {
-			log.Infof(tname, "mig: %s role changed, but new replica set not found\n", toNode.Id)
-			return ErrReplicatSetNotFound
-		}
-		task.ReplaceTargetReplicaSet(rs)
+	// 角色变化说明该分片进行了主从切换
+	if !fromNode.IsMaster() || !toNode.IsMaster() {
+		log.Warningf(tname, "%s role change, cancel migration task %s\n", fromNode.Id[:6], task.TaskName())
+		task.SetState(StateCancelling)
+		return ErrSourceNodeFail
 	}
 
 	// 如果是源节点挂了，直接取消，等待主从切换之后重建任务
 	if fromNode.Fail {
-		log.Infof(tname, "mig: cancel migration task %s\n", task.TaskName())
+		log.Infof(tname, "Cancel migration task %s\n", task.TaskName())
 		task.SetState(StateCancelling)
 		return ErrSourceNodeFail
 	}
@@ -158,23 +147,23 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 		brs := task.BackupReplicaSet()
 		if brs == nil {
 			task.SetState(StateCancelling)
-			log.Info(tname, "mig: no backup replicaset found, controller maybe restarted after target master failure, can not do recovery.")
+			log.Info(tname, "No backup replicaset found, controller maybe restarted after target master failure, can not do recovery.")
 			return ErrCanNotRecover
 		}
 		slaves := brs.Slaves()
 		if len(slaves) == 0 {
 			task.SetState(StateCancelling)
-			log.Info(tname, "mig: the dead target master has no slave, cannot do recovery.")
+			log.Info(tname, "The dead target master has no slave, cannot do recovery.")
 			return ErrCanNotRecover
 		} else {
 			rs := cluster.FindReplicaSetByNode(slaves[0].Id)
 			if rs == nil {
 				task.SetState(StateCancelling)
-				log.Info(tname, "mig: no replicaset for slave of dead target master found")
+				log.Info(tname, "No replicaset for slave of dead target master found")
 				return ErrCanNotRecover
 			}
 			task.ReplaceTargetReplicaSet(rs)
-			log.Infof(tname, "mig: recover dead target node to %s(%s)",
+			log.Infof(tname, "Recover dead target node to %s(%s)",
 				rs.Master().Id, rs.Master().Addr())
 		}
 	}
@@ -192,8 +181,6 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 			continue
 		}
 		if len(node.Migrating) != 0 {
-			log.Infof(node.Addr(), "Will recover migrating task for %s from source node.\n", node.Id)
-
 			for id, slots := range node.Migrating {
 				// 根据slot生成ranges
 				ranges := []topo.Range{}
@@ -205,16 +192,26 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 						ranges = append(ranges, topo.Range{Left: slot, Right: slot})
 					}
 				}
-
+				// Source
+				source := node
+				if !node.IsMaster() {
+					srs := cluster.FindReplicaSetByNode(node.Id)
+					if srs != nil {
+						source = srs.Master()
+					}
+				}
+				// Target
 				rs := cluster.FindReplicaSetByNode(id)
-				if rs.FindNode(id).IsStandbyMaster() {
+				if rs.FindNode(id).IsStandbyMaster() || source.Fail || rs.Master().Fail {
 					continue
 				}
 
-				task, err := m.CreateTask(node.Id, rs.Master().Id, ranges, cluster)
+				task, err := m.CreateTask(source.Id, rs.Master().Id, ranges, cluster)
 				if err != nil {
-					log.Infof(node.Addr(), "Can not recover migrate task, %v", err)
+					log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
 				} else {
+					log.Warningf(node.Addr(), "Will recover migrating task for %s from source node"+
+						"(Source:%s,Target:%s).", node.Id, source.Addr(), rs.Master().Addr())
 					go func(t *MigrateTask) {
 						t.Run()
 						m.RemoveTask(t)
@@ -224,8 +221,6 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 			}
 		}
 		if len(node.Importing) != 0 {
-			log.Infof(node.Addr(), "Will recover migrating task for %s from target node.\n", node.Id)
-
 			for id, slots := range node.Importing {
 				// 根据slot生成ranges
 				ranges := []topo.Range{}
@@ -237,16 +232,26 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 						ranges = append(ranges, topo.Range{Left: slot, Right: slot})
 					}
 				}
-
+				// Target
+				target := node
+				if !node.IsMaster() {
+					trs := cluster.FindReplicaSetByNode(node.Id)
+					if trs != nil {
+						target = trs.Master()
+					}
+				}
+				// Source
 				rs := cluster.FindReplicaSetByNode(id)
-				if rs.FindNode(id).IsStandbyMaster() {
+				if rs.FindNode(id).IsStandbyMaster() || target.Fail || rs.Master().Fail {
 					continue
 				}
 
-				task, err := m.CreateTask(rs.Master().Id, node.Id, ranges, cluster)
+				task, err := m.CreateTask(rs.Master().Id, target.Id, ranges, cluster)
 				if err != nil {
-					log.Infof(node.Addr(), "Can not recover migrate task, %v", err)
+					log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
 				} else {
+					log.Warningf(node.Addr(), "Will recover migrating task for %s from target node"+
+						"(Source:%s,Target:%s).", node.Id, rs.Master().Addr(), target.Addr())
 					go func(t *MigrateTask) {
 						t.Run()
 						m.RemoveTask(t)

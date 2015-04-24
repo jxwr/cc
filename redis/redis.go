@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/topo"
 )
 
@@ -451,7 +452,10 @@ func Migrate(addr, toIp string, toPort int, key string, timeout int) (string, er
 		defer conn.Close()
 
 		resp, err := redis.String(conn.Do("migrate", toIp, toPort, key, 0, timeout))
-		if err != nil {
+		if err != nil && strings.Contains(err.Error(), "BUSYKEY") {
+			log.Warningf("Migrate", "Found BUSYKEY '%s', will overwrite it.", key)
+			resp, err = redis.String(conn.Do("migrate", toIp, toPort, key, 0, timeout, "replace"))
+		} else if err != nil {
 			return "", err
 		}
 		return resp, nil

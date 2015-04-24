@@ -713,7 +713,7 @@ var LogPanel = React.createClass({
   render: function() {
     var logs = this.state.logs;
     var style = {
-      maxHeight: "200px",
+      maxHeight: "400px",
       overflow: "auto",
     };
     var logRows = _.map(logs, function(obj) {
