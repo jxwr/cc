@@ -24,8 +24,9 @@ var (
 /// Migrate
 
 type MigrateManager struct {
-	tasks         []*MigrateTask
-	rebalanceTask *RebalanceTask
+	tasks           []*MigrateTask
+	rebalanceTask   *RebalanceTask
+	lastTaskEndTime time.Time
 }
 
 func NewMigrateManager() *MigrateManager {
@@ -66,6 +67,7 @@ func (m *MigrateManager) RemoveTask(task *MigrateTask) {
 	}
 	if pos != -1 {
 		m.tasks = append(m.tasks[:pos], m.tasks[pos+1:]...)
+		m.lastTaskEndTime = time.Now()
 	}
 }
 
@@ -178,6 +180,9 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 			break
 		}
 		if node.Fail {
+			continue
+		}
+		if time.Now().Sub(m.lastTaskEndTime) < 1*time.Minute {
 			continue
 		}
 		if len(node.Migrating) != 0 {
