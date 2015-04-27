@@ -79,6 +79,19 @@ func (self *Cluster) FindNode(id string) *Node {
 	return self.idTable[id]
 }
 
+func (self *Cluster) FindNodeBySlot(slot int) *Node {
+	for _, node := range self.AllNodes() {
+		if node.IsMaster() {
+			for _, r := range node.Ranges {
+				if slot >= r.Left && slot <= r.Right {
+					return node
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (self *Cluster) FindReplicaSetByNode(id string) *ReplicaSet {
 	for _, rs := range self.replicaSets {
 		if rs.HasNode(id) {

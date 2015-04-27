@@ -59,6 +59,12 @@ func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 			if nodeState.node.Writable != n.Writable {
 				log.Eventf(n.Addr(), "Writable state changed, %v -> %v", nodeState.node.Writable, n.Writable)
 			}
+			/*			if n.Addr() == "10.58.159.59:9005" {
+							log.Warning(n.Addr(), n.Ranges)
+						}
+						if n.Addr() == "10.42.172.32:9003" {
+							log.Warning(n.Addr(), n.Ranges)
+						}*/
 			nodeState.node = n
 		}
 		nodeState.updateTime = now
@@ -237,11 +243,11 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 		if err != nil {
 			log.Eventf(old.Addr(), "Failover finished with error(%v)", err)
 		} else {
-			log.Eventf(old.Addr(), "Failover success, new master %s(%s)", new.Addr(), new.Id())
+			log.Eventf(old.Addr(), "Failover success, new master %s(%s)", new.Id(), new.Addr())
 		}
 		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 	case <-time.After(20 * time.Minute):
-		log.Eventf(old.Addr(), "Failover timedout, new master %s(%s)", new.Addr(), new.Id())
+		log.Eventf(old.Addr(), "Failover timedout, new master %s(%s)", new.Id(), new.Addr())
 		// 判断是否主从是否已经切换
 		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 	}
@@ -254,12 +260,14 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 	} else {
 		info, err := redis.FetchInfo(node.Addr(), "Replication")
 		if err == nil && info.Get("role") == "master" {
-			for i := 0; i < 30; i++ { // 等Cluster刷新
+			for { // 等Cluster刷新
 				node := cs.FindNode(newMasterId)
 				if !node.IsMaster() {
-					time.Sleep(1 * time.Second)
+					log.Warningf(old.Addr(), "New master's role has not yet changed, will check 5 seconds later.")
+					time.Sleep(5 * time.Second)
 				} else {
 					roleChanged = true
+					break
 				}
 			}
 		}
@@ -270,19 +278,9 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 		// 处理迁移过程中的异常问题，将故障节点（旧主）的slots转移到新主上
 		oldNode := cs.FindNode(oldMasterId)
 		if oldNode != nil && oldNode.Fail && oldNode.IsMaster() && len(oldNode.Ranges) != 0 {
-			for _, r := range oldNode.Ranges {
-				log.Eventf(old.Addr(), "Fix migration task %d-%d", r.Left, r.Right)
-
-				for i := r.Left; i <= r.Right; i++ {
-					for _, ns := range cs.AllNodeStates() {
-						if ns.node.IsMaster() {
-							log.Verbosef(old.Addr(), "setslot %d node %s", i, new.Id())
-
-							redis.SetSlot(ns.Addr(), i, redis.SLOT_NODE, new.Id())
-						}
-					}
-				}
-			}
+			log.Warningf(old.Addr(),
+				"Some node carries slots info(%v) about the old master, waiting for MigrateManager to fix it.",
+				oldNode.Ranges)
 		} else {
 			log.Info(old.Addr(), "Good, no slot need to be fix after failover.")
 		}

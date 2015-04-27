@@ -33,7 +33,20 @@ const (
 )
 
 func dial(addr string) (redis.Conn, error) {
-	return redis.DialTimeout("tcp", addr, CONN_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT)
+	inner := func(addr string) (redis.Conn, error) {
+		return redis.DialTimeout("tcp", addr, CONN_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT)
+	}
+	retry := NUM_RETRY
+	var err error
+	var resp redis.Conn
+	for retry > 0 {
+		resp, err = inner(addr)
+		if err == nil {
+			return resp, nil
+		}
+		retry--
+	}
+	return nil, err
 }
 
 /// Misc

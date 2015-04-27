@@ -66,8 +66,8 @@ func (m *MigrateManager) RemoveTask(task *MigrateTask) {
 		}
 	}
 	if pos != -1 {
-		m.tasks = append(m.tasks[:pos], m.tasks[pos+1:]...)
 		m.lastTaskEndTime = time.Now()
+		m.tasks = append(m.tasks[:pos], m.tasks[pos+1:]...)
 	}
 }
 
@@ -182,7 +182,8 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 		if node.Fail {
 			continue
 		}
-		if time.Now().Sub(m.lastTaskEndTime) < 1*time.Minute {
+		// Wait a while
+		if time.Now().Sub(m.lastTaskEndTime) < 5*time.Second {
 			continue
 		}
 		if len(node.Migrating) != 0 {
@@ -207,7 +208,7 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 				}
 				// Target
 				rs := cluster.FindReplicaSetByNode(id)
-				if rs.FindNode(id).IsStandbyMaster() || source.Fail || rs.Master().Fail {
+				if source.Fail || rs.Master().Fail {
 					continue
 				}
 
@@ -215,8 +216,8 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 				if err != nil {
 					log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
 				} else {
-					log.Warningf(node.Addr(), "Will recover migrating task for %s from source node"+
-						"(Source:%s,Target:%s).", node.Id, source.Addr(), rs.Master().Addr())
+					log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with MIGRATING info"+
+						", Task(Source:%s, Target:%s).", node.Id, node.Addr(), source.Addr(), rs.Master().Addr())
 					go func(t *MigrateTask) {
 						t.Run()
 						m.RemoveTask(t)
@@ -245,18 +246,24 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 						target = trs.Master()
 					}
 				}
+				if target.IsStandbyMaster() {
+					s := cluster.FindNodeBySlot(ranges[0].Left)
+					if s != nil {
+						log.Warningf(node.Addr(), "Reset migrate task target to %s(%s)", s.Id, s.Addr())
+						target = s
+					}
+				}
 				// Source
 				rs := cluster.FindReplicaSetByNode(id)
-				if rs.FindNode(id).IsStandbyMaster() || target.Fail || rs.Master().Fail {
+				if target.Fail || rs.Master().Fail {
 					continue
 				}
-
 				task, err := m.CreateTask(rs.Master().Id, target.Id, ranges, cluster)
 				if err != nil {
 					log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
 				} else {
-					log.Warningf(node.Addr(), "Will recover migrating task for %s from target node"+
-						"(Source:%s,Target:%s).", node.Id, rs.Master().Addr(), target.Addr())
+					log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with IMPORTING info"+
+						", Task(Source:%s,Target:%s).", node.Id, node.Addr(), rs.Master().Addr(), target.Addr())
 					go func(t *MigrateTask) {
 						t.Run()
 						m.RemoveTask(t)

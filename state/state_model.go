@@ -444,6 +444,8 @@ func init() {
 			if ns.node.IsStandbyMaster() {
 				return false
 			}
+			log.Warningf(ns.Addr(), "Found offline non standyby master, will try to failover(%v,%v).",
+				ns.Role(), ns.Ranges())
 			return true
 		},
 		Apply: nil,

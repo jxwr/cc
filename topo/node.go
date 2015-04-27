@@ -281,14 +281,6 @@ func (s *Node) Compare(t *Node) bool {
 	if b == false {
 		return false
 	}
-	/*
-		b = b && (len(s.Ranges) == len(t.Ranges))
-		for i, r := range s.Ranges {
-			if r != t.Ranges[i] {
-				return false
-			}
-		}
-	*/
 	return true
 }
 

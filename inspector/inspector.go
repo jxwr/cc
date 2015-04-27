@@ -234,6 +234,10 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 			}
 			return ErrNodesInfoNotSame
 		}
+		if len(node.Ranges) == 0 && len(s.Ranges) > 0 {
+			glog.Warningf("Ranges not equal, use nonempty ranges.")
+			node.Ranges = s.Ranges
+		}
 
 		if myself {
 			info, err := redis.FetchClusterInfo(node.Addr())
