@@ -272,6 +272,11 @@ func (t *MigrateTask) Run() {
 					t.SetState(StateCancelled)
 					goto quit
 				}
+				if strings.HasPrefix(err.Error(), "CLUSTERDOWN") {
+					log.Warningf(t.TaskName(), "The cluster is down, please check it yourself, migrating task cancelled.")
+					t.SetState(StateCancelled)
+					goto quit
+				}
 				time.Sleep(500 * time.Millisecond)
 			} else {
 				log.Infof(t.TaskName(), "Migrate slot %d done, %d keys done, total %d keys, remains %d keys",
