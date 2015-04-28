@@ -59,12 +59,6 @@ func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 			if nodeState.node.Writable != n.Writable {
 				log.Eventf(n.Addr(), "Writable state changed, %v -> %v", nodeState.node.Writable, n.Writable)
 			}
-			/*			if n.Addr() == "10.58.159.59:9005" {
-							log.Warning(n.Addr(), n.Ranges)
-						}
-						if n.Addr() == "10.42.172.32:9003" {
-							log.Warning(n.Addr(), n.Ranges)
-						}*/
 			nodeState.node = n
 		}
 		nodeState.updateTime = now
