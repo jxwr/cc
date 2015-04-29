@@ -56,6 +56,10 @@ func (ns *NodeState) CurrentState() string {
 	return ns.fsm.CurrentState()
 }
 
+func (ns *NodeState) Node() *topo.Node {
+	return ns.node
+}
+
 func (ns *NodeState) AdvanceFSM(cs *ClusterState, cmd InputField) error {
 	ns.mutex.Lock()
 	defer ns.mutex.Unlock()

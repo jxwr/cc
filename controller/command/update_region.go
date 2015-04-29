@@ -2,6 +2,8 @@ package command
 
 import (
 	cc "github.com/jxwr/cc/controller"
+	"github.com/jxwr/cc/meta"
+	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/state"
 	"github.com/jxwr/cc/topo"
 )
@@ -23,9 +25,15 @@ func (self *UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
 		mm.HandleNodeStateChange(cluster)
 	}
 
-	// 更新Region内Node的状态机
-	for _, node := range cs.AllNodeStates() {
-		node.AdvanceFSM(cs, state.CMD_NONE)
+	for _, ns := range cs.AllNodeStates() {
+		node := ns.Node()
+		if !node.IsMaster() && !node.Fail && !node.Readable && node.MasterLinkStatus == "up" {
+			if meta.GetAppConfig().AutoEnableSlaveRead {
+				redis.EnableRead(node.Addr(), node.Id)
+			}
+		}
+		// 更新Region内Node的状态机
+		ns.AdvanceFSM(cs, state.CMD_NONE)
 	}
 
 	return nil, nil

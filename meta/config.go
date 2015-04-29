@@ -19,6 +19,7 @@ const (
 
 type AppConfig struct {
 	AppName              string
+	AutoEnableSlaveRead  bool
 	AutoFailover         bool
 	AutoFailoverInterval time.Duration
 	MasterRegion         string
