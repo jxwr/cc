@@ -239,11 +239,8 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 		} else {
 			log.Eventf(old.Addr(), "Failover success, new master %s(%s)", new.Id(), new.Addr())
 		}
-		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 	case <-time.After(20 * time.Minute):
 		log.Eventf(old.Addr(), "Failover timedout, new master %s(%s)", new.Id(), new.Addr())
-		// 判断是否主从是否已经切换
-		old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 	}
 
 	// 重新读取一次，因为可能已经更新了
@@ -281,6 +278,8 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 	} else {
 		log.Warningf(old.Addr(), "Failover failed, please check cluster state.")
 	}
+
+	old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)
 
 	// 打开新主的写入，因为给slave加Write没有效果
 	// 所以即便Failover失败，也不会产生错误
