@@ -283,12 +283,12 @@ func (self *Inspector) MergeSeeds(seeds []*topo.Node) {
 }
 
 // 生成ClusterSnapshot
-func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
+func (self *Inspector) BuildClusterTopo() (*topo.Cluster, []*topo.Node, error) {
 	self.mutex.Lock()
 	defer self.mutex.Unlock()
 
 	if len(self.Seeds) == 0 {
-		return nil, ErrNoSeed
+		return nil, nil, ErrNoSeed
 	}
 
 	// 过滤掉连接不上的节点
@@ -300,7 +300,7 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 	}
 
 	if len(seeds) == 0 {
-		return nil, ErrNoSeed
+		return nil, seeds, ErrNoSeed
 	}
 
 	// 顺序选一个节点，获取nodes数据作为基准，再用其他节点的数据与基准做对比
@@ -320,7 +320,7 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 	}
 	cluster, err := self.initClusterTopo(seed)
 	if err != nil {
-		return nil, err
+		return nil, seeds, err
 	}
 
 	// 检查所有节点返回的信息是不是相同，如果不同说明正在变化中，直接返回等待重试
@@ -337,7 +337,7 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 					glog.Infof("Found free node %s", node.Addr())
 					cluster.AddNode(node)
 				} else {
-					return nil, err
+					return cluster, seeds, err
 				}
 			}
 		}
@@ -356,5 +356,5 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, error) {
 
 	self.MergeSeeds(cluster.LocalRegionNodes())
 	self.ClusterTopo = cluster
-	return cluster, nil
+	return cluster, seeds, nil
 }

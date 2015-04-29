@@ -8,6 +8,10 @@ var (
 	ErrInvalidParentId = errors.New("topo: invalid parent id, master not exist")
 )
 
+type FailureInfo struct {
+	Seeds []*Node
+}
+
 type ClusterInfo struct {
 	ClusterState                 string
 	ClusterSlotsAssigned         int
@@ -59,6 +63,20 @@ func (self *Cluster) NumNode() int {
 
 func (self *Cluster) LocalRegionNodes() []*Node {
 	return self.localRegionNodes
+}
+
+func (self *Cluster) MasterNodes() []*Node {
+	nodes := []*Node{}
+	for _, node := range self.AllNodes() {
+		if node.IsMaster() {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
+}
+
+func (self *Cluster) Size() int {
+	return len(self.MasterNodes())
 }
 
 func (self *Cluster) RegionNodes(region string) []*Node {

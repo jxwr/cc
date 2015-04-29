@@ -235,9 +235,9 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 	select {
 	case err := <-c:
 		if err != nil {
-			log.Eventf(old.Addr(), "Failover finished with error(%v)", err)
+			log.Eventf(old.Addr(), "Failover request done with error(%v).", err)
 		} else {
-			log.Eventf(old.Addr(), "Failover success, new master %s(%s)", new.Id(), new.Addr())
+			log.Eventf(old.Addr(), "Failover request done, new master %s(%s).", new.Id(), new.Addr())
 		}
 	case <-time.After(20 * time.Minute):
 		log.Eventf(old.Addr(), "Failover timedout, new master %s(%s)", new.Id(), new.Addr())
@@ -249,18 +249,16 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 	if node.IsMaster() {
 		roleChanged = true
 	} else {
-		info, err := redis.FetchInfo(node.Addr(), "Replication")
-		if err == nil && info.Get("role") == "master" {
-			for { // 等Cluster刷新
-				node := cs.FindNode(newMasterId)
-				if !node.IsMaster() {
-					log.Warningf(old.Addr(), "New master's role has not yet changed, will check 5 seconds later.")
-					time.Sleep(5 * time.Second)
-				} else {
-					roleChanged = true
-					break
-				}
+		for i := 0; i < 10; i++ {
+			info, err := redis.FetchInfo(node.Addr(), "Replication")
+			if err == nil && info.Get("role") == "master" {
+				roleChanged = true
+				break
 			}
+			log.Warningf(old.Addr(),
+				"Role of new master %s(%s) has not yet changed, will check 5 seconds later.",
+				new.Id(), new.Addr())
+			time.Sleep(5 * time.Second)
 		}
 	}
 
@@ -277,6 +275,7 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 		}
 	} else {
 		log.Warningf(old.Addr(), "Failover failed, please check cluster state.")
+		log.Warningf(old.Addr(), "The dead master will goto OFFLINE state and then goto WAIT_FAILOVER_BEGIN state to try failover again.")
 	}
 
 	old.AdvanceFSM(cs, CMD_FAILOVER_END_SIGNAL)

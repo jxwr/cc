@@ -61,6 +61,10 @@ func MasterRegion() string {
 	return GetAppConfig().MasterRegion
 }
 
+func IsInMasterRegion() bool {
+	return LocalRegion() == MasterRegion()
+}
+
 func AllRegions() []string {
 	return GetAppConfig().Regions
 }

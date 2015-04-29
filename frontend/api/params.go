@@ -13,9 +13,10 @@ type FailureResponse struct {
 type MapResp map[string]interface{}
 
 type RegionSnapshotParams struct {
-	Region   string       `json:"region"`
-	PostTime int64        `json:"posttime"`
-	Nodes    []*topo.Node `json:"nodes"`
+	Region      string            `json:"region"`
+	PostTime    int64             `json:"posttime"`
+	Nodes       []*topo.Node      `json:"nodes"`
+	FailureInfo *topo.FailureInfo `json:"failure_info"`
 }
 
 type MigrateParams struct {
