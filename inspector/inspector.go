@@ -219,6 +219,10 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 		}
 		node := cluster.FindNode(s.Id)
 		if node == nil {
+			if s.PFail {
+				glog.Warningf("forget dead node %s(%s)", s.Id, s.Addr())
+				redis.ClusterForget(seed.Addr(), s.Id)
+			}
 			return ErrNodeNotExist
 		}
 
