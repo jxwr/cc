@@ -130,6 +130,9 @@ var NodeState = React.createClass({
     var setAsMasterBtn = node.Role=="slave" ? (
       <button onClick={this.handleSetAsMaster}>SetAsMaster</button>
     ) : null;
+    var takeoverBtn = node.Role=="slave" ? (
+      <button onClick={this.handleSetAsMaster}>Takeover</button>
+    ) : null;
     var options = _.map(GlobalNodes, function(n) {
       if (n.Id == node.Id) return null;
       return <option key={n.Id} value={n.Id}>{n.Ip}:{n.Port}</option>;
@@ -162,7 +165,7 @@ var NodeState = React.createClass({
               <li>left:{node.Role=="master"?node.MasterSyncLeftBytes:"-"}</li>
               <li>dump:{node.RdbBgsaveInProgress?"bgsaving":"-"}</li>
             </ul>
-            {meetBtn}{forgetBtn}{setAsMasterBtn}<br/>
+            {meetBtn}{forgetBtn}{setAsMasterBtn}{takeoverBtn}<br/>
             <button onClick={this.enableRead}>+r</button>
             <button onClick={this.disableRead}>-r</button>
             <button onClick={this.enableWrite}>+w</button>

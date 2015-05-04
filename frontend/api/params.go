@@ -57,3 +57,7 @@ type ReplicateParams struct {
 	ChildId  string `json:"child_id"`
 	ParentId string `json:"parent_id"`
 }
+
+type FailoverTakeoverParams struct {
+	NodeId string `json:"node_id"`
+}

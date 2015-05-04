@@ -39,6 +39,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.POST(api.NodeForgetAndResetPath, fe.HandleForgetAndResetNode)
 	fe.Router.POST(api.NodeReplicatePath, fe.HandleReplicate)
 	fe.Router.POST(api.MakeReplicaSetPath, fe.HandleMakeReplicaSet)
+	fe.Router.POST(api.FailoverTakeoverPath, fe.HandleFailoverTakeover)
 
 	return fe
 }
@@ -248,6 +249,23 @@ func (fe *FrontEnd) HandleReplicate(c *gin.Context) {
 	c.Bind(&params)
 
 	cmd := command.ReplicateCommand{params.ChildId, params.ParentId}
+
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	if err != nil {
+		c.JSON(500, api.FailureResponse{
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, result)
+}
+
+func (fe *FrontEnd) HandleFailoverTakeover(c *gin.Context) {
+	var params api.FailoverTakeoverParams
+	c.Bind(&params)
+
+	cmd := command.FailoverTakeoverCommand{params.NodeId}
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {

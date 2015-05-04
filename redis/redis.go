@@ -264,6 +264,33 @@ func ClusterFailover(addr string) (string, error) {
 	return resp, nil
 }
 
+func ClusterTakeover(addr string) (string, error) {
+	conn, err := dial(addr)
+	if err != nil {
+		return "", ErrConnFailed
+	}
+	defer conn.Close()
+
+	resp, err := redis.String(conn.Do("cluster", "failover", "takeover"))
+	if err != nil {
+		return "", err
+	}
+
+	// 30s
+	for i := 0; i < 30; i++ {
+		info, err := FetchInfo(addr, "Replication")
+		if err != nil {
+			return resp, err
+		}
+		if info.Get("role") == "slave" {
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
+	}
+	return resp, nil
+}
+
 func ClusterReplicate(addr, targetId string) (string, error) {
 	conn, err := dial(addr)
 	if err != nil {
