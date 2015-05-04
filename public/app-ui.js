@@ -116,6 +116,15 @@ var NodeState = React.createClass({
         node_id: this.props.node.Id,
       })});
   },
+  handleFailoverTakeover: function() {
+    $.ajax({
+      url: HTTP_HOST+'/failover/takeover',
+      contentType: 'application/json',
+      type: "POST",
+      data: JSON.stringify({
+        node_id: this.props.node.Id,
+      })});
+  },
   render: function() {
     var node = this.props.node;
     var role = node.Role == "master" ? "Master" : "Slave";
@@ -131,7 +140,7 @@ var NodeState = React.createClass({
       <button onClick={this.handleSetAsMaster}>SetAsMaster</button>
     ) : null;
     var takeoverBtn = node.Role=="slave" ? (
-      <button onClick={this.handleSetAsMaster}>Takeover</button>
+      <button onClick={this.handleFailoverTakeover}>Takeover</button>
     ) : null;
     var options = _.map(GlobalNodes, function(n) {
       if (n.Id == node.Id) return null;
