@@ -27,9 +27,16 @@ func (self *UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
 
 	for _, ns := range cs.AllNodeStates() {
 		node := ns.Node()
+		// Slave auto enable read ?
 		if !node.IsMaster() && !node.Fail && !node.Readable && node.MasterLinkStatus == "up" {
 			if meta.GetAppConfig().AutoEnableSlaveRead {
 				redis.EnableRead(node.Addr(), node.Id)
+			}
+		}
+		// Master auto enable write ?
+		if node.IsMaster() && !node.Fail && !node.Writable {
+			if meta.GetAppConfig().AutoEnableMasterWrite {
+				redis.EnableWrite(node.Addr(), node.Id)
 			}
 		}
 		// 更新Region内Node的状态机

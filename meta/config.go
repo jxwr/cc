@@ -18,14 +18,15 @@ const (
 )
 
 type AppConfig struct {
-	AppName              string
-	AutoEnableSlaveRead  bool
-	AutoFailover         bool
-	AutoFailoverInterval time.Duration
-	MasterRegion         string
-	Regions              []string
-	MigrateKeysEachTime  int
-	MigrateTimeout       int
+	AppName               string
+	AutoEnableSlaveRead   bool
+	AutoEnableMasterWrite bool
+	AutoFailover          bool
+	AutoFailoverInterval  time.Duration
+	MasterRegion          string
+	Regions               []string
+	MigrateKeysEachTime   int
+	MigrateTimeout        int
 }
 
 type ControllerConfig struct {
