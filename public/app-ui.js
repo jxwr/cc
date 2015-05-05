@@ -702,7 +702,7 @@ var LogPanel = React.createClass({
         } else {
           logs.push(obj);
         }
-        logs = logs.slice(-100);
+        logs = logs.slice(-200);
         self.setState({logs: logs});
       },
       function (e) {
@@ -725,8 +725,9 @@ var LogPanel = React.createClass({
   render: function() {
     var logs = this.state.logs;
     var style = {
-      maxHeight: "400px",
+      maxHeight: "500px",
       overflow: "auto",
+      fontSize: "0.8em !important",
     };
     var logRows = _.map(logs, function(obj) {
       return (
