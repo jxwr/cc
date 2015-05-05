@@ -188,6 +188,9 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			}
 			// 更新节点上slot的归属
 			for _, rs := range t.cluster.ReplicaSets() {
+				if rs.Master().IsStandbyMaster() {
+					continue
+				}
 				err = SetSlotToNode(rs, slot, targetNode.Id)
 				if err != nil {
 					return nkeys, err

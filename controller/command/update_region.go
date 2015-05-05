@@ -14,6 +14,10 @@ type UpdateRegionCommand struct {
 }
 
 func (self *UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
+	if len(self.Nodes) == 0 {
+		return nil, nil
+	}
+
 	// 更新Cluster拓扑
 	cs := c.ClusterState
 	cs.UpdateRegionNodes(self.Region, self.Nodes)

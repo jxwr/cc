@@ -89,7 +89,11 @@ func (self *Inspector) Run() {
 			if meta.IsInMasterRegion() && self.IsClusterDamaged(cluster, seeds) {
 				failureInfo = &topo.FailureInfo{Seeds: seeds}
 			}
-			err = SendRegionTopoSnapshot(cluster.LocalRegionNodes(), failureInfo)
+			var nodes []*topo.Node
+			if err == nil {
+				nodes = cluster.LocalRegionNodes()
+			}
+			err = SendRegionTopoSnapshot(nodes, failureInfo)
 			if err != nil {
 				glog.Infof("send snapshot failed, %v", err)
 			}
