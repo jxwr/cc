@@ -455,6 +455,7 @@ function IsStandbyNode(shard, node) {
 var ClusterState = React.createClass({
   regionVersion: {},
   lastCheckTime: 0,
+  lastRegionShowTime: {},
   getInitialState: function() {
     return {nodes: {}, nodesLastShowTime: {}};
   },
@@ -466,6 +467,7 @@ var ClusterState = React.createClass({
         var nodesLastShowTime = self.state.nodesLastShowTime;
         nodes[obj.Id] = obj;
         nodesLastShowTime[obj.Id] = Date.now();
+        self.lastRegionShowTime[obj.Region] = Date.now();
         /* <><><> EVIL <><><> */
         GlobalNodes = nodes;
         self.setState({nodes: nodes});
@@ -475,7 +477,7 @@ var ClusterState = React.createClass({
           self.lastCheckTime = now;
           for (var key in nodes) {
             var node = nodes[key];
-            if (now - nodesLastShowTime[node.Id] > 5000) {
+            if (now - self.lastRegionShowTime[obj.Region] < 5000 && now - nodesLastShowTime[node.Id] > 5000) {
               nodesLastShowTime[node.Id] = 0;
               console.log(key, "expired");
               delete nodes[key];
