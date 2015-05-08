@@ -1,0 +1,33 @@
+<!-- index.html -->
+<html>
+  <head>
+    <title>Cluster View</title>
+    <script src="http://fb.me/react-with-addons-0.12.2.js"></script>
+    <script src="http://fb.me/JSXTransformer-0.12.2.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/rxjs/2.4.1/rx.all.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.2/underscore.js"></script>
+    <script src="/ui/rx.dom.js"></script>
+    <link rel="stylesheet" type="text/css" class="ui" href="/ui/golang-build.css">
+  </head>
+  <body>
+    <header id="topbar">
+      <h1>Redis3.0 WebConsole</h1>
+      <nav>
+        <a href="/ui/">Debug</a>
+      </nav>
+      <div class="clear"></div>
+    </header>
+    <nav class="dashboards">
+        <a href="/ui/basic.html">Basic View</a>
+        <a href="/ui/bird.html">Bird View</a>
+        <a href="/ui/cluster.html">Cluster View</a>
+        <a href="/ui/migrate.html">Migrate</a>
+        <a href="/ui/log.html">Log</a>
+      <label id="checkboxes">
+      </label>
+    </nav>
+    <div id="content"></div>
+    <script type="text/jsx;harmony=true" src="/ui/bird.js"></script>
+  </body>
+</html>
