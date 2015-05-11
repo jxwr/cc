@@ -31,11 +31,7 @@ var RxNodeState = stateSocket.map(function(e){
   delete state.PFail;
   delete state.ClusterStatsMessagesSent;
   delete state.ClusterStatsMessagesReceived;
-  delete state.UsedMemory;
   delete state.Expires;
-  delete state.InstantaneousOpsPerSec;
-  delete state.InstantaneousInputKbps;
-  delete state.InstantaneousOutputKbps;
   return state;
 });
 
@@ -308,6 +304,7 @@ var ReplicaSetState = React.createClass({
   header: (
       <tr>
         <th></th>
+        <th>ver</th>
         <th>id</th>
         <th>tag</th>
         <th>ip:port</th>
@@ -318,6 +315,10 @@ var ReplicaSetState = React.createClass({
         <th>dump</th>
         <th>repl</th>
         <th>keys</th>
+        <th>qps</th>
+        <th>net_in</th>
+        <th>net_out</th>
+        <th>mem_used</th>
         <th>link</th>
         <th>slots</th>
       </tr>
@@ -355,6 +356,7 @@ var ReplicaSetState = React.createClass({
       return (
           <tr>
             <NodeAction node={node} />
+            <td>{node.Version}</td>
             <td>{node.Id.slice(0,10)}</td>
             <td>{node.Tag}</td>
             <td>{node.Ip}:{node.Port}</td>
@@ -365,6 +367,10 @@ var ReplicaSetState = React.createClass({
             <td>{node.RdbBgsaveInProgress?"bgsaving":"-"}</td>
             <td>{node.ReplOffset}</td>
             <td>{node.Keys}</td>
+            <td>{node.InstantaneousOpsPerSec}</td>
+            <td>{node.InstantaneousInputKbps.toFixed(2)}Kbps</td>
+            <td>{node.InstantaneousOutputKbps.toFixed(2)}Kbps</td>
+            <td>{(node.UsedMemory/1024.0/1024.0/1024.0).toFixed(3)}G</td>
             <td>{node.Role=="slave"?node.MasterLinkStatus:"-"}</td>
             <td>{rangePairTexts.join(',')}</td>
           </tr>
@@ -457,8 +463,6 @@ var ClusterState = React.createClass({
           shard.RegionNodes[node.Region] = [];
         shard.RegionNodes[node.Region].push(node);
         if (node.Version) regionVersion[node.Region] = node.Version;
-        // For optimizing
-        delete node.Version;
       }
       return shard;
     })
