@@ -2,6 +2,7 @@ package inspector
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ var (
 	ErrNoSeed           = errors.New("inspector: no seed node found")
 	ErrInvalidTag       = errors.New("inspector: invalid tag")
 	ErrEmptyTag         = errors.New("inspector: empty tag")
+	ErrSeedIsFreeNode   = errors.New("inspector: seed is free node")
 	ErrNodeNotExist     = errors.New("inspector: node not exist")
 	ErrNodesInfoNotSame = errors.New("inspector: cluster nodes info of seeds are different")
 )
@@ -223,12 +225,12 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 				glog.Warningf("forget dead node %s(%s)", s.Id, s.Addr())
 				redis.ClusterForget(seed.Addr(), s.Id)
 			}
-			return ErrNodeNotExist
+			return fmt.Errorf("node not exist %s(%s)", s.Id, s.Addr())
 		}
 
 		// 对比节点数据是否相同
 		if !node.Compare(s) {
-			glog.Infof("%v vs %v different", s, node)
+			glog.Infof("%#v vs %#v different", s, node)
 			if s.Tag == "-" && node.Tag != "-" {
 				// 可能存在处于不被Cluster接受的节点，节点可以看见Cluster，但Cluster看不到它。
 				// 一种复现情况情况：某个节点已经死了，系统将其Forget，但是OP并未被摘除该节点，

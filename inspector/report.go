@@ -67,6 +67,7 @@ func (self *Inspector) IsClusterDamaged(cluster *topo.Cluster, seeds []*topo.Nod
 			}
 		}
 	}
+	glog.Info("more than half nodes dead")
 	return true
 }
 

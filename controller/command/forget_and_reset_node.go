@@ -34,8 +34,9 @@ func (self *ForgetAndResetNodeCommand) Execute(c *cc.Controller) (cc.Result, err
 		if ns.Id() == target.Id {
 			continue
 		}
+		node := ns.Node()
 		_, err = redis.ClusterForget(ns.Addr(), target.Id)
-		if err != nil && !strings.HasPrefix(err.Error(), "ERR Unknown node") {
+		if !node.Fail && err != nil && !strings.HasPrefix(err.Error(), "ERR Unknown node") {
 			allForgetDone = false
 			log.Warningf(target.Addr(), "Forget node %s(%s) failed, %v", ns.Addr(), ns.Id(), err)
 			continue

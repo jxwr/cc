@@ -165,19 +165,18 @@ var MigrationForm = React.createClass({
       if (!source || n.Id == source.Id) return null;
       return <option key={n.Id} value={n.Id}>{n.Id.slice(0,10)} - {n.Ip}:{n.Port}</option>;
     }).filter(function(n) { return n != null; });
-    var style = {padding:"0 20px",color:"black",display:GC.ShowMigrateActions?"":"none"};
+    var style = {padding:"0 10px",display:GC.ShowMigrateActions?"":"none"};
     return (
-       <span style={style}>
+       <div style={style}>
          <span>
-           <label>migrate ranges</label>
+           <label><button onClick={this.handleCreateMigrateTask}>Migrate</button> ranges </label>
            <input ref={source.Id+"_ranges"} type="text"/>
          </span>
          <span>
-           <label>to</label>
+           <label> to </label>
            <select ref={source.Id+"_target"}>{idOptions}</select>
          </span>
-         <button onClick={this.handleCreateMigrateTask}>Migrate</button>
-       </span>
+       </div>
     );
   }
 });
@@ -263,23 +262,24 @@ var NodeAction = React.createClass({
     }).filter(function(n) { return n != null; });
     var reparent = (
       <span>
-        <button onClick={this.handleReparent}>RP</button>
+        <button onClick={this.handleReparent}>Repl</button>
         <select ref={node.Id+"_reparent"}>{options}</select>
       </span>
     );
     return (
       <td className="action">
-        <button onClick={this.enableRead}>+r</button>
-        <button onClick={this.disableRead}>-r</button>
-        <button onClick={this.enableWrite}>+w</button>
-        <button onClick={this.disableWrite}>-w</button>
-        <span style={{display:GC.ShowAdvanceNodeActions?"":"none"}}>
-        <button onClick={this.handleMeet}>Meet</button>
-        <button onClick={this.handleForget}>Forget&Reset</button>
-        <button onClick={this.handleSetAsMaster}>SetAsMaster</button>
-        <button onClick={this.handleFailoverTakeover}>Takeover</button>
+        <button>action</button>
+        <ul >
+        <li onClick={this.enableRead}>+r</li>
+        <li onClick={this.disableRead}>-r</li>
+        <li onClick={this.enableWrite}>+w</li>
+        <li onClick={this.disableWrite}>-w</li>
+        <li onClick={this.handleMeet}>Meet</li>
+        <li onClick={this.handleForget}>Forget&Reset</li>
+        <li onClick={this.handleSetAsMaster}>SetAsMaster</li>
+        <li onClick={this.handleFailoverTakeover}>Takeover</li>
         {reparent}
-        </span>
+        </ul>
       </td>
     );
   }
@@ -320,7 +320,6 @@ var ReplicaSetState = React.createClass({
         <th>net_out</th>
         <th>mem_used</th>
         <th>link</th>
-        <th>slots</th>
       </tr>
   ),
   render: function() {
@@ -346,13 +345,6 @@ var ReplicaSetState = React.createClass({
       var write = node.Writable ? "w":"-";
       var mode = read+"/"+write;
       var fail = node.Fail ? "fail":"ok";
-      var ranges = node.Ranges;
-      var rangePairs = ranges.map(function (range) {
-        return [range.Left,range.Right];
-      });
-      var rangePairTexts = ranges.map(function (range) {
-        return range.Left + "-" + range.Right;
-      });
       return (
           <tr>
             <NodeAction node={node} />
@@ -362,8 +354,8 @@ var ReplicaSetState = React.createClass({
             <td>{node.Ip}:{node.Port}</td>
             <td>{node.Role}</td>
             <td>{mode}</td>
-            <td className={fail}>{fail}</td>
-            <td className={node.State!="RUNNING"?"fail":""}>{node.State}</td>
+            <td><span className={fail}>{fail}</span></td>
+            <td><span className={node.State}>{node.State}</span></td>
             <td>{node.RdbBgsaveInProgress?"bgsaving":"-"}</td>
             <td>{node.ReplOffset}</td>
             <td>{node.Keys}</td>
@@ -371,16 +363,31 @@ var ReplicaSetState = React.createClass({
             <td>{node.InstantaneousInputKbps.toFixed(2)}Kbps</td>
             <td>{node.InstantaneousOutputKbps.toFixed(2)}Kbps</td>
             <td>{(node.UsedMemory/1024.0/1024.0/1024.0).toFixed(3)}G</td>
-            <td>{node.Role=="slave"?node.MasterLinkStatus:"-"}</td>
-            <td>{rangePairTexts.join(',')}</td>
+            <td>
+              <span className={node.Role=="slave"&&node.MasterLinkStatus=="down"?"fail":""}>
+                {node.Role=="slave"?node.MasterLinkStatus:"-"}
+              </span>
+            </td>
           </tr>
       );
     });
+    var master = shard.Master;
+    if (master) {
+      var ranges = master.Ranges;
+      var rangePairs = ranges.map(function (range) {
+        return [range.Left,range.Right];
+      });
+      var rangePairTexts = ranges.map(function (range) {
+        return range.Left + "-" + range.Right;
+      });
+    }
     return (
       <div>
         <h4>
-        <small>Replicas ({shard.Master ? shard.Master.Id.slice(0,10) : '-'})</small>
-        <MigrationForm sourceMaster={shard.Master} masterNodes={masterNodes} />
+        <small>
+          Replicas ({master ? master.Id.slice(0,10) : '-'}) 
+          &nbsp;&nbsp;-&nbsp;&nbsp;[{master ? rangePairTexts.join(',') : ''}]
+        </small>
         </h4>
         <table>
           <tbody>
@@ -389,6 +396,7 @@ var ReplicaSetState = React.createClass({
           {rows}
           </tbody>
         </table>
+        <MigrationForm sourceMaster={shard.Master} masterNodes={masterNodes} />
       </div>
     );
   }
@@ -402,6 +410,90 @@ function IsStandbyNode(shard, node) {
   if (_.flatten(_.values(shard.RegionNodes)) > 1) return false;
   return true;
 }
+
+var SpecialNodes = React.createClass({
+  // For optimizing
+  shouldComponentUpdate: function(nextProps, nextState) {
+    return !(_.isEqual(nextProps.nodes, this.props.nodes));
+  },
+  header: (
+      <tr>
+        <th></th>
+        <th>ver</th>
+        <th>id</th>
+        <th>tag</th>
+        <th>ip:port</th>
+        <th>role</th>
+        <th>mode</th>
+        <th>fail</th>
+        <th>state</th>
+        <th>dump</th>
+        <th>repl</th>
+        <th>keys</th>
+        <th>qps</th>
+        <th>net_in</th>
+        <th>net_out</th>
+        <th>mem_used</th>
+        <th>link</th>
+      </tr>
+  ),
+  render: function() {
+    var nodes = this.props.nodes;
+    var title = this.props.title;
+    var desc = this.props.desc;
+    if (!nodes || nodes.length == 0) return null;
+    var headers = AppConfig.Regions.map(function(region) {
+      return <th>{desc} - {region}</th>;
+    });
+    var rows = _.map(nodes, function(node){
+      var read = node.Readable ? "r":"-";
+      var write = node.Writable ? "w":"-";
+      var mode = read+"/"+write;
+      var fail = node.Fail ? "fail":"ok";
+      return ( 
+          <tr>
+            <NodeAction node={node} />
+            <td>{node.Version}</td>
+            <td>{node.Id.slice(0,10)}</td>
+            <td>{node.Tag}</td>
+            <td>{node.Ip}:{node.Port}</td>
+            <td>{node.Role}</td>
+            <td>{mode}</td>
+            <td><span className={fail}>{fail}</span></td>
+            <td><span className={node.State!="RUNNING"?"fail":""}>{node.State}</span></td>
+            <td>{node.RdbBgsaveInProgress?"bgsaving":"-"}</td>
+            <td>{node.ReplOffset}</td>
+            <td>{node.Keys}</td>
+            <td>{node.InstantaneousOpsPerSec}</td>
+            <td>{node.InstantaneousInputKbps.toFixed(2)}Kbps</td>
+            <td>{node.InstantaneousOutputKbps.toFixed(2)}Kbps</td>
+            <td>{(node.UsedMemory/1024.0/1024.0/1024.0).toFixed(3)}G</td>
+            <td>
+              <span className={node.Role=="slave"&&node.MasterLinkStatus=="down"?"fail":""}>
+                {node.Role=="slave"?node.MasterLinkStatus:"-"}
+              </span>
+            </td>
+          </tr>
+      );
+    });
+    return (
+        <div>
+          <h2>
+            {title}&nbsp;&nbsp;-&nbsp;&nbsp;
+            <small>{desc}</small>
+          </h2>
+          <table className="special">
+            <thead>
+              {this.header}
+            </thead>
+            <tbody>
+              {rows}
+            </tbody>
+          </table>
+        </div>
+    );
+  }
+});
 
 var ClusterState = React.createClass({
   regionVersion: {},
@@ -467,7 +559,6 @@ var ClusterState = React.createClass({
       return shard;
     })
     var standbyNodes = [];
-    var standbyNodeTable = null;
     var onlineMasters = [];
     var onlineShards = _.filter(shards, function(shard) {
       var master = shard.Master;
@@ -488,6 +579,15 @@ var ClusterState = React.createClass({
     });
     return (
       <div>
+        <SpecialNodes 
+          title="Free Nodes"
+          desc="(NotInCluster,OnlyOneNode)"
+          nodes={freeNodes} />
+        <SpecialNodes 
+          title="Standby Nodes" 
+          desc="(IsMaster,NotFree,NoSlots,NotCoverAllRegions,NoSlaves)" 
+          nodes={standbyNodes} />
+        <h2>Noraml Nodes</h2>
         {rss}
         <MigrationTaskPanel />
       </div>
@@ -510,10 +610,9 @@ var CheckBoxes = React.createClass({
   render: function(){
     return (
       <span>
-        <input type="checkbox" onChange={this.toggleNodeActions}/>
-        node actions
-        <input type="checkbox" onChange={this.toggleMigActions}/>
-        migrate actions
+        <label>
+          <input type="checkbox" onChange={this.toggleMigActions}/>MigrateForm
+        </label>
       </span>
     );
   }
@@ -523,6 +622,5 @@ React.render(
     <CheckBoxes />,
     document.getElementById('checkboxes')
 );
-
 
 });
