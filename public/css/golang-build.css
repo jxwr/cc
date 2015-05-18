@@ -46,7 +46,13 @@ dd { margin: 2px 20px; }
     clear: both;
 }
 
-.action button, .action select {
+.tag {
+    margin: 2px;
+    background-color: green;
+    color: #fff;
+}
+
+button, .action select {
     padding: 1px 3px;
     color: #222;
     border: 1px solid #375EAB;

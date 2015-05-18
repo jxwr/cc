@@ -371,6 +371,27 @@ var ReplicaSetState = React.createClass({
           </tr>
       );
     });
+    var tags = null;
+    var emptyMaster = false;
+    if (shard.Master) {
+      master = shard.Master;
+      if ((!master.Fail)&&(master.Ranges.length==0)) {
+        emptyMaster = true;
+        tags = (
+          <span>
+            <span className="tag">Empty</span>
+            <span className="tag">
+            {coverAllRegions?"CoverAllRegions":"NotCorverAllRegions"}
+            </span>
+          </span>
+        );
+      }
+    }
+    // 能否进行Rebalance（Master,NotDead,CoverAllRegions,NoSlot）
+    var rebalanceBtn = null;
+    if (emptyMaster && coverAllRegions) {
+      rebalanceBtn = <button onClick={this.handleRebalance}>Rebalance To This Node</button>;
+    }
     var master = shard.Master;
     if (master) {
       var ranges = master.Ranges;
@@ -386,7 +407,10 @@ var ReplicaSetState = React.createClass({
         <h4>
         <small>
           Replicas ({master ? master.Id.slice(0,10) : '-'}) 
-          &nbsp;&nbsp;-&nbsp;&nbsp;[{master ? rangePairTexts.join(',') : ''}]
+          &nbsp;&nbsp;-&nbsp;&nbsp;
+          [{master ? rangePairTexts.join(',') : ''}]
+          &nbsp;&nbsp;-&nbsp;&nbsp;
+          {tags}{rebalanceBtn}
         </small>
         </h4>
         <table>
