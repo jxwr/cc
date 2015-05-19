@@ -345,6 +345,8 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, []*topo.Node, error) {
 				} else {
 					return cluster, seeds, err
 				}
+			} else {
+				s.Free = false
 			}
 		}
 	}
