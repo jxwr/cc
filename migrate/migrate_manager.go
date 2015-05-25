@@ -152,7 +152,7 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 			log.Info(tname, "No backup replicaset found, controller maybe restarted after target master failure, can not do recovery.")
 			return ErrCanNotRecover
 		}
-		slaves := brs.Slaves()
+		slaves := brs.Slaves
 		if len(slaves) == 0 {
 			task.SetState(StateCancelling)
 			log.Info(tname, "The dead target master has no slave, cannot do recovery.")
@@ -166,7 +166,7 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 			}
 			task.ReplaceTargetReplicaSet(rs)
 			log.Infof(tname, "Recover dead target node to %s(%s)",
-				rs.Master().Id, rs.Master().Addr())
+				rs.Master.Id, rs.Master.Addr())
 		}
 	}
 	return nil
@@ -203,21 +203,21 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 				if !node.IsMaster() {
 					srs := cluster.FindReplicaSetByNode(node.Id)
 					if srs != nil {
-						source = srs.Master()
+						source = srs.Master
 					}
 				}
 				// Target
 				rs := cluster.FindReplicaSetByNode(id)
-				if source.Fail || rs.Master().Fail {
+				if source.Fail || rs.Master.Fail {
 					continue
 				}
 
-				task, err := m.CreateTask(source.Id, rs.Master().Id, ranges, cluster)
+				task, err := m.CreateTask(source.Id, rs.Master.Id, ranges, cluster)
 				if err != nil {
 					log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
 				} else {
 					log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with MIGRATING info"+
-						", Task(Source:%s, Target:%s).", node.Id, node.Addr(), source.Addr(), rs.Master().Addr())
+						", Task(Source:%s, Target:%s).", node.Id, node.Addr(), source.Addr(), rs.Master.Addr())
 					go func(t *MigrateTask) {
 						t.Run()
 						m.RemoveTask(t)
@@ -243,7 +243,7 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 				if !node.IsMaster() {
 					trs := cluster.FindReplicaSetByNode(node.Id)
 					if trs != nil {
-						target = trs.Master()
+						target = trs.Master
 					}
 				}
 				if target.IsStandbyMaster() {
@@ -255,15 +255,15 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 				}
 				// Source
 				rs := cluster.FindReplicaSetByNode(id)
-				if target.Fail || rs.Master().Fail {
+				if target.Fail || rs.Master.Fail {
 					continue
 				}
-				task, err := m.CreateTask(rs.Master().Id, target.Id, ranges, cluster)
+				task, err := m.CreateTask(rs.Master.Id, target.Id, ranges, cluster)
 				if err != nil {
 					log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
 				} else {
 					log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with IMPORTING info"+
-						", Task(Source:%s,Target:%s).", node.Id, node.Addr(), rs.Master().Addr(), target.Addr())
+						", Task(Source:%s,Target:%s).", node.Id, node.Addr(), rs.Master.Addr(), target.Addr())
 					go func(t *MigrateTask) {
 						t.Run()
 						m.RemoveTask(t)
@@ -340,7 +340,7 @@ func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster)
 
 func SetSlotToNode(rs *topo.ReplicaSet, slot int, targetId string) error {
 	// 先清理从节点的MIGRATING状态
-	for _, node := range rs.Slaves() {
+	for _, node := range rs.Slaves {
 		if node.Fail {
 			continue
 		}
@@ -349,7 +349,7 @@ func SetSlotToNode(rs *topo.ReplicaSet, slot int, targetId string) error {
 			return err
 		}
 	}
-	err := redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_NODE, targetId)
+	err := redis.SetSlot(rs.Master.Addr(), slot, redis.SLOT_NODE, targetId)
 	if err != nil {
 		return err
 	}
@@ -358,7 +358,7 @@ func SetSlotToNode(rs *topo.ReplicaSet, slot int, targetId string) error {
 
 func SetSlotStable(rs *topo.ReplicaSet, slot int) error {
 	// 先清理从节点的MIGRATING状态
-	for _, node := range rs.Slaves() {
+	for _, node := range rs.Slaves {
 		if node.Fail {
 			continue
 		}
@@ -367,7 +367,7 @@ func SetSlotStable(rs *topo.ReplicaSet, slot int) error {
 			return err
 		}
 	}
-	err := redis.SetSlot(rs.Master().Addr(), slot, redis.SLOT_STABLE, "")
+	err := redis.SetSlot(rs.Master.Addr(), slot, redis.SLOT_STABLE, "")
 	if err != nil {
 		return err
 	}

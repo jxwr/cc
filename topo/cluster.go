@@ -152,7 +152,7 @@ func (self *Cluster) BuildReplicaSets() error {
 			}
 
 			for _, rs := range replicaSets {
-				if rs.Master() == master {
+				if rs.Master == master {
 					rs.AddSlave(s)
 				}
 			}

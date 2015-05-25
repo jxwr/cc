@@ -16,6 +16,19 @@ var cmds = []cli.Command{
 	c.MeetCommand,
 }
 
+/// meet id
+/// meet ip:port
+/// migrate <SID> <TID> <range>
+/// rebalance [<TID>]
+/// replicate <ChildID> <ParentId>
+/// failover <ID>
+/// takeover <ID>
+/// chmod
+/// forgetandreset
+/// makereplicaset
+/// nodes
+/// appinfo
+/// log
 var cmdmap = map[string]cli.Command{}
 
 func init() {

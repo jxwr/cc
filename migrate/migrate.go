@@ -172,7 +172,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			// 如果设置的是Source节点，设置slot归属时，Redis会确保该slot中已无剩余的key
 			trs := t.TargetReplicaSet()
 			// 优先设置从节点，保证当主的数据分布还未广播到从节点时主挂掉，slot信息也不会丢失
-			for _, node := range trs.Slaves() {
+			for _, node := range trs.Slaves {
 				if node.Fail {
 					continue
 				}
@@ -182,13 +182,13 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 				}
 			}
 			// 该操作增加Epoch并广播出去
-			err = redis.SetSlot(trs.Master().Addr(), slot, redis.SLOT_NODE, targetNode.Id)
+			err = redis.SetSlot(trs.Master.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 			if err != nil {
 				return nkeys, err
 			}
 			// 更新节点上slot的归属
 			for _, rs := range t.cluster.ReplicaSets() {
-				if rs.Master().IsStandbyMaster() {
+				if rs.Master.IsStandbyMaster() {
 					continue
 				}
 				err = SetSlotToNode(rs, slot, targetNode.Id)
@@ -330,9 +330,9 @@ func (t *MigrateTask) TargetReplicaSet() *topo.ReplicaSet {
 }
 
 func (t *MigrateTask) SourceNode() *topo.Node {
-	return t.SourceReplicaSet().Master()
+	return t.SourceReplicaSet().Master
 }
 
 func (t *MigrateTask) TargetNode() *topo.Node {
-	return t.TargetReplicaSet().Master()
+	return t.TargetReplicaSet().Master
 }

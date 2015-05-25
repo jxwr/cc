@@ -12,6 +12,7 @@ const (
 	NodeReplicatePath      = "/node/replicate"
 	NodeResetPath          = "/node/reset"
 	NodeSetAsMasterPath    = "/node/setAsMaster"
+	FetchReplicaSetsPath   = "/replicasets"
 	MakeReplicaSetPath     = "/replicaset/make"
 	FailoverTakeoverPath   = "/failover/takeover"
 )

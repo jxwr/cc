@@ -1,8 +1,8 @@
 package topo
 
 type ReplicaSet struct {
-	master *Node
-	slaves []*Node
+	Master *Node
+	Slaves []*Node
 }
 
 func NewReplicaSet() *ReplicaSet {
@@ -11,23 +11,15 @@ func NewReplicaSet() *ReplicaSet {
 }
 
 func (s *ReplicaSet) SetMaster(node *Node) {
-	s.master = node
-}
-
-func (s *ReplicaSet) Master() *Node {
-	return s.master
+	s.Master = node
 }
 
 func (s *ReplicaSet) AddSlave(node *Node) {
-	s.slaves = append(s.slaves, node)
-}
-
-func (s *ReplicaSet) Slaves() []*Node {
-	return s.slaves
+	s.Slaves = append(s.Slaves, node)
 }
 
 func (s *ReplicaSet) AllNodes() []*Node {
-	return append(s.slaves, s.master)
+	return append(s.Slaves, s.Master)
 }
 
 func (s *ReplicaSet) RegionNodes(region string) []*Node {
@@ -45,10 +37,10 @@ func (s *ReplicaSet) HasNode(nodeId string) bool {
 }
 
 func (s *ReplicaSet) FindNode(nodeId string) *Node {
-	if nodeId == s.master.Id {
-		return s.master
+	if nodeId == s.Master.Id {
+		return s.Master
 	}
-	for _, node := range s.slaves {
+	for _, node := range s.Slaves {
 		if nodeId == node.Id {
 			return node
 		}

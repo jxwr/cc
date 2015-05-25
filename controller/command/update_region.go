@@ -1,8 +1,6 @@
 package command
 
 import (
-	"fmt"
-
 	cc "github.com/jxwr/cc/controller"
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/redis"
