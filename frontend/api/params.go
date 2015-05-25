@@ -4,10 +4,22 @@ import (
 	"github.com/jxwr/cc/topo"
 )
 
-type FailureResponse struct {
-	StatusCode  int    `json:"status_code"`
-	Message     string `json:"message"`
-	Description string `json:"description"`
+type Response struct {
+	Errno  int         `json:"errno"`
+	Errmsg string      `json:"errmsg"`
+	Body   interface{} `json:"body"`
+}
+
+func MakeResponse(errno int, msg string, body interface{}) Response {
+	return Response{errno, msg, body}
+}
+
+func MakeSuccessResponse(body interface{}) Response {
+	return Response{0, "OK", body}
+}
+
+func MakeFailureResponse(msg string) Response {
+	return Response{777, msg, nil}
 }
 
 type MapResp map[string]interface{}

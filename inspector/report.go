@@ -25,7 +25,7 @@ func SendRegionTopoSnapshot(nodes []*topo.Node, failureInfo *topo.FailureInfo) e
 		return err
 	}
 	if fail != nil {
-		return fmt.Errorf("%d %s", fail.StatusCode, fail.Message)
+		return fmt.Errorf("%d %s", fail.Errno, fail.Errmsg)
 	}
 	return nil
 }

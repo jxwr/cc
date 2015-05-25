@@ -60,13 +60,11 @@ func (fe *FrontEnd) HandleRegionSnapshot(c *gin.Context) {
 
 	result, err := fe.C.ProcessCommand(&cmd, 2*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleToggleMode(c *gin.Context) {
@@ -75,8 +73,6 @@ func (fe *FrontEnd) HandleToggleMode(c *gin.Context) {
 
 	var cmd cc.Command
 	nodeId := params.NodeId
-
-	fmt.Println(params)
 
 	if params.Action == "enable" && params.Perm == "read" {
 		cmd = &command.EnableReadCommand{nodeId}
@@ -87,22 +83,17 @@ func (fe *FrontEnd) HandleToggleMode(c *gin.Context) {
 	} else if params.Action == "disable" && params.Perm == "write" {
 		cmd = &command.DisableWriteCommand{nodeId}
 	} else {
-		c.JSON(500, api.FailureResponse{
-			Message:     "Invalid params",
-			Description: fmt.Sprintf("%v", params),
-		})
+		c.JSON(200, api.MakeFailureResponse("Invalid command"))
 		return
 	}
 
 	result, err := fe.C.ProcessCommand(cmd, 2*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleMigrateCreate(c *gin.Context) {
@@ -130,13 +121,11 @@ func (fe *FrontEnd) HandleMigrateCreate(c *gin.Context) {
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleMakeReplicaSet(c *gin.Context) {
@@ -149,13 +138,11 @@ func (fe *FrontEnd) HandleMakeReplicaSet(c *gin.Context) {
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleRebalance(c *gin.Context) {
@@ -170,13 +157,11 @@ func (fe *FrontEnd) HandleRebalance(c *gin.Context) {
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleAppInfo(c *gin.Context) {
@@ -184,13 +169,11 @@ func (fe *FrontEnd) HandleAppInfo(c *gin.Context) {
 
 	result, err := cmd.Execute(fe.C)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleMeetNode(c *gin.Context) {
@@ -201,13 +184,11 @@ func (fe *FrontEnd) HandleMeetNode(c *gin.Context) {
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleSetAsMaster(c *gin.Context) {
@@ -218,13 +199,11 @@ func (fe *FrontEnd) HandleSetAsMaster(c *gin.Context) {
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleForgetAndResetNode(c *gin.Context) {
@@ -235,13 +214,11 @@ func (fe *FrontEnd) HandleForgetAndResetNode(c *gin.Context) {
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleReplicate(c *gin.Context) {
@@ -252,13 +229,11 @@ func (fe *FrontEnd) HandleReplicate(c *gin.Context) {
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }
 
 func (fe *FrontEnd) HandleFailoverTakeover(c *gin.Context) {
@@ -269,11 +244,9 @@ func (fe *FrontEnd) HandleFailoverTakeover(c *gin.Context) {
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
-		c.JSON(500, api.FailureResponse{
-			Message: err.Error(),
-		})
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, api.MakeSuccessResponse(result))
 }

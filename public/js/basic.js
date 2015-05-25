@@ -1,7 +1,7 @@
 $.get('/app/info', function(data){
 
-var AppConfig = data.AppConfig;
-var Leader = data.Leader;
+var AppConfig = data.body.AppConfig;
+var Leader = data.body.Leader;
 
 var HTTP_HOST = 'http://'+Leader.Ip+':'+Leader.HttpPort;
 var WS_HOST = 'ws://'+Leader.Ip+':'+Leader.WsPort;
@@ -40,7 +40,7 @@ var AppInfo = React.createClass({
 });
 
 React.render(
-    <AppInfo info={data} />,
+    <AppInfo info={data.body} />,
     document.getElementById('content')
 );
 
