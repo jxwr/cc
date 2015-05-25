@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/meta"
 )
 
 func do(method, url string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
@@ -40,21 +39,14 @@ func do(method, url string, in, out interface{}, timeout time.Duration) (*api.Re
 	}
 }
 
-func HttpPost(path string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
-	url := MkUrl(path)
+func HttpPost(url string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
 	return do("POST", url, in, out, timeout)
 }
 
-func HttpPut(path string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
-	url := MkUrl(path)
+func HttpPut(url string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
 	return do("PUT", url, in, out, timeout)
 }
 
-func HttpGet(path string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
-	url := MkUrl(path)
+func HttpGet(url string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
 	return do("GET", url, in, out, timeout)
-}
-
-func MkUrl(path string) string {
-	return "http://" + meta.LeaderHttpAddress() + path
 }

@@ -11,6 +11,10 @@ import (
 	"github.com/jxwr/cc/utils"
 )
 
+func MkUrl(path string) string {
+	return "http://" + meta.LeaderHttpAddress() + path
+}
+
 func SendRegionTopoSnapshot(nodes []*topo.Node, failureInfo *topo.FailureInfo) error {
 	params := &api.RegionSnapshotParams{
 		Region:      meta.LocalRegion(),
@@ -20,7 +24,7 @@ func SendRegionTopoSnapshot(nodes []*topo.Node, failureInfo *topo.FailureInfo) e
 	}
 
 	var resp api.MapResp
-	fail, err := utils.HttpPost(api.RegionSnapshotPath, params, &resp, 30*time.Second)
+	fail, err := utils.HttpPost(MkUrl(api.RegionSnapshotPath), params, &resp, 30*time.Second)
 	if err != nil {
 		return err
 	}
