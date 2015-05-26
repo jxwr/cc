@@ -54,3 +54,16 @@ func SetApp(appName string, zkAddr string) error {
 
 	return nil
 }
+
+func GetLeaderAddr() string {
+	return fmt.Sprintf("%s:%d", controllerConfig.Ip, controllerConfig.HttpPort)
+}
+
+func GetAppInfo() string {
+	var data []byte
+	data, _ = json.Marshal(appConfig)
+	var out bytes.Buffer
+	json.Indent(&out, []byte(data), "", "  ")
+
+	return out.String()
+}

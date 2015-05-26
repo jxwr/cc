@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-var MeetCommand = cli.Command{
-	Name:   "meet",
-	Usage:  "meet <id>",
-	Action: meetAction,
+var ForgetAndResetCommand = cli.Command{
+	Name:   "forgetandreset",
+	Usage:  "forgetandreset <id>",
+	Action: forgetandresetAction,
 }
 
-func meetAction(c *cli.Context) {
+func forgetandresetAction(c *cli.Context) {
 	fmt.Println(c.Args())
 	if len(c.Args()) != 1 {
 		fmt.Println("Error Usage")
@@ -23,10 +23,10 @@ func meetAction(c *cli.Context) {
 	}
 	addr := context.GetLeaderAddr()
 
-	url := "http://" + addr + api.NodeMeetPath
+	url := "http://" + addr + api.NodeForgetAndResetPath
 	nodeid := c.Args()[0]
 
-	req := api.MeetNodeParams{
+	req := api.ForgetAndResetNodeParams{
 		NodeId: nodeid,
 	}
 	var resp api.MapResp

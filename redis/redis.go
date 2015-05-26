@@ -512,3 +512,60 @@ func Migrate(addr, toIp string, toPort int, key string, timeout int) (string, er
 	}
 	return "", err
 }
+
+// used by cli
+func ClusterNodesWithoutExtra(addr string) (string, error) {
+	inner := func(addr string) (string, error) {
+		conn, err := dial(addr)
+		if err != nil {
+			return "", ErrConnFailed
+		}
+		defer conn.Close()
+
+		resp, err := redis.String(conn.Do("cluster", "nodes"))
+		if err != nil {
+			return "", err
+		}
+		return resp, nil
+	}
+	retry := NUM_RETRY
+	var err error
+	var resp string
+	for retry > 0 {
+		resp, err = inner(addr)
+		if err == nil {
+			return resp, nil
+		}
+		retry--
+	}
+	return "", err
+}
+
+func AddSlotRange(addr string, start, end int) (string, error) {
+	conn, err := dial(addr)
+	if err != nil {
+		return "connect failed", ErrConnFailed
+	}
+	defer conn.Close()
+	var resp string
+	for i := start; i <= end; i++ {
+		resp, err = redis.String(conn.Do("cluster", "addslots", i))
+		if err != nil {
+			return resp, err
+		}
+	}
+	return resp, nil
+}
+
+func FlushAll(addr string) (string, error) {
+	conn, err := dial(addr)
+	if err != nil {
+		return "connect failed", ErrConnFailed
+	}
+	defer conn.Close()
+	resp, err := redis.String(conn.Do("flushall"))
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}

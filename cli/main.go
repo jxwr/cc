@@ -9,15 +9,25 @@ import (
 	"github.com/codegangsta/cli"
 
 	c "github.com/jxwr/cc/cli/command"
+	"github.com/jxwr/cc/cli/command/initialize"
 	"github.com/jxwr/cc/cli/context"
 )
 
 var cmds = []cli.Command{
 	c.MeetCommand,
+	c.ChmodCommand,
+	c.FailoverCommand,
+	c.TakeoverCommand,
+	c.MigrateCommand,
+	c.ReplicateCommand,
+	c.RebalanceCommand,
+	c.MeetCommand,
+	c.ForgetAndResetCommand,
+	c.AppInfoCommand,
 }
 
 /// meet id
-/// meet ip:port
+/// meet ip:port *
 /// migrate <SID> <TID> <range>
 /// rebalance [<TID>]
 /// replicate <ChildID> <ParentId>
@@ -25,10 +35,11 @@ var cmds = []cli.Command{
 /// takeover <ID>
 /// chmod
 /// forgetandreset
-/// makereplicaset
-/// nodes
+/// replicaset
+/// nodes *
 /// appinfo
-/// log
+/// log *
+
 var cmdmap = map[string]cli.Command{}
 
 func init() {
@@ -38,8 +49,17 @@ func init() {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "init" {
+		app := cli.NewApp()
+		app.Name = "cli"
+		app.Usage = "init a cluster"
+		app.Commands = []cli.Command{initialize.Command}
+		arg := append(os.Args)
+		app.Run(arg)
+		os.Exit(0)
+	}
 	if len(os.Args) == 1 {
-		fmt.Println("Usage: cli <AppName> [<Command>]")
+		fmt.Println("Usage: cli <AppName> [<Command>] or cli init")
 		os.Exit(1)
 	}
 

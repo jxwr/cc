@@ -9,25 +9,29 @@ import (
 	"time"
 )
 
-var MeetCommand = cli.Command{
-	Name:   "meet",
-	Usage:  "meet <id>",
-	Action: meetAction,
+var MigrateCommand = cli.Command{
+	Name:   "migrate",
+	Usage:  "migrate <sid> <tid> range",
+	Action: migrateAction,
 }
 
-func meetAction(c *cli.Context) {
+func migrateAction(c *cli.Context) {
 	fmt.Println(c.Args())
-	if len(c.Args()) != 1 {
+	if len(c.Args()) < 3 {
 		fmt.Println("Error Usage")
 		return
 	}
 	addr := context.GetLeaderAddr()
 
-	url := "http://" + addr + api.NodeMeetPath
-	nodeid := c.Args()[0]
+	url := "http://" + addr + api.MigrateCreatePath
+	snodeid := c.Args()[0]
+	tnodeid := c.Args()[1]
+	ranges := c.Args()[2:]
 
-	req := api.MeetNodeParams{
-		NodeId: nodeid,
+	req := api.MigrateParams{
+		SourceId: snodeid,
+		TargetId: tnodeid,
+		Ranges:   ranges,
 	}
 	var resp api.MapResp
 	fail, err := utils.HttpPost(url, req, &resp, 5*time.Second)

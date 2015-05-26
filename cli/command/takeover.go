@@ -9,24 +9,23 @@ import (
 	"time"
 )
 
-var MeetCommand = cli.Command{
-	Name:   "meet",
-	Usage:  "meet <id>",
-	Action: meetAction,
+var TakeoverCommand = cli.Command{
+	Name:   "takeover",
+	Usage:  "takeover <id>",
+	Action: takeoverAction,
 }
 
-func meetAction(c *cli.Context) {
-	fmt.Println(c.Args())
+func takeoverAction(c *cli.Context) {
 	if len(c.Args()) != 1 {
 		fmt.Println("Error Usage")
 		return
 	}
 	addr := context.GetLeaderAddr()
 
-	url := "http://" + addr + api.NodeMeetPath
+	url := "http://" + addr + api.FailoverTakeoverPath
 	nodeid := c.Args()[0]
 
-	req := api.MeetNodeParams{
+	req := api.FailoverTakeoverParams{
 		NodeId: nodeid,
 	}
 	var resp api.MapResp

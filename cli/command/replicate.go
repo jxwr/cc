@@ -9,25 +9,26 @@ import (
 	"time"
 )
 
-var MeetCommand = cli.Command{
-	Name:   "meet",
-	Usage:  "meet <id>",
-	Action: meetAction,
+var ReplicateCommand = cli.Command{
+	Name:   "replicate",
+	Usage:  "replicate <childid> <parentid>",
+	Action: replicateAction,
 }
 
-func meetAction(c *cli.Context) {
-	fmt.Println(c.Args())
-	if len(c.Args()) != 1 {
+func replicateAction(c *cli.Context) {
+	if len(c.Args()) != 2 {
 		fmt.Println("Error Usage")
 		return
 	}
 	addr := context.GetLeaderAddr()
 
-	url := "http://" + addr + api.NodeMeetPath
-	nodeid := c.Args()[0]
+	url := "http://" + addr + api.NodeReplicatePath
+	cnodeid := c.Args()[0]
+	pnodeid := c.Args()[1]
 
-	req := api.MeetNodeParams{
-		NodeId: nodeid,
+	req := api.ReplicateParams{
+		ChildId:  cnodeid,
+		ParentId: pnodeid,
 	}
 	var resp api.MapResp
 	fail, err := utils.HttpPost(url, req, &resp, 5*time.Second)
