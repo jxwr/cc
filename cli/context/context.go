@@ -4,8 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/mitchellh/mapstructure"
+
+	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/meta"
+	"github.com/jxwr/cc/utils"
 )
 
 var appConfig meta.AppConfig
@@ -16,42 +21,29 @@ func SetApp(appName string, zkAddr string) error {
 	if err != nil {
 		return fmt.Errorf("zk: can't connect: %v", err)
 	}
-
-	// fetch app config
-	data, _, err := zconn.Get("/r3/app/" + appName)
-	if err != nil {
-		return err
-	}
-	var ac meta.AppConfig
-	err = json.Unmarshal([]byte(data), &ac)
-	if err != nil {
-		return fmt.Errorf("parse app config error, %v", err)
-	}
-	appConfig = ac
-
-	// show config
-	var aout bytes.Buffer
-	json.Indent(&aout, []byte(data), "", "  ")
-	fmt.Println("AppConfig:\n", aout.String())
-
-	// fetch leader
+	// get 1st controller
 	children, _, err := zconn.Children("/r3/app/" + appName + "/controller")
 	if len(children) == 0 {
 		return fmt.Errorf("no controller found")
 	}
-	data, _, err = zconn.Get("/r3/app/" + appName + "/controller/" + children[0])
+	data, _, err := zconn.Get("/r3/app/" + appName + "/controller/" + children[0])
 	var cc meta.ControllerConfig
 	err = json.Unmarshal([]byte(data), &cc)
 	if err != nil {
 		return err
 	}
-	controllerConfig = cc
-
-	// show config
-	var cout bytes.Buffer
-	json.Indent(&cout, []byte(data), "", "  ")
-	fmt.Println("Leader:\n", cout.String())
-
+	// fetch app info
+	url := fmt.Sprintf("http://%s:%d"+api.AppInfoPath, cc.Ip, cc.HttpPort)
+	resp, err := utils.HttpGet(url, nil, 5*time.Second)
+	if err != nil {
+		return err
+	}
+	// map to structure
+	ac, _ := resp.Body.(map[string]interface{})["AppConfig"]
+	mapstructure.Decode(ac, &appConfig)
+	lc, _ := resp.Body.(map[string]interface{})["Leader"]
+	mapstructure.Decode(lc, &controllerConfig)
+	fmt.Printf("[ leader : %s:%d ]\n", controllerConfig.Ip, controllerConfig.HttpPort)
 	return nil
 }
 

@@ -10,7 +10,7 @@ import (
 	"github.com/jxwr/cc/frontend/api"
 )
 
-func do(method, url string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
+func do(method, url string, in interface{}, timeout time.Duration) (*api.Response, error) {
 	reqJson, _ := json.Marshal(in)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(reqJson))
 	if err != nil {
@@ -29,24 +29,23 @@ func do(method, url string, in, out interface{}, timeout time.Duration) (*api.Re
 		return nil, err
 	}
 
-	if resp.StatusCode != 200 {
-		var fail api.Response
-		err = json.Unmarshal([]byte(body), &fail)
-		return &fail, err
+	if resp.StatusCode == 200 {
+		var resp api.Response
+		err = json.Unmarshal(body, &resp)
+		return &resp, err
 	} else {
-		err = json.Unmarshal([]byte(body), out)
 		return nil, err
 	}
 }
 
-func HttpPost(url string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
-	return do("POST", url, in, out, timeout)
+func HttpPost(url string, in interface{}, timeout time.Duration) (*api.Response, error) {
+	return do("POST", url, in, timeout)
 }
 
-func HttpPut(url string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
-	return do("PUT", url, in, out, timeout)
+func HttpPut(url string, in interface{}, timeout time.Duration) (*api.Response, error) {
+	return do("PUT", url, in, timeout)
 }
 
-func HttpGet(url string, in, out interface{}, timeout time.Duration) (*api.Response, error) {
-	return do("GET", url, in, out, timeout)
+func HttpGet(url string, in interface{}, timeout time.Duration) (*api.Response, error) {
+	return do("GET", url, in, timeout)
 }

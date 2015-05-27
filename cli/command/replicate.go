@@ -30,15 +30,10 @@ func replicateAction(c *cli.Context) {
 		ChildId:  cnodeid,
 		ParentId: pnodeid,
 	}
-	var resp api.MapResp
-	fail, err := utils.HttpPost(url, req, &resp, 5*time.Second)
+	resp, err := utils.HttpPost(url, req, 5*time.Second)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	if fail != nil {
-		fmt.Println(fail)
-		return
-	}
-	fmt.Println("OK")
+	ShowResponse(resp)
 }

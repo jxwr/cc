@@ -23,13 +23,12 @@ func SendRegionTopoSnapshot(nodes []*topo.Node, failureInfo *topo.FailureInfo) e
 		FailureInfo: failureInfo,
 	}
 
-	var resp api.MapResp
-	fail, err := utils.HttpPost(MkUrl(api.RegionSnapshotPath), params, &resp, 30*time.Second)
+	resp, err := utils.HttpPost(MkUrl(api.RegionSnapshotPath), params, 30*time.Second)
 	if err != nil {
 		return err
 	}
-	if fail != nil {
-		return fmt.Errorf("%d %s", fail.Errno, fail.Errmsg)
+	if resp != nil {
+		return fmt.Errorf("%d %s", resp.Errno, resp.Errmsg)
 	}
 	return nil
 }

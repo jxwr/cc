@@ -2,11 +2,13 @@ package command
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/codegangsta/cli"
+
 	"github.com/jxwr/cc/cli/context"
 	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/utils"
-	"time"
 )
 
 var ChmodCommand = cli.Command{
@@ -34,7 +36,7 @@ func chmodAction(c *cli.Context) {
 	//-r -w
 	if r || w {
 		if len(c.Args()) != 1 || r == w {
-			fmt.Println("Error Usage")
+			fmt.Println(ErrInvalidParameter)
 			return
 		}
 		action = "disable"
@@ -48,7 +50,7 @@ func chmodAction(c *cli.Context) {
 	} else {
 		//+r +w
 		if len(c.Args()) != 2 {
-			fmt.Println("Error Usage")
+			fmt.Println(ErrInvalidParameter)
 			return
 		}
 		act = c.Args()[0]
@@ -61,11 +63,11 @@ func chmodAction(c *cli.Context) {
 			} else if string(act[1]) == "w" {
 				perm = "write"
 			} else {
-				fmt.Println("Error Usage")
+				fmt.Println(ErrInvalidParameter)
 				return
 			}
 		} else {
-			fmt.Println("Error Usage")
+			fmt.Println(ErrInvalidParameter)
 			return
 		}
 	}
@@ -75,15 +77,10 @@ func chmodAction(c *cli.Context) {
 		Action: action,
 		Perm:   perm,
 	}
-	var resp api.MapResp
-	fail, err := utils.HttpPost(url, req, &resp, 5*time.Second)
+	resp, err := utils.HttpPost(url, req, 5*time.Second)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	if fail != nil {
-		fmt.Println(fail)
-		return
-	}
-	fmt.Println("OK")
+	ShowResponse(resp)
 }
