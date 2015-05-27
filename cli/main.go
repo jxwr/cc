@@ -14,7 +14,6 @@ import (
 )
 
 var cmds = []cli.Command{
-	c.MeetCommand,
 	c.ChmodCommand,
 	c.FailoverCommand,
 	c.TakeoverCommand,
@@ -25,20 +24,6 @@ var cmds = []cli.Command{
 	c.ForgetAndResetCommand,
 	c.AppInfoCommand,
 }
-
-/// meet id
-/// meet ip:port *
-/// migrate <SID> <TID> <range>
-/// rebalance [<TID>]
-/// replicate <ChildID> <ParentId>
-/// failover <ID>
-/// takeover <ID>
-/// chmod
-/// forgetandreset
-/// replicaset
-/// nodes *
-/// appinfo
-/// log *
 
 var cmdmap = map[string]cli.Command{}
 
