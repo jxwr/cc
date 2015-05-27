@@ -20,7 +20,7 @@ var RebalanceCommand = cli.Command{
 func rebalanceAction(c *cli.Context) {
 	fmt.Println(c.Args())
 	if len(c.Args()) != 1 {
-		fmt.Println("Error Usage")
+		fmt.Println(ErrInvalidParameter)
 		return
 	}
 	addr := context.GetLeaderAddr()

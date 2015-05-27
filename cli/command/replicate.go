@@ -2,11 +2,13 @@ package command
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/codegangsta/cli"
+
 	"github.com/jxwr/cc/cli/context"
 	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/utils"
-	"time"
 )
 
 var ReplicateCommand = cli.Command{
@@ -17,7 +19,7 @@ var ReplicateCommand = cli.Command{
 
 func replicateAction(c *cli.Context) {
 	if len(c.Args()) != 2 {
-		fmt.Println("Error Usage")
+		fmt.Println(ErrInvalidParameter)
 		return
 	}
 	addr := context.GetLeaderAddr()

@@ -2,11 +2,12 @@ package command
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/codegangsta/cli"
 	"github.com/jxwr/cc/cli/context"
 	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/utils"
-	"time"
 )
 
 var TakeoverCommand = cli.Command{
@@ -17,7 +18,7 @@ var TakeoverCommand = cli.Command{
 
 func takeoverAction(c *cli.Context) {
 	if len(c.Args()) != 1 {
-		fmt.Println("Error Usage")
+		fmt.Println(ErrInvalidParameter)
 		return
 	}
 	addr := context.GetLeaderAddr()

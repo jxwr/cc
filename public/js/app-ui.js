@@ -1,7 +1,7 @@
 $.get('/app/info', function(data){
 
-var AppConfig = data.AppConfig;
-var Leader = data.Leader;
+var AppConfig = data.body.AppConfig;
+var Leader = data.body.Leader;
 
 var HTTP_HOST = 'http://'+Leader.Ip+':'+Leader.HttpPort;
 var WS_HOST = 'ws://'+Leader.Ip+':'+Leader.WsPort;
@@ -758,7 +758,7 @@ var Main = React.createClass({
       <div>
         <div className="ui segment">
           <h4>AppInfo</h4>
-          <AppInfo info={data} />
+          <AppInfo info={data.body} />
         </div>
         <div className="ui segment">
           <h4>LogPanel</h4>
