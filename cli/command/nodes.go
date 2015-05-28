@@ -72,7 +72,7 @@ func toReadable(node *topo.Node) *RNode {
 	if node.IsMaster() {
 		n.Link = "up"
 	}
-	n.UsedMemory = fmt.Sprintf("%.2f", node.SummaryInfo.UsedMemory/1024/1024)
+	n.UsedMemory = fmt.Sprintf("%0.2fG", float64(node.SummaryInfo.UsedMemory)/1024.0/1024.0/1024.0)
 	n.NetIn = fmt.Sprintf("%.2fKbps", node.SummaryInfo.InstantaneousInputKbps)
 	n.NetOut = fmt.Sprintf("%.2fKbps", node.SummaryInfo.InstantaneousOutputKbps)
 	n.Repl = fmt.Sprintf("%d", node.ReplOffset)
@@ -89,7 +89,7 @@ func toInterfaceSlice(nodes []*topo.Node) []interface{} {
 
 func showNodes(nodes []*topo.Node) {
 	utils.PrintJsonArray("table",
-		[]string{"Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS", "Link", "Repl", "Keys", "NetIn", "NetOut"},
+		[]string{"Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS", "UsedMemory", "Link", "Repl", "Keys", "NetIn", "NetOut"},
 		toInterfaceSlice(nodes))
 }
 
