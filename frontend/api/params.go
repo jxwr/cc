@@ -1,23 +1,17 @@
 package api
 
 import (
-	"encoding/json"
-
 	"github.com/jxwr/cc/topo"
 )
 
 type Response struct {
-	Errno  int    `json:"errno"`
-	Errmsg string `json:"errmsg"`
-	Body   []byte `json:"body"`
+	Errno  int         `json:"errno"`
+	Errmsg string      `json:"errmsg"`
+	Body   interface{} `json:"body"`
 }
 
 func MakeResponse(errno int, msg string, body interface{}) Response {
-	bytes, err := json.Marshal(body)
-	if err != nil {
-		panic("invalid response body")
-	}
-	return Response{errno, msg, bytes}
+	return Response{errno, msg, body}
 }
 
 func MakeSuccessResponse(body interface{}) Response {

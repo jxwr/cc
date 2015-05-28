@@ -39,7 +39,7 @@ func SetApp(appName string, zkAddr string) error {
 	}
 	// map to structure
 	var res command.AppInfoResult
-	err = json.Unmarshal(resp.Body, &res)
+	utils.InterfaceToStruct(resp.Body, &res)
 	if err != nil {
 		return err
 	}

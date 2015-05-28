@@ -1,7 +1,6 @@
 package command
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
@@ -21,12 +20,77 @@ var NodesCommand = cli.Command{
 	Action: nodesAction,
 }
 
+type RNode struct {
+	Id         string
+	ParentId   string
+	Role       string
+	Addr       string
+	Fail       string
+	Mode       string
+	Tag        string
+	Keys       int64
+	Repl       string
+	Link       string
+	QPS        int
+	NetIn      string
+	NetOut     string
+	UsedMemory string
+}
+
+func toReadable(node *topo.Node) *RNode {
+	if node == nil {
+		return nil
+	}
+	n := &RNode{
+		Id:       node.Id,
+		ParentId: node.ParentId,
+		Tag:      node.Tag,
+		Role:     "S",
+		Fail:     "OK",
+		Mode:     "--",
+		Addr:     fmt.Sprintf("%s:%d", node.Ip, node.Port),
+		Keys:     node.SummaryInfo.Keys,
+		Link:     node.SummaryInfo.MasterLinkStatus,
+		QPS:      node.SummaryInfo.InstantaneousOpsPerSec,
+	}
+
+	if node.Role == "master" {
+		n.Role = "M"
+	}
+	if node.Fail {
+		n.Fail = "Fail"
+	}
+	if node.Readable && node.Writable {
+		n.Mode = "rw"
+	}
+	if node.Readable && !node.Writable {
+		n.Mode = "r-"
+	}
+	if !node.Readable && node.Writable {
+		n.Mode = "-w"
+	}
+	if node.IsMaster() {
+		n.Link = "up"
+	}
+	n.UsedMemory = fmt.Sprintf("%.2f", node.SummaryInfo.UsedMemory/1024/1024)
+	n.NetIn = fmt.Sprintf("%.2fKbps", node.SummaryInfo.InstantaneousInputKbps)
+	n.NetOut = fmt.Sprintf("%.2fKbps", node.SummaryInfo.InstantaneousOutputKbps)
+	n.Repl = fmt.Sprintf("%d", node.ReplOffset)
+	return n
+}
+
 func toInterfaceSlice(nodes []*topo.Node) []interface{} {
 	var interfaceSlice []interface{} = make([]interface{}, len(nodes))
 	for i, node := range nodes {
-		interfaceSlice[i] = node
+		interfaceSlice[i] = toReadable(node)
 	}
 	return interfaceSlice
+}
+
+func showNodes(nodes []*topo.Node) {
+	utils.PrintJsonArray("table",
+		[]string{"Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS", "Link", "Repl", "Keys", "NetIn", "NetOut"},
+		toInterfaceSlice(nodes))
 }
 
 func nodesAction(c *cli.Context) {
@@ -40,12 +104,13 @@ func nodesAction(c *cli.Context) {
 	}
 
 	var rss command.FetchReplicaSetsResult
-	err = json.Unmarshal(resp.Body, &rss)
+	err = utils.InterfaceToStruct(resp.Body, &rss)
 	if err != nil {
-		fmt.Println("Parse resp error:", err)
+		fmt.Println(err)
 		return
 	}
 	sort.Sort(topo.ByMasterId(rss.ReplicaSets))
+
 	var allNodes []*topo.Node
 	for i, rs := range rss.ReplicaSets {
 		allNodes = append(allNodes, rs.Master)
@@ -56,8 +121,5 @@ func nodesAction(c *cli.Context) {
 			allNodes = append(allNodes, nil)
 		}
 	}
-
-	utils.PrintJsonArray("table",
-		[]string{"Id", "Ip", "Port", "Tag", "Role", "Readable", "Writable", "Free"},
-		toInterfaceSlice(allNodes))
+	showNodes(allNodes)
 }

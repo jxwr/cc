@@ -8,7 +8,7 @@ import (
 
 func ShowResponse(resp *api.Response) {
 	if resp.Errno == 0 {
-		if resp.Body == nil {
+		if resp.Body == "" {
 			fmt.Println(resp.Errmsg)
 		} else {
 			fmt.Println(resp.Errmsg, resp.Body)

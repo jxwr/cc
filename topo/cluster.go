@@ -22,8 +22,8 @@ type ClusterInfo struct {
 	ClusterSize                  int
 	ClusterCurrentEpoch          int
 	ClusterMyEpoch               int
-	ClusterStatsMessagesSent     int
-	ClusterStatsMessagesReceived int
+	ClusterStatsMessagesSent     int `json:"ClusterStatsMessagesSent,string"`
+	ClusterStatsMessagesReceived int `json:"ClusterStatsMessagesReceived,string"`
 }
 
 type Cluster struct {
