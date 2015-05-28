@@ -163,6 +163,12 @@ func (self *Cluster) BuildReplicaSets() error {
 	return nil
 }
 
+type ByMasterId []*ReplicaSet
+
+func (a ByMasterId) Len() int           { return len(a) }
+func (a ByMasterId) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByMasterId) Less(i, j int) bool { return a[i].Master.Id < a[j].Master.Id }
+
 func (self *Cluster) ReplicaSets() []*ReplicaSet {
 	return self.replicaSets
 }

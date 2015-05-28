@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
-
+	"github.com/jxwr/cc/controller/command"
 	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/utils"
@@ -39,10 +38,14 @@ func SetApp(appName string, zkAddr string) error {
 		return err
 	}
 	// map to structure
-	ac, _ := resp.Body.(map[string]interface{})["AppConfig"]
-	mapstructure.Decode(ac, &appConfig)
-	lc, _ := resp.Body.(map[string]interface{})["Leader"]
-	mapstructure.Decode(lc, &controllerConfig)
+	var res command.AppInfoResult
+	err = json.Unmarshal(resp.Body, &res)
+	if err != nil {
+		return err
+	}
+	appConfig = *res.AppConfig
+	controllerConfig = *res.Leader
+
 	fmt.Printf("[ leader : %s:%d ]\n", controllerConfig.Ip, controllerConfig.HttpPort)
 	return nil
 }
