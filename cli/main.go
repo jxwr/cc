@@ -34,6 +34,13 @@ func init() {
 	}
 }
 
+func showHelp() {
+	fmt.Println("List of commands:")
+	for _, cmd := range cmds {
+		fmt.Println("  ", cmd.Name, "-", cmd.Usage)
+	}
+}
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
 		app := cli.NewApp()
@@ -76,6 +83,13 @@ func main() {
 
 			linenoise.AddHistory(str)
 
+			switch fields[0] {
+			case "help":
+				showHelp()
+				continue
+			case "quit":
+				os.Exit(0)
+			}
 			cmd, ok := cmdmap[fields[0]]
 			if !ok {
 				fmt.Println("Error: unknown command.")

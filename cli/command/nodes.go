@@ -16,7 +16,7 @@ import (
 
 var NodesCommand = cli.Command{
 	Name:   "nodes",
-	Usage:  "nodes",
+	Usage:  "nodes, show nodes info",
 	Action: nodesAction,
 }
 
