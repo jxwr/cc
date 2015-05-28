@@ -27,10 +27,10 @@ func (self *ReplicateCommand) Execute(c *cc.Controller) (cc.Result, error) {
 		return nil, ErrNodeIsDead
 	}
 	// TODO: more check
-	resp, err := redis.ClusterReplicate(child.Addr(), parent.Id)
+	_, err := redis.ClusterReplicate(child.Addr(), parent.Id)
 	if err != nil {
 		return nil, err
 	}
 	log.Eventf(child.Addr(), "Reparent to %s(%s).", parent.Addr(), parent.Id)
-	return resp, nil
+	return nil, nil
 }

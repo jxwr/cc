@@ -260,12 +260,6 @@ var NodeAction = React.createClass({
       if (n.Id == node.Id) return null;
       return <option key={n.Id} value={n.Id}>{n.Ip}:{n.Port}</option>;
     }).filter(function(n) { return n != null; });
-    var reparent = (
-      <span>
-        <button onClick={this.handleReparent}>Repl</button>
-        <select ref={node.Id+"_reparent"}>{options}</select>
-      </span>
-    );
     return (
       <td className="action">
         <button>action</button>
@@ -278,7 +272,6 @@ var NodeAction = React.createClass({
         <li onClick={this.handleForget}>Forget&Reset</li>
         <li onClick={this.handleSetAsMaster}>SetAsMaster</li>
         <li onClick={this.handleFailoverTakeover}>Takeover</li>
-        {reparent}
         </ul>
       </td>
     );
@@ -390,7 +383,7 @@ var ReplicaSetState = React.createClass({
     // 能否进行Rebalance（Master,NotDead,CoverAllRegions,NoSlot）
     var rebalanceBtn = null;
     if (emptyMaster && coverAllRegions) {
-      rebalanceBtn = <button onClick={this.handleRebalance}>Rebalance To This Node</button>;
+      rebalanceBtn = <button onClick={this.handleRebalance}>Rebalance</button>;
     }
     var master = shard.Master;
     if (master) {
@@ -611,7 +604,7 @@ var ClusterState = React.createClass({
           title="Standby Nodes" 
           desc="(IsMaster,NotFree,NoSlots,NotCoverAllRegions,NoSlaves)" 
           nodes={standbyNodes} />
-        <h2>Noraml Nodes</h2>
+        <h2>Normal Nodes</h2>
         {rss}
         <MigrationTaskPanel />
       </div>
