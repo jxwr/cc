@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -13,24 +12,21 @@ import (
 
 var RebalanceCommand = cli.Command{
 	Name:   "rebalance",
-	Usage:  "rebalance <targetIds>",
+	Usage:  "rebalance",
 	Action: rebalanceAction,
 }
 
 func rebalanceAction(c *cli.Context) {
-	fmt.Println(c.Args())
-	if len(c.Args()) != 1 {
+	if len(c.Args()) != 0 {
 		fmt.Println(ErrInvalidParameter)
 		return
 	}
 	addr := context.GetLeaderAddr()
 
 	url := "http://" + addr + api.RebalancePath
-	nodes := strings.Fields(c.Args()[0])
 
 	req := api.RebalanceParams{
 		Method:       "default",
-		TargetIds:    nodes,
 		ShowPlanOnly: false,
 	}
 	resp, err := utils.HttpPost(url, req, 5*time.Second)
