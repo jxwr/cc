@@ -109,6 +109,10 @@ func printTableSeparator(fields []string, fields_width map[string]int) {
 
 func printTableBody(fields []string, fields_width map[string]int, array []interface{}, show_delimiter bool) {
 	for _, item := range array {
+		if reflect.ValueOf(item).IsNil() {
+			printTableSeparator(fields, fields_width)
+			continue
+		}
 		m, err := ConvInterface2StringMap(fields, item)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())

@@ -47,10 +47,13 @@ func nodesAction(c *cli.Context) {
 	}
 	sort.Sort(topo.ByMasterId(rss.ReplicaSets))
 	var allNodes []*topo.Node
-	for _, rs := range rss.ReplicaSets {
+	for i, rs := range rss.ReplicaSets {
 		allNodes = append(allNodes, rs.Master)
 		for _, node := range rs.Slaves {
 			allNodes = append(allNodes, node)
+		}
+		if i < len(rss.ReplicaSets)-1 {
+			allNodes = append(allNodes, nil)
 		}
 	}
 
