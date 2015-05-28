@@ -14,7 +14,6 @@ import (
 )
 
 var cmds = []cli.Command{
-	c.NodesCommand,
 	c.ChmodCommand,
 	c.FailoverCommand,
 	c.TakeoverCommand,

@@ -5,20 +5,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/codegangsta/cli"
-
 	"github.com/jxwr/cc/cli/context"
 	"github.com/jxwr/cc/controller/command"
 	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/topo"
 	"github.com/jxwr/cc/utils"
 )
-
-var NodesCommand = cli.Command{
-	Name:   "nodes",
-	Usage:  "nodes, show nodes info",
-	Action: nodesAction,
-}
 
 type RNode struct {
 	Id         string
@@ -87,13 +79,7 @@ func toInterfaceSlice(nodes []*topo.Node) []interface{} {
 	return interfaceSlice
 }
 
-func showNodes(nodes []*topo.Node) {
-	utils.PrintJsonArray("table",
-		[]string{"Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS", "UsedMemory", "Link", "Repl", "Keys", "NetIn", "NetOut"},
-		toInterfaceSlice(nodes))
-}
-
-func nodesAction(c *cli.Context) {
+func showNodes() {
 	addr := context.GetLeaderAddr()
 	url := "http://" + addr + api.FetchReplicaSetsPath
 
@@ -121,5 +107,32 @@ func nodesAction(c *cli.Context) {
 			allNodes = append(allNodes, nil)
 		}
 	}
-	showNodes(allNodes)
+
+	utils.PrintJsonArray("table",
+		[]string{"Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS",
+			"UsedMemory", "Link", "Repl", "Keys", "NetIn", "NetOut"},
+		toInterfaceSlice(allNodes))
+}
+
+func showSlots() {
+	addr := context.GetLeaderAddr()
+	url := "http://" + addr + api.FetchReplicaSetsPath
+
+	resp, err := utils.HttpGet(url, nil, 5*time.Second)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	var rss command.FetchReplicaSetsResult
+	err = utils.InterfaceToStruct(resp.Body, &rss)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	sort.Sort(topo.ByMasterId(rss.ReplicaSets))
+
+	for _, rs := range rss.ReplicaSets {
+		fmt.Println("  ", rs.Master.Id, rs.Master.Ranges)
+	}
 }

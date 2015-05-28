@@ -14,7 +14,7 @@ import (
 
 var ShowCommand = cli.Command{
 	Name:   "show",
-	Usage:  "show [tasks]",
+	Usage:  "show [tasks,nodes,slots]",
 	Action: showAction,
 }
 
@@ -49,5 +49,9 @@ func showAction(c *cli.Context) {
 	switch cmd {
 	case "tasks", "task":
 		showMigrationTasks()
+	case "nodes":
+		showNodes()
+	case "slots":
+		showSlots()
 	}
 }
