@@ -8,13 +8,6 @@ import (
 	"github.com/jxwr/cc/topo"
 )
 
-type MigratePlan struct {
-	SourceId string
-	TargetId string
-	Ranges   []topo.Range
-	task     *MigrateTask
-}
-
 type RebalanceTask struct {
 	Plans     []*MigratePlan
 	StartTime *time.Time

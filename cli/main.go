@@ -24,6 +24,7 @@ var cmds = []cli.Command{
 	c.MeetCommand,
 	c.ForgetAndResetCommand,
 	c.AppInfoCommand,
+	c.ShowCommand,
 }
 
 var cmdmap = map[string]cli.Command{}

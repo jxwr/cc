@@ -33,6 +33,15 @@ var stateNames = map[int32]string{
 	StateTargetNodeFailure: "TargetNodeFailure",
 }
 
+type MigratePlan struct {
+	SourceId string
+	TargetId string
+	Ranges   []topo.Range
+	CurrSlot int
+	State    string
+	task     *MigrateTask
+}
+
 type MigrateTask struct {
 	cluster          *topo.Cluster
 	ranges           []topo.Range
@@ -60,6 +69,16 @@ func NewMigrateTask(cluster *topo.Cluster, sourceRS, targetRS *topo.ReplicaSet, 
 
 func (t *MigrateTask) TaskName() string {
 	return fmt.Sprintf("Mig(%s_To_%s)", t.SourceNode().Id[:6], t.TargetNode().Id[:6])
+}
+
+func (t *MigrateTask) ToPlan() *MigratePlan {
+	return &MigratePlan{
+		SourceId: t.SourceNode().Id,
+		TargetId: t.TargetNode().Id,
+		Ranges:   t.ranges,
+		CurrSlot: t.currSlot,
+		State:    stateNames[t.state],
+	}
 }
 
 /// 迁移slot过程:
