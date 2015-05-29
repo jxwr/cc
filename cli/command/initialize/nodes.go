@@ -283,14 +283,16 @@ func assignSlots(nodes []*Node) error {
 		return ERR_NODES_NUMBER
 	}
 	step := REDIS_CLUSTER_SLOTS / len(nodes)
+	left := REDIS_CLUSTER_SLOTS % len(nodes)
 	start := 0
 	end := 0
 
 	for _, node := range nodes {
-		if start+2*step > REDIS_CLUSTER_SLOTS-1 {
-			end = REDIS_CLUSTER_SLOTS - 1
-		}
 		end = start + step - 1
+		if left > 0 {
+			left = left - 1
+			end = end + 1
+		}
 		node.SlotsRange = fmt.Sprintf("%d-%d", start, end)
 		start = end + 1
 	}
