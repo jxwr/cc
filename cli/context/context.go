@@ -96,7 +96,7 @@ func CacheNodes() error {
 }
 
 func GetId(shortid string) string {
-	var longid string
+	longid := shortid
 	var ok bool
 	if len(shortid) == 7 {
 		longid, ok = nodesCacheMap[shortid]
