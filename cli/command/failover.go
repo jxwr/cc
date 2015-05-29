@@ -26,7 +26,7 @@ func failoverAction(c *cli.Context) {
 	addr := context.GetLeaderAddr()
 
 	url := "http://" + addr + api.NodeSetAsMasterPath
-	nodeid := c.Args()[0]
+	nodeid := context.GetId(c.Args()[0])
 
 	req := api.FailoverTakeoverParams{
 		NodeId: nodeid,

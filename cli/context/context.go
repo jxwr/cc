@@ -14,6 +14,7 @@ import (
 
 var appConfig meta.AppConfig
 var controllerConfig meta.ControllerConfig
+var nodesCacheMap map[string]string
 
 func SetApp(appName string, zkAddr string) error {
 	zconn, _, err := meta.DialZk(zkAddr)
@@ -39,7 +40,7 @@ func SetApp(appName string, zkAddr string) error {
 	}
 	// map to structure
 	var res command.AppInfoResult
-	utils.InterfaceToStruct(resp.Body, &res)
+	err = utils.InterfaceToStruct(resp.Body, &res)
 	if err != nil {
 		return err
 	}
@@ -47,6 +48,7 @@ func SetApp(appName string, zkAddr string) error {
 	controllerConfig = *res.Leader
 
 	fmt.Printf("[ leader : %s:%d ]\n", controllerConfig.Ip, controllerConfig.HttpPort)
+	CacheNodes()
 	return nil
 }
 
@@ -61,4 +63,46 @@ func GetAppInfo() string {
 	json.Indent(&out, []byte(data), "", "  ")
 
 	return out.String()
+}
+
+func CacheNodes() error {
+	addr := GetLeaderAddr()
+	url := "http://" + addr + api.FetchReplicaSetsPath
+
+	resp, err := utils.HttpGet(url, nil, 5*time.Second)
+	if err != nil {
+		return err
+	}
+	nodesCacheMap = make(map[string]string)
+
+	var rss command.FetchReplicaSetsResult
+	err = utils.InterfaceToStruct(resp.Body, &rss)
+	if err != nil {
+		return err
+	}
+	for _, rs := range rss.ReplicaSets {
+		nodes := rs.AllNodes()
+		for _, n := range nodes {
+			_, ok := nodesCacheMap[n.Id[:7]]
+			if ok {
+				//do not cache the same prefix nodes
+				delete(nodesCacheMap, n.Id[:7])
+			} else {
+				nodesCacheMap[n.Id[:7]] = n.Id
+			}
+		}
+	}
+	return nil
+}
+
+func GetId(shortid string) string {
+	var longid string
+	var ok bool
+	if len(shortid) == 7 {
+		longid, ok = nodesCacheMap[shortid]
+		if !ok {
+			longid = shortid
+		}
+	}
+	return longid
 }

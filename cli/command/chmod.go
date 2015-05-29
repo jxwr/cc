@@ -40,7 +40,7 @@ func chmodAction(c *cli.Context) {
 			return
 		}
 		action = "disable"
-		nodeid = c.Args()[0]
+		nodeid = context.GetId(c.Args()[0])
 
 		if r {
 			perm = "read"
@@ -56,7 +56,7 @@ func chmodAction(c *cli.Context) {
 		act = c.Args()[0]
 		if string(act[0]) == "+" {
 			action = "enable"
-			nodeid = c.Args()[1]
+			nodeid = context.GetId(c.Args()[1])
 
 			if string(act[1]) == "r" {
 				perm = "read"

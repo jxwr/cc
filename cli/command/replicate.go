@@ -25,8 +25,8 @@ func replicateAction(c *cli.Context) {
 	addr := context.GetLeaderAddr()
 
 	url := "http://" + addr + api.NodeReplicatePath
-	cnodeid := c.Args()[0]
-	pnodeid := c.Args()[1]
+	cnodeid := context.GetId(c.Args()[0])
+	pnodeid := context.GetId(c.Args()[1])
 
 	req := api.ReplicateParams{
 		ChildId:  cnodeid,

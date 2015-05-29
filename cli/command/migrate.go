@@ -26,8 +26,8 @@ func migrateAction(c *cli.Context) {
 	addr := context.GetLeaderAddr()
 
 	url := "http://" + addr + api.MigrateCreatePath
-	snodeid := c.Args()[0]
-	tnodeid := c.Args()[1]
+	snodeid := context.GetId(c.Args()[0])
+	tnodeid := context.GetId(c.Args()[1])
 	ranges := c.Args()[2:]
 
 	req := api.MigrateParams{
