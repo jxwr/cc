@@ -14,6 +14,10 @@ type Range struct {
 	Right int
 }
 
+func (r Range) String() string {
+	return fmt.Sprintf("%d-%d", r.Left, r.Right)
+}
+
 func (r Range) NumSlots() int {
 	return (r.Right - r.Left + 1)
 }

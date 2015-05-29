@@ -17,7 +17,6 @@ import (
 )
 
 var cmds = []cli.Command{
-	c.NodesCommand,
 	c.ChmodCommand,
 	c.FailoverCommand,
 	c.TakeoverCommand,
@@ -27,6 +26,7 @@ var cmds = []cli.Command{
 	c.MeetCommand,
 	c.ForgetAndResetCommand,
 	c.AppInfoCommand,
+	c.ShowCommand,
 }
 
 const (

@@ -33,6 +33,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.GET(api.FetchReplicaSetsPath, fe.HandleFetchReplicaSets)
 	fe.Router.POST(api.RegionSnapshotPath, fe.HandleRegionSnapshot)
 	fe.Router.POST(api.MigrateCreatePath, fe.HandleMigrateCreate)
+	fe.Router.GET(api.FetchMigrationTasksPath, fe.HandleFetchMigrationTasks)
 	fe.Router.POST(api.RebalancePath, fe.HandleRebalance)
 	fe.Router.POST(api.NodePermPath, fe.HandleToggleMode)
 	fe.Router.POST(api.NodeMeetPath, fe.HandleMeetNode)
@@ -179,6 +180,18 @@ func (fe *FrontEnd) HandleAppInfo(c *gin.Context) {
 
 func (fe *FrontEnd) HandleFetchReplicaSets(c *gin.Context) {
 	cmd := command.FetchReplicaSetsCommand{}
+
+	result, err := cmd.Execute(fe.C)
+	if err != nil {
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
+		return
+	}
+
+	c.JSON(200, api.MakeSuccessResponse(result))
+}
+
+func (fe *FrontEnd) HandleFetchMigrationTasks(c *gin.Context) {
+	cmd := command.FetchMigrationTasksCommand{}
 
 	result, err := cmd.Execute(fe.C)
 	if err != nil {
