@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jxwr/cc/utils/net"
-	"launchpad.net/gozk"
+	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
 
 type Meta struct {
@@ -154,7 +154,7 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 	go meta.handleAppConfigChanged(w)
 
 	// Controller目录，如果不存在就创建
-	CreateRecursive(zconn, meta.ccDirPath, "", 0, zookeeper.WorldACL(zookeeper.PERM_ALL))
+	CreateRecursive(zconn, meta.ccDirPath, "", 0, zookeeper.WorldACL(zookeeper.PermAll))
 
 	err = meta.RegisterLocalController()
 	if err != nil {
@@ -175,7 +175,7 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 	for {
 		select {
 		case event := <-meta.zsession:
-			if event.State == zookeeper.STATE_EXPIRED_SESSION {
+			if event.State == zookeeper.StateExpired {
 				// 重试连接直到成功
 				for {
 					zconn, session, err := DialZk(zkAddr)

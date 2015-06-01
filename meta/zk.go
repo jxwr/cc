@@ -7,12 +7,12 @@ import (
 	"path"
 	"strings"
 
-	"launchpad.net/gozk"
+	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
 
 const (
-	PERM_DIRECTORY = zookeeper.PERM_ADMIN | zookeeper.PERM_CREATE | zookeeper.PERM_DELETE | zookeeper.PERM_READ | zookeeper.PERM_WRITE
-	PERM_FILE      = zookeeper.PERM_ADMIN | zookeeper.PERM_READ | zookeeper.PERM_WRITE
+	PERM_DIRECTORY = zookeeper.PermAdmin | zookeeper.PermCreate | zookeeper.PermDelete | zookeeper.PermRead | zookeeper.PermWrite
+	PERM_FILE      = zookeeper.PermAdmin | zookeeper.PermRead | zookeeper.PermWrite
 )
 
 func resolveIPv4Addr(addr string) (string, error) {
@@ -30,7 +30,7 @@ func resolveIPv4Addr(addr string) (string, error) {
 	return "", fmt.Errorf("no IPv4addr for name %v", host)
 }
 
-func resolveZkAddr(zkAddr string) (string, error) {
+func resolveZkAddr(zkAddr string) ([]string, error) {
 	parts := strings.Split(zkAddr, ",")
 	resolved := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -42,9 +42,9 @@ func resolveZkAddr(zkAddr string) (string, error) {
 		}
 	}
 	if len(resolved) == 0 {
-		return "", fmt.Errorf("no valid address found in %v", zkAddr)
+		return nil, fmt.Errorf("no valid address found in %v", zkAddr)
 	}
-	return strings.Join(resolved, ","), nil
+	return resolved, nil
 }
 
 func DialZk(zkAddr string) (*zookeeper.Conn, <-chan zookeeper.Event, error) {
@@ -53,11 +53,11 @@ func DialZk(zkAddr string) (*zookeeper.Conn, <-chan zookeeper.Event, error) {
 		return nil, nil, err
 	}
 
-	zconn, session, err := zookeeper.Dial(resolvedZkAddr, 5e9)
+	zconn, session, err := zookeeper.Connect(resolvedZkAddr, 5e9)
 	if err == nil {
 		// Wait for connection, possibly forever
 		event := <-session
-		if event.State != zookeeper.STATE_CONNECTED {
+		if event.State != zookeeper.StateConnected && event.State != zookeeper.StateConnecting {
 			err = fmt.Errorf("zk connect failed: %v", event.State)
 		}
 		if err == nil {
@@ -69,19 +69,19 @@ func DialZk(zkAddr string) (*zookeeper.Conn, <-chan zookeeper.Event, error) {
 	return nil, nil, err
 }
 
-func CreateRecursive(zconn *zookeeper.Conn, zkPath, value string, flags int, aclv []zookeeper.ACL) (pathCreated string, err error) {
-	pathCreated, err = zconn.Create(zkPath, value, flags, aclv)
-	if zookeeper.IsError(err, zookeeper.ZNONODE) {
+func CreateRecursive(zconn *zookeeper.Conn, zkPath, value string, flags int32, aclv []zookeeper.ACL) (pathCreated string, err error) {
+	pathCreated, err = zconn.Create(zkPath, []byte(value), flags, aclv)
+	if err == zookeeper.ErrNoNode {
 		dirAclv := make([]zookeeper.ACL, len(aclv))
 		for i, acl := range aclv {
 			dirAclv[i] = acl
 			dirAclv[i].Perms = PERM_DIRECTORY
 		}
 		_, err = CreateRecursive(zconn, path.Dir(zkPath), "", flags, dirAclv)
-		if err != nil && !zookeeper.IsError(err, zookeeper.ZNODEEXISTS) {
+		if err != nil && err != zookeeper.ErrNodeExists {
 			return "", err
 		}
-		pathCreated, err = zconn.Create(zkPath, value, flags, aclv)
+		pathCreated, err = zconn.Create(zkPath, []byte(value), flags, aclv)
 	}
 	return
 }

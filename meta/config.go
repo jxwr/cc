@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/jxwr/cc/topo"
-	"launchpad.net/gozk"
+	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
 
 const (
@@ -50,7 +50,7 @@ type FailoverRecord struct {
 func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 	for {
 		event := <-watch
-		if event.Type == zookeeper.EVENT_CHANGED {
+		if event.Type == zookeeper.EventNodeDataChanged {
 			a, w, err := m.FetchAppConfig()
 			if err == nil {
 				if a.MigrateKeysEachTime == 0 {
@@ -123,7 +123,7 @@ func (m *Meta) RegisterLocalController() error {
 	if err != nil {
 		return err
 	}
-	path, err := zconn.Create(zkPath, string(data), zookeeper.SEQUENCE|zookeeper.EPHEMERAL, zookeeper.WorldACL(PERM_FILE))
+	path, err := zconn.Create(zkPath, data, zookeeper.FlagEphemeral|zookeeper.FlagSequence, zookeeper.WorldACL(PERM_FILE))
 	if err == nil {
 		xs := strings.Split(path, "/")
 		m.selfZNodeName = xs[len(xs)-1]
@@ -145,7 +145,7 @@ func (m *Meta) FetchControllerConfig(zkNode string) (*ControllerConfig, <-chan z
 }
 
 func (m *Meta) IsDoingFailover() (bool, error) {
-	stat, err := m.zconn.Exists("/r3/failover/doing")
+	_, stat, err := m.zconn.Exists("/r3/failover/doing")
 	if err == nil {
 		if stat != nil {
 			return true, nil
@@ -162,8 +162,8 @@ func (m *Meta) MarkFailoverDoing(record *FailoverRecord) error {
 	if err != nil {
 		return err
 	}
-	path, err := m.zconn.Create("/r3/failover/doing", string(data),
-		zookeeper.EPHEMERAL, zookeeper.WorldACL(PERM_FILE))
+	path, err := m.zconn.Create("/r3/failover/doing", data,
+		zookeeper.FlagEphemeral, zookeeper.WorldACL(PERM_FILE))
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (m *Meta) LastFailoverRecord() (*FailoverRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	if stat.NumChildren() == 0 {
+	if stat.NumChildren == 0 {
 		return nil, nil
 	}
 
@@ -209,7 +209,7 @@ func (m *Meta) AddFailoverRecord(record *FailoverRecord) error {
 	if err != nil {
 		return err
 	}
-	path, err := m.zconn.Create(zkPath, string(data), zookeeper.SEQUENCE, zookeeper.WorldACL(PERM_FILE))
+	path, err := m.zconn.Create(zkPath, data, zookeeper.FlagSequence, zookeeper.WorldACL(PERM_FILE))
 	log.Printf("meta: failover record created at %s", path)
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"launchpad.net/gozk"
+	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
 
 func (m *Meta) CheckLeaders(watch bool) (string, string, <-chan zookeeper.Event, error) {
@@ -27,7 +27,7 @@ func (m *Meta) CheckLeaders(watch bool) (string, string, <-chan zookeeper.Event,
 		return "", "", watcher, err
 	}
 
-	glog.Infof("Total controllers %d", stat.NumChildren())
+	glog.Infof("Total controllers %d", stat.NumChildren)
 
 	needRejoin := true
 	clusterMinSeq := -1
@@ -78,7 +78,7 @@ func (m *Meta) CheckLeaders(watch bool) (string, string, <-chan zookeeper.Event,
 func (m *Meta) handleClusterLeaderConfigChanged(znode string, watch <-chan zookeeper.Event) {
 	for {
 		event := <-watch
-		if event.Type == zookeeper.EVENT_CHANGED {
+		if event.Type == zookeeper.EventNodeDataChanged {
 			if m.clusterLeaderZNodeName != znode {
 				glog.Info("meta: region leader has changed")
 				break
@@ -101,7 +101,7 @@ func (m *Meta) handleClusterLeaderConfigChanged(znode string, watch <-chan zooke
 func (m *Meta) handleRegionLeaderConfigChanged(znode string, watch <-chan zookeeper.Event) {
 	for {
 		event := <-watch
-		if event.Type == zookeeper.EVENT_CHANGED {
+		if event.Type == zookeeper.EventNodeDataChanged {
 			if m.regionLeaderZNodeName != znode {
 				glog.Info("meta: region leader has changed")
 				break
