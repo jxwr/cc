@@ -15,11 +15,35 @@ type Range struct {
 }
 
 func (r Range) String() string {
+	if r.Left == r.Right {
+		return fmt.Sprint(r.Left)
+	}
 	return fmt.Sprintf("%d-%d", r.Left, r.Right)
 }
 
 func (r Range) NumSlots() int {
 	return (r.Right - r.Left + 1)
+}
+
+type Ranges []Range
+
+func (rs Ranges) String() string {
+	slots := ""
+	for _, r := range rs {
+		slots += r.String() + ","
+	}
+	if len(slots) > 0 {
+		return slots[:len(slots)-1]
+	}
+	return slots
+}
+
+func (rs Ranges) NumSlots() int {
+	sum := 0
+	for _, r := range rs {
+		sum += r.NumSlots()
+	}
+	return sum
 }
 
 type SummaryInfo struct {

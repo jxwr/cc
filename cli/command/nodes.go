@@ -12,6 +12,8 @@ import (
 	"github.com/jxwr/cc/utils"
 )
 
+/// Show Nodes
+
 type RNode struct {
 	Id         string
 	ParentId   string
@@ -71,7 +73,7 @@ func toReadable(node *topo.Node) *RNode {
 	return n
 }
 
-func toInterfaceSlice(nodes []*topo.Node) []interface{} {
+func nodesToInterfaceSlice(nodes []*topo.Node) []interface{} {
 	var interfaceSlice []interface{} = make([]interface{}, len(nodes))
 	for i, node := range nodes {
 		interfaceSlice[i] = toReadable(node)
@@ -111,7 +113,23 @@ func showNodes() {
 	utils.PrintJsonArray("table",
 		[]string{"Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS",
 			"UsedMemory", "Link", "Repl", "Keys", "NetIn", "NetOut"},
-		toInterfaceSlice(allNodes))
+		nodesToInterfaceSlice(allNodes))
+}
+
+/// Show Slots
+
+type SlotsRow struct {
+	Id     string
+	Total  int
+	Ranges string
+}
+
+func rowsToInterfaceSlice(rows []*SlotsRow) []interface{} {
+	var interfaceSlice []interface{} = make([]interface{}, len(rows))
+	for i, row := range rows {
+		interfaceSlice[i] = row
+	}
+	return interfaceSlice
 }
 
 func showSlots() {
@@ -132,7 +150,9 @@ func showSlots() {
 	}
 	sort.Sort(topo.ByMasterId(rss.ReplicaSets))
 
+	var rows []*SlotsRow
 	for _, rs := range rss.ReplicaSets {
-		fmt.Println("  ", rs.Master.Id, rs.Master.Ranges)
+		rows = append(rows, &SlotsRow{rs.Master.Id, rs.Master.NumSlots(), topo.Ranges(rs.Master.Ranges).String()})
 	}
+	utils.PrintJsonArray("table", []string{"Id", "Total", "Ranges"}, rowsToInterfaceSlice(rows))
 }
