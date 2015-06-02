@@ -28,11 +28,12 @@ func do(method, url string, in interface{}, timeout time.Duration) (*api.Respons
 	if err != nil {
 		return nil, err
 	}
-
 	if resp.StatusCode == 200 {
-		var resp api.Response
-		err = json.Unmarshal(body, &resp)
-		return &resp, err
+		var rsp api.Response
+		d := json.NewDecoder(bytes.NewReader(body))
+		d.UseNumber()
+		err = d.Decode(&rsp)
+		return &rsp, err
 	} else {
 		return nil, err
 	}

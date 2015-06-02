@@ -1,7 +1,6 @@
 package command
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -23,27 +22,35 @@ func showMigrationTasks() {
 	url := "http://" + addr + api.FetchMigrationTasksPath
 	resp, err := utils.HttpGet(url, nil, 5*time.Second)
 	if err != nil {
-		fmt.Println(err)
+		Put(err)
 		return
 	}
 	var res command.FetchMigrationTasksResult
 	err = utils.InterfaceToStruct(resp.Body, &res)
 
 	if len(res.Plans) == 0 {
-		fmt.Println("No migration tasks.")
+		Put("No migration tasks.")
 		return
 	}
 
 	for _, plan := range res.Plans {
-		fmt.Printf("[%s:%d] %s->%s %v\n",
+		Putf("[%s:%d] %s->%s %v\n",
 			plan.State, plan.CurrSlot, plan.SourceId, plan.TargetId, plan.Ranges)
 	}
+}
+
+func printShowUsage() {
+	Put("List of show subcommands:\n")
+	Put("show nodes -- Show the nodes info group by replicaset")
+	Put("show slots -- Show the ranges of master nodes")
+	Put("show tasks -- Show migrating tasks")
+	Put()
 }
 
 func showAction(c *cli.Context) {
 	args := c.Args()
 	if len(args) == 0 {
-		fmt.Println(ErrInvalidParameter)
+		printShowUsage()
 		return
 	}
 	cmd := args[0]
@@ -54,5 +61,7 @@ func showAction(c *cli.Context) {
 		showNodes()
 	case "slots":
 		showSlots()
+	default:
+		printShowUsage()
 	}
 }

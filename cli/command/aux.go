@@ -8,6 +8,9 @@ import (
 	"github.com/jxwr/cc/frontend/api"
 )
 
+var Put = fmt.Println
+var Putf = fmt.Printf
+
 func ShowResponse(resp *api.Response) {
 	if resp.Errno == 0 {
 		if resp.Body == nil {

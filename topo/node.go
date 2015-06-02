@@ -23,12 +23,12 @@ func (r Range) NumSlots() int {
 }
 
 type SummaryInfo struct {
-	UsedMemory              int64 `json:"UsedMemory,string"`
-	Keys                    int64 `json:"Keys,string"`
-	Expires                 int64 `json:"Expires,string"`
+	UsedMemory              int64
+	Keys                    int64
+	Expires                 int64
 	MasterLinkStatus        string
-	MasterSyncLeftBytes     int64 `json:"MasterSyncLeftBytes,string"`
-	ReplOffset              int64 `json:"ReplOffset,string"`
+	MasterSyncLeftBytes     int64
+	ReplOffset              int64
 	Loading                 bool
 	RdbBgsaveInProgress     bool
 	InstantaneousOpsPerSec  int

@@ -1,15 +1,18 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 )
 
 func InterfaceToStruct(m interface{}, s interface{}) error {
-	bytes, err := json.Marshal(m)
+	raw, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(bytes, s)
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.UseNumber()
+	err = d.Decode(s)
 	if err != nil {
 		return err
 	}
