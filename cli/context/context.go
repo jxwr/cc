@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/jxwr/cc/controller/command"
@@ -47,7 +48,7 @@ func SetApp(appName string, zkAddr string) error {
 	appConfig = *res.AppConfig
 	controllerConfig = *res.Leader
 
-	fmt.Printf("[ leader : %s:%d ]\n", controllerConfig.Ip, controllerConfig.HttpPort)
+	fmt.Fprintf(os.Stderr, "[ leader : %s:%d ]\n", controllerConfig.Ip, controllerConfig.HttpPort)
 	CacheNodes()
 	return nil
 }
