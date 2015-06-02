@@ -30,8 +30,8 @@ var cmds = []cli.Command{
 }
 
 const (
-	DEFAULT_HISTORY_FILE = "/.cli_history"
-	DEFAULT_CONFIG_FILE  = "/.cli_config"
+	DEFAULT_HISTORY_FILE = "/.cc_cli_history"
+	DEFAULT_CONFIG_FILE  = "/.cc_cli_config"
 )
 
 var cmdmap = map[string]cli.Command{}
