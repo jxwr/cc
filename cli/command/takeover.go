@@ -24,7 +24,11 @@ func takeoverAction(c *cli.Context) {
 	addr := context.GetLeaderAddr()
 
 	url := "http://" + addr + api.FailoverTakeoverPath
-	nodeid := context.GetId(c.Args()[0])
+	nodeid, err := context.GetId(c.Args()[0])
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	req := api.FailoverTakeoverParams{
 		NodeId: nodeid,
