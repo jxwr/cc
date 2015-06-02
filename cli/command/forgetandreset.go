@@ -26,7 +26,11 @@ func forgetandresetAction(c *cli.Context) {
 	addr := context.GetLeaderAddr()
 
 	url := "http://" + addr + api.NodeForgetAndResetPath
-	nodeid := context.GetId(c.Args()[0])
+	nodeid, err := context.GetId(c.Args()[0])
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	req := api.ForgetAndResetNodeParams{
 		NodeId: nodeid,

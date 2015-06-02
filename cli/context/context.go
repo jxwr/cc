@@ -3,7 +3,9 @@ package context
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jxwr/cc/controller/command"
@@ -12,9 +14,13 @@ import (
 	"github.com/jxwr/cc/utils"
 )
 
-var appConfig meta.AppConfig
-var controllerConfig meta.ControllerConfig
-var nodesCacheMap map[string]string
+var (
+	appConfig               meta.AppConfig
+	controllerConfig        meta.ControllerConfig
+	nodesCache              []string
+	ErrNoNodesFound         = errors.New("Command failed: no nodes found")
+	ErrMoreThanOneNodeFound = errors.New("Command failed: more than one node found")
+)
 
 func SetApp(appName string, zkAddr string) error {
 	zconn, _, err := meta.DialZk(zkAddr)
@@ -48,8 +54,8 @@ func SetApp(appName string, zkAddr string) error {
 	controllerConfig = *res.Leader
 
 	fmt.Printf("[ leader : %s:%d ]\n", controllerConfig.Ip, controllerConfig.HttpPort)
-	CacheNodes()
-	return nil
+	err = CacheNodes()
+	return err
 }
 
 func GetLeaderAddr() string {
@@ -73,7 +79,6 @@ func CacheNodes() error {
 	if err != nil {
 		return err
 	}
-	nodesCacheMap = make(map[string]string)
 
 	var rss command.FetchReplicaSetsResult
 	err = utils.InterfaceToStruct(resp.Body, &rss)
@@ -82,27 +87,27 @@ func CacheNodes() error {
 	}
 	for _, rs := range rss.ReplicaSets {
 		nodes := rs.AllNodes()
-		for _, n := range nodes {
-			_, ok := nodesCacheMap[n.Id[:7]]
-			if ok {
-				//do not cache the same prefix nodes
-				delete(nodesCacheMap, n.Id[:7])
-			} else {
-				nodesCacheMap[n.Id[:7]] = n.Id
-			}
+		for _, node := range nodes {
+			nodesCache = append(nodesCache, node.Id)
 		}
 	}
 	return nil
 }
 
-func GetId(shortid string) string {
-	longid := shortid
-	var ok bool
-	if len(shortid) == 7 {
-		longid, ok = nodesCacheMap[shortid]
-		if !ok {
-			longid = shortid
+func GetId(shortid string) (string, error) {
+	var longid string
+	cnt := 0
+	for _, node := range nodesCache {
+		if strings.HasPrefix(node, shortid) {
+			longid = node
+			cnt = cnt + 1
 		}
 	}
-	return longid
+	if cnt == 0 {
+		return "", ErrNoNodesFound
+	} else if cnt > 1 {
+		return "", ErrMoreThanOneNodeFound
+	} else {
+		return longid, nil
+	}
 }

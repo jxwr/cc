@@ -32,6 +32,7 @@ func chmodAction(c *cli.Context) {
 	var nodeid string
 	var action string
 	var perm string
+	var err error
 
 	//-r -w
 	if r || w {
@@ -40,7 +41,11 @@ func chmodAction(c *cli.Context) {
 			return
 		}
 		action = "disable"
-		nodeid = context.GetId(c.Args()[0])
+		nodeid, err = context.GetId(c.Args()[0])
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
 		if r {
 			perm = "read"
@@ -56,7 +61,11 @@ func chmodAction(c *cli.Context) {
 		act = c.Args()[0]
 		if string(act[0]) == "+" {
 			action = "enable"
-			nodeid = context.GetId(c.Args()[1])
+			nodeid, err = context.GetId(c.Args()[1])
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 
 			if string(act[1]) == "r" {
 				perm = "read"

@@ -44,6 +44,7 @@ func showAction(c *cli.Context) {
 	args := c.Args()
 	if len(args) == 0 {
 		fmt.Println(ErrInvalidParameter)
+		return
 	}
 	cmd := args[0]
 	switch cmd {
