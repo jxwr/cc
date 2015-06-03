@@ -1,7 +1,6 @@
 package command
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -18,9 +17,8 @@ var MeetCommand = cli.Command{
 }
 
 func meetAction(c *cli.Context) {
-	fmt.Println(c.Args())
 	if len(c.Args()) != 1 {
-		fmt.Println(ErrInvalidParameter)
+		Put(ErrInvalidParameter)
 		return
 	}
 	addr := context.GetLeaderAddr()
@@ -28,7 +26,7 @@ func meetAction(c *cli.Context) {
 	url := "http://" + addr + api.NodeMeetPath
 	nodeid, err := context.GetId(c.Args()[0])
 	if err != nil {
-		fmt.Println(err)
+		Put(err)
 		return
 	}
 
@@ -37,7 +35,7 @@ func meetAction(c *cli.Context) {
 	}
 	resp, err := utils.HttpPost(url, req, 5*time.Second)
 	if err != nil {
-		fmt.Println(err)
+		Put(err)
 		return
 	}
 	ShowResponse(resp)

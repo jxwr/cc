@@ -63,6 +63,10 @@ func GetLeaderAddr() string {
 	return fmt.Sprintf("%s:%d", controllerConfig.Ip, controllerConfig.HttpPort)
 }
 
+func GetLeaderWebSocketAddr() string {
+	return fmt.Sprintf("%s:%d", controllerConfig.Ip, controllerConfig.WsPort)
+}
+
 func GetAppInfo() string {
 	var data []byte
 	data, _ = json.Marshal(appConfig)

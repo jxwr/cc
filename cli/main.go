@@ -27,6 +27,7 @@ var cmds = []cli.Command{
 	c.ForgetAndResetCommand,
 	c.AppInfoCommand,
 	c.ShowCommand,
+	c.LogCommand,
 }
 
 const (
