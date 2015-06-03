@@ -73,3 +73,8 @@ type ReplicateParams struct {
 type FailoverTakeoverParams struct {
 	NodeId string `json:"node_id"`
 }
+
+type MergeSeedsParams struct {
+	Region string       `json:"region"`
+	Seeds  []*topo.Node `json:"seeds"`
+}

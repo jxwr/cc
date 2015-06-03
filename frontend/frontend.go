@@ -42,6 +42,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.POST(api.NodeReplicatePath, fe.HandleReplicate)
 	fe.Router.POST(api.MakeReplicaSetPath, fe.HandleMakeReplicaSet)
 	fe.Router.POST(api.FailoverTakeoverPath, fe.HandleFailoverTakeover)
+	fe.Router.POST(api.MergeSeedsPath, fe.HandleMergeSeeds)
 
 	return fe
 }
@@ -181,7 +182,7 @@ func (fe *FrontEnd) HandleAppInfo(c *gin.Context) {
 func (fe *FrontEnd) HandleFetchReplicaSets(c *gin.Context) {
 	cmd := command.FetchReplicaSetsCommand{}
 
-	result, err := cmd.Execute(fe.C)
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -193,7 +194,7 @@ func (fe *FrontEnd) HandleFetchReplicaSets(c *gin.Context) {
 func (fe *FrontEnd) HandleFetchMigrationTasks(c *gin.Context) {
 	cmd := command.FetchMigrationTasksCommand{}
 
-	result, err := cmd.Execute(fe.C)
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -267,6 +268,21 @@ func (fe *FrontEnd) HandleFailoverTakeover(c *gin.Context) {
 	c.Bind(&params)
 
 	cmd := command.FailoverTakeoverCommand{params.NodeId}
+
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	if err != nil {
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
+		return
+	}
+
+	c.JSON(200, api.MakeSuccessResponse(result))
+}
+
+func (fe *FrontEnd) HandleMergeSeeds(c *gin.Context) {
+	var params api.MergeSeedsParams
+	c.Bind(&params)
+
+	cmd := command.MergeSeedsCommand{params.Region, params.Seeds}
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
 	if err != nil {

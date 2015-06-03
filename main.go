@@ -54,7 +54,7 @@ func main() {
 	}
 
 	initCh := make(chan error)
-	go meta.Run(appName, localRegion, httpPort, wsPort, zkHosts, initCh)
+	go meta.Run(appName, localRegion, httpPort, wsPort, zkHosts, seedNodes, initCh)
 	err := <-initCh
 	if err != nil {
 		glog.Fatal(err)
@@ -63,7 +63,7 @@ func main() {
 	streams.StartAllStreams()
 	streams.LogStream.Sub(log.WriteFileHandler)
 
-	sp := inspector.NewInspector(seedNodes)
+	sp := inspector.NewInspector()
 	go sp.Run()
 
 	c := controller.NewController()

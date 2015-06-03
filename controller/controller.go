@@ -13,6 +13,7 @@ import (
 var (
 	ErrProcessCommandTimedout = errors.New("controller: process command timeout")
 	ErrNotClusterLeader       = errors.New("controller: not cluster leader")
+	ErrNotRegionLeader        = errors.New("controller: not region leader")
 )
 
 type Controller struct {
@@ -31,11 +32,18 @@ func NewController() *Controller {
 }
 
 func (c *Controller) ProcessCommand(command Command, timeout time.Duration) (result Result, err error) {
-	if !meta.IsClusterLeader() {
-		return nil, ErrNotClusterLeader
+	switch command.Type() {
+	case REGION_COMMAND:
+		if !meta.IsRegionLeader() {
+			return nil, ErrNotRegionLeader
+		}
+	case CLUSTER_COMMAND:
+		if !meta.IsClusterLeader() {
+			return nil, ErrNotClusterLeader
+		}
 	}
-	// 一次处理一条命令，也即同一时间只能在做一个状态变换。是很粗粒度的锁，不过
-	// 这样做问题不大，毕竟执行命令的频率很低，且执行时间都不会太长
+
+	// 一次处理一条命令，也即同一时间只能在做一个状态变换
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 

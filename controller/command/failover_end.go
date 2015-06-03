@@ -19,3 +19,5 @@ func (self *FailoverEndCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	err := node.AdvanceFSM(cs, state.CMD_FAILOVER_END_SIGNAL)
 	return nil, err
 }
+
+func (self *FailoverEndCommand) clusterCommand() {}

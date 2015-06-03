@@ -2,13 +2,19 @@ package meta
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
+	"github.com/golang/glog"
+	"github.com/jxwr/cc/frontend/api"
+	"github.com/jxwr/cc/topo"
+	"github.com/jxwr/cc/utils"
 	"github.com/jxwr/cc/utils/net"
 	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
+
+var meta *Meta
+var mutex = &sync.Mutex{}
 
 type Meta struct {
 	/// local config
@@ -17,6 +23,9 @@ type Meta struct {
 	httpPort    int
 	wsPort      int
 	localRegion string
+
+	/// Seed nodes
+	seeds []*topo.Node
 
 	/// leadership
 	selfZNodeName          string
@@ -36,8 +45,29 @@ type Meta struct {
 	zsession <-chan zookeeper.Event
 }
 
-var meta *Meta
-var mutex = &sync.Mutex{}
+func (self *Meta) HasSeed(seed *topo.Node) bool {
+	for _, s := range self.seeds {
+		if s.Addr() == seed.Addr() {
+			if s.Id == "" {
+				*s = *seed
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func MergeSeeds(seeds []*topo.Node) {
+	for _, seed := range seeds {
+		if !meta.HasSeed(seed) {
+			meta.seeds = append(meta.seeds, seed)
+		}
+	}
+}
+
+func Seeds() []*topo.Node {
+	return meta.seeds
+}
 
 func GetAppConfig() *AppConfig {
 	mutex.Lock()
@@ -75,6 +105,12 @@ func AutoFailover() bool {
 
 func LeaderHttpAddress() string {
 	c := meta.clusterLeaderConfig
+	addr := fmt.Sprintf("%s:%d", c.Ip, c.HttpPort)
+	return addr
+}
+
+func RegionLeaderHttpAddress() string {
+	c := meta.regionLeaderConfig
 	addr := fmt.Sprintf("%s:%d", c.Ip, c.HttpPort)
 	return addr
 }
@@ -122,7 +158,7 @@ func UnmarkFailoverDoing() error {
 	return meta.UnmarkFailoverDoing()
 }
 
-func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initCh chan error) {
+func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, seeds []*topo.Node, initCh chan error) {
 	zconn, session, err := DialZk(zkAddr)
 	if err != nil {
 		initCh <- fmt.Errorf("zk: can't connect: %v", err)
@@ -131,7 +167,7 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 
 	localIp, err := net.LocalIP()
 	if err != nil {
-		log.Println("meta: can not get local ip", err)
+		glog.Info("meta: can not get local ip", err)
 	}
 
 	meta = &Meta{
@@ -140,6 +176,7 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 		httpPort:    httpPort,
 		localRegion: localRegion,
 		localIp:     localIp,
+		seeds:       seeds,
 		ccDirPath:   "/r3/app/" + appName + "/controller",
 		zconn:       zconn,
 		zsession:    session,
@@ -167,6 +204,7 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 		initCh <- err
 		return
 	}
+	PostSeeds()
 	// 元信息初始化成功，通知Main函数继续初始化
 	initCh <- nil
 
@@ -190,28 +228,43 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, initC
 		case <-watcher:
 			watcher, err = meta.ElectLeader()
 			if err != nil {
-				log.Println("Leader election error,", err)
+				glog.Warning("Leader election error,", err)
 			}
 		case <-tickChan:
 			clusterLeader, regionLeader, _, err := meta.CheckLeaders(false)
-			log.Println("Check leaders,", err)
+			glog.Info("Check leaders, err: ", err)
 			needElect := false
 			if clusterLeader == "" || regionLeader == "" {
-				log.Println("Leaders gone, will reelect leaders.")
+				glog.Warning("Leaders gone, will reelect leaders.")
 				needElect = true
 			} else if ClusterLeaderZNodeName() != clusterLeader {
-				log.Println("Cluster leader changed, reelect.")
+				glog.Warning("Cluster leader changed, reelect.")
 				needElect = true
 			} else if RegionLeaderZNodeName() != regionLeader {
-				log.Println("Region leader changed, reelect.")
+				glog.Warning("Region leader changed, reelect.")
 				needElect = true
 			}
 			if needElect {
 				watcher, err = meta.ElectLeader()
 				if err != nil {
-					log.Println("Leader election error,", err)
+					glog.Warning("Leader election error,", err)
 				}
 			}
 		}
+		PostSeeds()
+	}
+}
+
+func PostSeeds() {
+	if !IsRegionLeader() {
+		url := "http://" + RegionLeaderHttpAddress() + api.MergeSeedsPath
+		req := api.MergeSeedsParams{
+			Region: LocalRegion(),
+			Seeds:  meta.seeds,
+		}
+
+		glog.Warningf("Post %s seeds %v to be merged", LocalRegion(), meta.seeds)
+
+		utils.HttpPost(url, req, 5*time.Second)
 	}
 }

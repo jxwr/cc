@@ -25,15 +25,13 @@ var (
 type Inspector struct {
 	mutex       *sync.RWMutex
 	LocalRegion string
-	Seeds       []*topo.Node
 	SeedIndex   int
 	ClusterTopo *topo.Cluster
 }
 
-func NewInspector(seeds []*topo.Node) *Inspector {
+func NewInspector() *Inspector {
 	sp := &Inspector{
 		mutex:       &sync.RWMutex{},
-		Seeds:       seeds,
 		LocalRegion: meta.LocalRegion(),
 	}
 	return sp
@@ -106,7 +104,7 @@ func (self *Inspector) buildNode(line string) (*topo.Node, bool, error) {
 }
 
 func (self *Inspector) MeetNode(node *topo.Node) {
-	for _, seed := range self.Seeds {
+	for _, seed := range meta.Seeds() {
 		if seed.Ip == node.Ip && seed.Port == node.Port {
 			continue
 		}
@@ -268,38 +266,18 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 	return nil
 }
 
-func (self *Inspector) HasSeed(seed *topo.Node) bool {
-	for _, s := range self.Seeds {
-		if s.Addr() == seed.Addr() {
-			if s.Id == "" {
-				*s = *seed
-			}
-			return true
-		}
-	}
-	return false
-}
-
-func (self *Inspector) MergeSeeds(seeds []*topo.Node) {
-	for _, seed := range seeds {
-		if !self.HasSeed(seed) {
-			self.Seeds = append(self.Seeds, seed)
-		}
-	}
-}
-
 // 生成ClusterSnapshot
 func (self *Inspector) BuildClusterTopo() (*topo.Cluster, []*topo.Node, error) {
 	self.mutex.Lock()
 	defer self.mutex.Unlock()
 
-	if len(self.Seeds) == 0 {
+	if len(meta.Seeds()) == 0 {
 		return nil, nil, ErrNoSeed
 	}
 
 	// 过滤掉连接不上的节点
 	seeds := []*topo.Node{}
-	for _, s := range self.Seeds {
+	for _, s := range meta.Seeds() {
 		if redis.IsAlive(s.Addr()) {
 			seeds = append(seeds, s)
 		}
@@ -362,7 +340,7 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, []*topo.Node, error) {
 
 	cluster.BuildReplicaSets()
 
-	self.MergeSeeds(cluster.LocalRegionNodes())
+	meta.MergeSeeds(cluster.LocalRegionNodes())
 	self.ClusterTopo = cluster
 	return cluster, seeds, nil
 }

@@ -4,6 +4,7 @@ const (
 	// URL值得仔细设计一番
 	AppInfoPath             = "/app/info"
 	RegionSnapshotPath      = "/region/snapshot"
+	MergeSeedsPath          = "/region/mergeseeds"
 	MigrateCreatePath       = "/migrate/create"
 	FetchMigrationTasksPath = "/migrate/tasks"
 	RebalancePath           = "/migrate/rebalance"
