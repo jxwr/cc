@@ -179,6 +179,9 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 			continue
 		}
 		node, myself, err := self.buildNode(line)
+		if node.Ip == "127.0.0.1" {
+			node.Ip = seed.Ip
+		}
 		// 只看到自己，是主，且没有slots，才认为是FreeNode
 		if !myself {
 			return false, nil
