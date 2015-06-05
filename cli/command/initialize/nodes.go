@@ -165,6 +165,9 @@ func getAndRemoveReplicas(nodes []*Node, num int, master *Node) ([]*Node, []*Nod
 		if node.Chosen || node.Ip == master.Ip {
 			continue
 		}
+		if node.LogicMR == master.LogicMR {
+			continue
+		}
 		if ipSet[node.Ip] {
 			continue
 		}

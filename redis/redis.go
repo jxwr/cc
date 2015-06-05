@@ -392,7 +392,6 @@ func FetchInfo(addr, section string) (*RedisInfo, error) {
 	var redisInfo *RedisInfo
 	for retry > 0 {
 		redisInfo, err = inner(addr, section)
-		fmt.Println(redisInfo, err)
 		if err == nil {
 			return redisInfo, nil
 		}
