@@ -28,6 +28,7 @@ var cmds = []cli.Command{
 	c.AppInfoCommand,
 	c.ShowCommand,
 	c.LogCommand,
+	c.WebCommand,
 }
 
 const (
