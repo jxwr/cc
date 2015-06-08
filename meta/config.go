@@ -62,9 +62,7 @@ func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 				if a.AutoFailoverInterval == 0 {
 					a.AutoFailoverInterval = DEFAULT_AUTOFAILOVER_INTERVAL
 				}
-				mutex.Lock()
-				m.appConfig = a
-				mutex.Unlock()
+				m.appConfig.Store(a)
 				log.Println("meta: app config changed.", a)
 			} else {
 				log.Printf("meta: fetch app config failed, %v", err)

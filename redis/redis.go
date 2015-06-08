@@ -145,9 +145,9 @@ func FetchClusterInfo(addr string) (topo.ClusterInfo, error) {
 		return clusterInfo, err
 	}
 
-	lines := strings.Split(resp, "\r\n")
+	lines := strings.Split(resp, "\n")
 	for _, line := range lines {
-		xs := strings.Split(line, ":")
+		xs := strings.Split(strings.TrimSpace(line), ":")
 		if len(xs) != 2 {
 			continue
 		}
@@ -307,7 +307,7 @@ func ClusterReplicate(addr, targetId string) (string, error) {
 }
 
 func ClusterMeet(seedAddr, newIp string, newPort int) (string, error) {
-	conn, err := redis.Dial("tcp", seedAddr)
+	conn, err := dial(seedAddr)
 	if err != nil {
 		return "", ErrConnFailed
 	}
@@ -322,7 +322,7 @@ func ClusterMeet(seedAddr, newIp string, newPort int) (string, error) {
 }
 
 func ClusterForget(seedAddr, nodeId string) (string, error) {
-	conn, err := redis.Dial("tcp", seedAddr)
+	conn, err := dial(seedAddr)
 	if err != nil {
 		return "", ErrConnFailed
 	}
@@ -495,7 +495,8 @@ func Migrate(addr, toIp string, toPort int, key string, timeout int) (string, er
 		if err != nil && strings.Contains(err.Error(), "BUSYKEY") {
 			log.Warningf("Migrate", "Found BUSYKEY '%s', will overwrite it.", key)
 			resp, err = redis.String(conn.Do("migrate", toIp, toPort, key, 0, timeout, "replace"))
-		} else if err != nil {
+		}
+		if err != nil {
 			return "", err
 		}
 		return resp, nil

@@ -2,7 +2,7 @@ package meta
 
 import (
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang/glog"
@@ -14,7 +14,6 @@ import (
 )
 
 var meta *Meta
-var mutex = &sync.Mutex{}
 
 type Meta struct {
 	/// local config
@@ -36,7 +35,7 @@ type Meta struct {
 	ccDirPath string
 
 	/// configs in ZK
-	appConfig           *AppConfig
+	appConfig           atomic.Value // *AppConfig
 	clusterLeaderConfig *ControllerConfig
 	regionLeaderConfig  *ControllerConfig
 
@@ -70,9 +69,7 @@ func Seeds() []*topo.Node {
 }
 
 func GetAppConfig() *AppConfig {
-	mutex.Lock()
-	defer mutex.Unlock()
-	return meta.appConfig
+	return meta.appConfig.Load().(*AppConfig)
 }
 
 func ClusterLeaderConfig() *ControllerConfig {
@@ -187,7 +184,7 @@ func Run(appName, localRegion string, httpPort, wsPort int, zkAddr string, seeds
 		initCh <- err
 		return
 	}
-	meta.appConfig = a
+	meta.appConfig.Store(a)
 	go meta.handleAppConfigChanged(w)
 
 	// Controller目录，如果不存在就创建

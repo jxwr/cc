@@ -45,7 +45,10 @@ func (m *MigrateManager) CreateTask(sourceId, targetId string, ranges []topo.Ran
 		return nil, ErrReplicatSetNotFound
 	}
 	task = NewMigrateTask(cluster, sourceRS, targetRS, ranges)
-	m.AddTask(task)
+	err := m.AddTask(task)
+	if err != nil {
+		return nil, err
+	}
 	return task, nil
 }
 
@@ -111,7 +114,7 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 	tname := task.TaskName()
 
 	if fromNode == nil {
-		log.Infof(tname, "Tource node %s(%s) not exist", fromNode.Addr(), fromNode.Id)
+		log.Infof(tname, "Source node %s(%s) not exist", fromNode.Addr(), fromNode.Id)
 		return ErrNodeNotFound
 	}
 	if toNode == nil {
@@ -186,90 +189,86 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 		if time.Now().Sub(m.lastTaskEndTime) < 5*time.Second {
 			continue
 		}
-		if len(node.Migrating) != 0 {
-			for id, slots := range node.Migrating {
-				// 根据slot生成ranges
-				ranges := []topo.Range{}
-				for _, slot := range slots {
-					// 如果是自己
-					if id == node.Id {
-						redis.SetSlot(node.Addr(), slot, redis.SLOT_STABLE, "")
-					} else {
-						ranges = append(ranges, topo.Range{Left: slot, Right: slot})
-					}
-				}
-				// Source
-				source := node
-				if !node.IsMaster() {
-					srs := cluster.FindReplicaSetByNode(node.Id)
-					if srs != nil {
-						source = srs.Master
-					}
-				}
-				// Target
-				rs := cluster.FindReplicaSetByNode(id)
-				if source.Fail || rs.Master.Fail {
-					continue
-				}
-
-				task, err := m.CreateTask(source.Id, rs.Master.Id, ranges, cluster)
-				if err != nil {
-					log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
+		for id, slots := range node.Migrating {
+			// 根据slot生成ranges
+			ranges := []topo.Range{}
+			for _, slot := range slots {
+				// 如果是自己
+				if id == node.Id {
+					redis.SetSlot(node.Addr(), slot, redis.SLOT_STABLE, "")
 				} else {
-					log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with MIGRATING info"+
-						", Task(Source:%s, Target:%s).", node.Id, node.Addr(), source.Addr(), rs.Master.Addr())
-					go func(t *MigrateTask) {
-						t.Run()
-						m.RemoveTask(t)
-					}(task)
-					goto done
+					ranges = append(ranges, topo.Range{Left: slot, Right: slot})
 				}
 			}
+			// Source
+			source := node
+			if !node.IsMaster() {
+				srs := cluster.FindReplicaSetByNode(node.Id)
+				if srs != nil {
+					source = srs.Master
+				}
+			}
+			// Target
+			rs := cluster.FindReplicaSetByNode(id)
+			if source.Fail || rs.Master.Fail {
+				continue
+			}
+
+			task, err := m.CreateTask(source.Id, rs.Master.Id, ranges, cluster)
+			if err != nil {
+				log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
+			} else {
+				log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with MIGRATING info"+
+					", Task(Source:%s, Target:%s).", node.Id, node.Addr(), source.Addr(), rs.Master.Addr())
+				go func(t *MigrateTask) {
+					t.Run()
+					m.RemoveTask(t)
+				}(task)
+				goto done
+			}
 		}
-		if len(node.Importing) != 0 {
-			for id, slots := range node.Importing {
-				// 根据slot生成ranges
-				ranges := []topo.Range{}
-				for _, slot := range slots {
-					// 如果是自己
-					if id == node.Id {
-						redis.SetSlot(node.Addr(), slot, redis.SLOT_STABLE, "")
-					} else {
-						ranges = append(ranges, topo.Range{Left: slot, Right: slot})
-					}
-				}
-				// Target
-				target := node
-				if !node.IsMaster() {
-					trs := cluster.FindReplicaSetByNode(node.Id)
-					if trs != nil {
-						target = trs.Master
-					}
-				}
-				if target.IsStandbyMaster() {
-					s := cluster.FindNodeBySlot(ranges[0].Left)
-					if s != nil {
-						log.Warningf(node.Addr(), "Reset migrate task target to %s(%s)", s.Id, s.Addr())
-						target = s
-					}
-				}
-				// Source
-				rs := cluster.FindReplicaSetByNode(id)
-				if target.Fail || rs.Master.Fail {
-					continue
-				}
-				task, err := m.CreateTask(rs.Master.Id, target.Id, ranges, cluster)
-				if err != nil {
-					log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
+		for id, slots := range node.Importing {
+			// 根据slot生成ranges
+			ranges := []topo.Range{}
+			for _, slot := range slots {
+				// 如果是自己
+				if id == node.Id {
+					redis.SetSlot(node.Addr(), slot, redis.SLOT_STABLE, "")
 				} else {
-					log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with IMPORTING info"+
-						", Task(Source:%s,Target:%s).", node.Id, node.Addr(), rs.Master.Addr(), target.Addr())
-					go func(t *MigrateTask) {
-						t.Run()
-						m.RemoveTask(t)
-					}(task)
-					goto done
+					ranges = append(ranges, topo.Range{Left: slot, Right: slot})
 				}
+			}
+			// Target
+			target := node
+			if !node.IsMaster() {
+				trs := cluster.FindReplicaSetByNode(node.Id)
+				if trs != nil {
+					target = trs.Master
+				}
+			}
+			if target.IsStandbyMaster() {
+				s := cluster.FindNodeBySlot(ranges[0].Left)
+				if s != nil {
+					log.Warningf(node.Addr(), "Reset migrate task target to %s(%s)", s.Id, s.Addr())
+					target = s
+				}
+			}
+			// Source
+			rs := cluster.FindReplicaSetByNode(id)
+			if target.Fail || rs.Master.Fail {
+				continue
+			}
+			task, err := m.CreateTask(rs.Master.Id, target.Id, ranges, cluster)
+			if err != nil {
+				log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
+			} else {
+				log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with IMPORTING info"+
+					", Task(Source:%s,Target:%s).", node.Id, node.Addr(), rs.Master.Addr(), target.Addr())
+				go func(t *MigrateTask) {
+					t.Run()
+					m.RemoveTask(t)
+				}(task)
+				goto done
 			}
 		}
 	}

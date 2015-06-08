@@ -305,11 +305,7 @@ func (s *Node) Compare(t *Node) bool {
 	b = b && (s.Writable == t.Writable)
 	b = b && (s.Role == t.Role)
 	b = b && (s.Tag == t.Tag)
-
-	if b == false {
-		return false
-	}
-	return true
+	return b
 }
 
 func (s *Node) Hostname() string {
