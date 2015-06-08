@@ -69,19 +69,6 @@ func loadConfig(filename string) (*CliConf, error) {
 }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "init" {
-		app := cli.NewApp()
-		app.Name = "cli"
-		app.Usage = "init a cluster"
-		app.Commands = []cli.Command{initialize.Command}
-		arg := append(os.Args)
-		app.Run(arg)
-		os.Exit(0)
-	}
-	if len(os.Args) == 1 {
-		fmt.Println("Usage: cli <AppName> [<Command>] or cli init")
-		os.Exit(1)
-	}
 	//load config
 	user, err := user.Current()
 	if err != nil {
@@ -91,6 +78,31 @@ func main() {
 	conf, err := loadConfig(user.HomeDir + DEFAULT_CONFIG_FILE)
 	if err != nil {
 		fmt.Println(err)
+		os.Exit(1)
+	}
+	context.ZkAddr = conf.Zkhosts
+
+	if len(os.Args) > 1 {
+		app := cli.NewApp()
+		app.Name = "cli"
+		app.Usage = "cluster manage tool"
+
+		app.Commands = []cli.Command{
+			initialize.Command,
+			c.AppAddCommand,
+			c.AppDelCommand,
+			c.AppModCommand,
+		}
+		arg := append(os.Args)
+		for _, cmd := range app.Commands {
+			if os.Args[1] == cmd.Name {
+				app.Run(arg)
+				os.Exit(0)
+			}
+		}
+	}
+	if len(os.Args) == 1 {
+		fmt.Println("Usage: cli <AppName> [<Command>] or cli init/appadd/")
 		os.Exit(1)
 	}
 

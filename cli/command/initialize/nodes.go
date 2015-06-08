@@ -38,8 +38,8 @@ func SplitLine(str string) []string {
 
 /* get nodes from osp service */
 func getNodes(service string) ([]*Node, error) {
-	//res, err := sh.Command("get_instance_by_service", "-i", "-p", service).Output()
-	res, err := sh.Command("cat", service).Output()
+	res, err := sh.Command("get_instance_by_service", "-i", "-p", service).Output()
+	//res, err := sh.Command("cat", service).Output()
 	str := string(res)
 	str = strings.TrimSpace(str)
 	/*hostname ip port*/
@@ -163,6 +163,9 @@ func getAndRemoveReplicas(nodes []*Node, num int, master *Node) ([]*Node, []*Nod
 			break
 		}
 		if node.Chosen || node.Ip == master.Ip {
+			continue
+		}
+		if node.LogicMR == master.LogicMR {
 			continue
 		}
 		if ipSet[node.Ip] {
