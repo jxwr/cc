@@ -287,6 +287,15 @@ func (s *Node) RangesSplitN(n int) [][]Range {
 			})
 			parts = append(parts, ranges)
 			remain := Range{rang.Left, rang.Right - need}
+			need = numSlotsPerPart
+			for remain.NumSlots()-numSlotsPerPart > 0 {
+				ranges = []Range{Range{
+					Left:  remain.Right - need + 1,
+					Right: remain.Right,
+				}}
+				parts = append(parts, ranges)
+				remain = Range{remain.Left, remain.Right - need}
+			}
 			ranges = []Range{remain}
 			need = numSlotsPerPart - remain.NumSlots()
 		}

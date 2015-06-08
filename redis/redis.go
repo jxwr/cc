@@ -84,8 +84,8 @@ func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool) error {
 
 	for {
 		info, err := FetchInfo(addr, "replication")
+		time.Sleep(5 * time.Second)
 		if err == nil {
-			time.Sleep(5 * time.Second)
 			n, err := info.GetInt64("connected_slaves")
 			if err != nil {
 				continue
