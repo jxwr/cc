@@ -27,6 +27,9 @@ var AppAddCommand = cli.Command{
 		cli.IntFlag{"k,migratekey", 100, "MigrateKeysEachTime"},
 		cli.IntFlag{"t,migratetimeout", 2000, "MigrateTimeout"},
 	},
+	Description: `
+    add app configuration to zookeeper
+    `,
 }
 
 func appAddAction(c *cli.Context) {

@@ -18,7 +18,6 @@ var FailoverCommand = cli.Command{
 }
 
 func failoverAction(c *cli.Context) {
-	fmt.Println(c.Args())
 	if len(c.Args()) != 1 {
 		fmt.Println(ErrInvalidParameter)
 		return

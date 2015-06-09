@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -17,7 +16,6 @@ var AppModCommand = cli.Command{
 	Usage:  "appmod",
 	Action: appModAction,
 	Flags: []cli.Flag{
-		cli.StringFlag{"n,appname", "", "appname"},
 		cli.StringFlag{"s,enableslaveread", "", "AutoEnableSlaveRead <true> or <false>"},
 		cli.StringFlag{"m,enablemasterwrite", "", "AutoEnableMasterWrite <true> or <false>"},
 		cli.StringFlag{"f,failover", "", "AutoFailover <true> or <false>"},
@@ -27,10 +25,13 @@ var AppModCommand = cli.Command{
 		cli.IntFlag{"k,migratekey", -1, "MigrateKeysEachTime"},
 		cli.IntFlag{"t,migratetimeout", -1, "MigrateTimeout"},
 	},
+	Description: `
+    update app configuraton in zookeeper
+    `,
 }
 
 func appModAction(c *cli.Context) {
-	appname := c.String("n")
+	appname := context.GetAppName()
 	s := c.String("s")
 	m := c.String("m")
 	f := c.String("f")
@@ -40,20 +41,16 @@ func appModAction(c *cli.Context) {
 	k := c.Int("k")
 	t := c.Int("t")
 
-	if appname == "" {
-		fmt.Println("-n,appname must be assigned")
-		os.Exit(-1)
-	}
 	appConfig := meta.AppConfig{}
 	config, version, err := context.GetApp(appname)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(-1)
+		return
 	}
 	err = json.Unmarshal(config, &appConfig)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(-1)
+		return
 	}
 	//update config if needed
 	if s != "" {
@@ -96,12 +93,12 @@ func appModAction(c *cli.Context) {
 	out, err := json.Marshal(appConfig)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(-1)
+		return
 	}
 	err = context.ModApp(appname, out, version)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(-1)
+		return
 	}
 	fmt.Printf("Mod %s success\n%s\n", appname, string(out))
 }

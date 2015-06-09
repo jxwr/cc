@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/codegangsta/cli"
 	"github.com/jxwr/cc/cli/context"
@@ -12,33 +11,29 @@ var AppDelCommand = cli.Command{
 	Name:   "appdel",
 	Usage:  "appdel",
 	Action: appDelAction,
-	Flags: []cli.Flag{
-		cli.StringFlag{"n,appname", "", "appname"},
-	},
+	Description: `
+    [Warning]
+    delete the app from zookeeper`,
 }
 
 func appDelAction(c *cli.Context) {
-	appname := c.String("n")
+	appname := context.GetAppName()
 
-	if appname == "" {
-		fmt.Println("-n,appname must be assigned")
-		os.Exit(-1)
-	}
 	fmt.Printf("Type %s to continue: ", "yes")
 	var cmd string
 	fmt.Scanf("%s\n", &cmd)
 	if cmd != "yes" {
-		os.Exit(-1)
+		return
 	}
 	_, version, err := context.GetApp(appname)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(-1)
+		return
 	}
 	err = context.DelApp(appname, version)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(-1)
+		return
 	} else {
 		fmt.Printf("Delete %s success\n", appname)
 	}

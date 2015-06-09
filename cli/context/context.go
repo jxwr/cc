@@ -23,9 +23,14 @@ var (
 	ErrNoNodesFound         = errors.New("Command failed: no nodes found")
 	ErrMoreThanOneNodeFound = errors.New("Command failed: more than one node found")
 	ZkAddr                  string
+	appContextName          string
 )
 
+func GetAppName() string {
+	return appContextName
+}
 func SetApp(appName string, zkAddr string) error {
+	appContextName = appName
 	zconn, _, err := meta.DialZk(zkAddr)
 	defer zconn.Close()
 	if err != nil {

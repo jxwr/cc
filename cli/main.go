@@ -28,6 +28,8 @@ var cmds = []cli.Command{
 	c.AppInfoCommand,
 	c.ShowCommand,
 	c.LogCommand,
+	c.AppDelCommand,
+	c.AppModCommand,
 }
 
 const (
@@ -90,8 +92,6 @@ func main() {
 		app.Commands = []cli.Command{
 			initialize.Command,
 			c.AppAddCommand,
-			c.AppDelCommand,
-			c.AppModCommand,
 		}
 		arg := append(os.Args)
 		for _, cmd := range app.Commands {
@@ -101,8 +101,13 @@ func main() {
 			}
 		}
 	}
-	if len(os.Args) == 1 {
-		fmt.Println("Usage: cli <AppName> [<Command>] or cli init/appadd/")
+	if (len(os.Args) == 2 && (string(os.Args[1]) == "-h" || string(os.Args[1]) == "--help")) || (len(os.Args) == 1) {
+		help := `Usage:
+        cli init [options], -h for more details
+        cli appadd [options], -h for more details
+        cli <AppName> [<Command>] [options], -h for more details
+        `
+		fmt.Println(help)
 		os.Exit(1)
 	}
 

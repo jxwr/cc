@@ -13,12 +13,15 @@ import (
 
 var ChmodCommand = cli.Command{
 	Name:   "chmod",
-	Usage:  "change node read write state",
+	Usage:  "chmod +r/-r/+w/-w <id>",
 	Action: chmodAction,
 	Flags: []cli.Flag{
 		cli.BoolFlag{"r", "read state"},
 		cli.BoolFlag{"w", "write state"},
 	},
+	Description: `
+    change node read write perm
+    `,
 }
 
 func chmodAction(c *cli.Context) {
