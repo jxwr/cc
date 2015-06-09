@@ -64,6 +64,8 @@ func SetApp(appName string, zkAddr string) error {
 	controllerConfig = *res.Leader
 
 	fmt.Fprintf(os.Stderr, "[ leader : %s:%d ]\n", controllerConfig.Ip, controllerConfig.HttpPort)
+	fmt.Fprintf(os.Stderr, "[ web    : http://%s:%d/ui/cluster.html ]\n",
+		controllerConfig.Ip, controllerConfig.HttpPort)
 	err = CacheNodes()
 	return err
 }

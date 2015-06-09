@@ -30,6 +30,7 @@ var cmds = []cli.Command{
 	c.LogCommand,
 	c.AppDelCommand,
 	c.AppModCommand,
+	c.WebCommand,
 }
 
 const (
