@@ -8,7 +8,7 @@ import (
 
 var WebCommand = cli.Command{
 	Name:   "web",
-	Usage:  "show web console url",
+	Usage:  "web, show web console url",
 	Action: webAction,
 }
 

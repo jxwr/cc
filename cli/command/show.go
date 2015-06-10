@@ -13,7 +13,7 @@ import (
 
 var ShowCommand = cli.Command{
 	Name:   "show",
-	Usage:  "show [tasks,nodes,slots]",
+	Usage:  "show <tasks|nodes|slots>",
 	Action: showAction,
 }
 
