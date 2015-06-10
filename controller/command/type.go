@@ -17,6 +17,9 @@ func (self *FailoverTakeoverCommand) Type() cc.CommandType    { return cc.CLUSTE
 func (self *MeetNodeCommand) Type() cc.CommandType            { return cc.CLUSTER_COMMAND }
 func (self *ReplicateCommand) Type() cc.CommandType           { return cc.CLUSTER_COMMAND }
 func (self *MigrateCommand) Type() cc.CommandType             { return cc.CLUSTER_COMMAND }
+func (self *MigratePauseCommand) Type() cc.CommandType        { return cc.CLUSTER_COMMAND }
+func (self *MigrateResumeCommand) Type() cc.CommandType       { return cc.CLUSTER_COMMAND }
+func (self *MigrateCancelCommand) Type() cc.CommandType       { return cc.CLUSTER_COMMAND }
 func (self *SetAsMasterCommand) Type() cc.CommandType         { return cc.CLUSTER_COMMAND }
 func (self *UpdateRegionCommand) Type() cc.CommandType        { return cc.CLUSTER_COMMAND }
 func (self *RebalanceCommand) Type() cc.CommandType           { return cc.CLUSTER_COMMAND }

@@ -33,6 +33,9 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.GET(api.FetchReplicaSetsPath, fe.HandleFetchReplicaSets)
 	fe.Router.POST(api.RegionSnapshotPath, fe.HandleRegionSnapshot)
 	fe.Router.POST(api.MigrateCreatePath, fe.HandleMigrateCreate)
+	fe.Router.POST(api.MigratePausePath, fe.HandleMigratePause)
+	fe.Router.POST(api.MigrateResumePath, fe.HandleMigrateResume)
+	fe.Router.POST(api.MigrateCancelPath, fe.HandleMigrateCancel)
 	fe.Router.GET(api.FetchMigrationTasksPath, fe.HandleFetchMigrationTasks)
 	fe.Router.POST(api.RebalancePath, fe.HandleRebalance)
 	fe.Router.POST(api.NodePermPath, fe.HandleToggleMode)
@@ -120,6 +123,57 @@ func (fe *FrontEnd) HandleMigrateCreate(c *gin.Context) {
 		SourceId: params.SourceId,
 		TargetId: params.TargetId,
 		Ranges:   ranges,
+	}
+
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	if err != nil {
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
+		return
+	}
+
+	c.JSON(200, api.MakeSuccessResponse(result))
+}
+
+func (fe *FrontEnd) HandleMigratePause(c *gin.Context) {
+	var params api.MigrateActionParams
+	c.Bind(&params)
+
+	cmd := command.MigratePauseCommand{
+		SourceId: params.SourceId,
+	}
+
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	if err != nil {
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
+		return
+	}
+
+	c.JSON(200, api.MakeSuccessResponse(result))
+}
+
+func (fe *FrontEnd) HandleMigrateResume(c *gin.Context) {
+	var params api.MigrateActionParams
+	c.Bind(&params)
+
+	cmd := command.MigrateResumeCommand{
+		SourceId: params.SourceId,
+	}
+
+	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	if err != nil {
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
+		return
+	}
+
+	c.JSON(200, api.MakeSuccessResponse(result))
+}
+
+func (fe *FrontEnd) HandleMigrateCancel(c *gin.Context) {
+	var params api.MigrateActionParams
+	c.Bind(&params)
+
+	cmd := command.MigrateCancelCommand{
+		SourceId: params.SourceId,
 	}
 
 	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)

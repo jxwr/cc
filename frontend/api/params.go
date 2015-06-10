@@ -37,6 +37,10 @@ type MigrateParams struct {
 	Ranges   []string `json:"ranges"`
 }
 
+type MigrateActionParams struct {
+	SourceId string `json:"source_id"`
+}
+
 type ToggleModeParams struct {
 	Action string `json:"action"`
 	Perm   string `json:"perm"`
