@@ -143,13 +143,9 @@ func (m *Meta) FetchControllerConfig(zkNode string) (*ControllerConfig, <-chan z
 }
 
 func (m *Meta) IsDoingFailover() (bool, error) {
-	_, stat, err := m.zconn.Exists("/r3/failover/doing")
+	exist, _, err := m.zconn.Exists("/r3/failover/doing")
 	if err == nil {
-		if stat != nil {
-			return true, nil
-		} else {
-			return false, nil
-		}
+		return exist, nil
 	} else {
 		return true, err
 	}
