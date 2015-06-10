@@ -15,6 +15,7 @@ import (
 /// Show Nodes
 
 type RNode struct {
+	State      string
 	Id         string
 	ParentId   string
 	Role       string
@@ -31,11 +32,12 @@ type RNode struct {
 	UsedMemory string
 }
 
-func toReadable(node *topo.Node) *RNode {
+func toReadable(node *topo.Node, state string) *RNode {
 	if node == nil {
 		return nil
 	}
 	n := &RNode{
+		State:    state,
 		Id:       node.Id,
 		ParentId: node.ParentId,
 		Tag:      node.Tag,
@@ -73,10 +75,19 @@ func toReadable(node *topo.Node) *RNode {
 	return n
 }
 
-func nodesToInterfaceSlice(nodes []*topo.Node) []interface{} {
+func nodesToInterfaceSlice(nodes []*topo.Node, stateMap map[string]string) []interface{} {
 	var interfaceSlice []interface{} = make([]interface{}, len(nodes))
+	Put(stateMap)
 	for i, node := range nodes {
-		interfaceSlice[i] = toReadable(node)
+		state := ""
+		if node != nil {
+			var ok bool
+			state, ok = stateMap[node.Id]
+			if !ok {
+				state = "UNKNOWN"
+			}
+		}
+		interfaceSlice[i] = toReadable(node, state)
 	}
 	return interfaceSlice
 }
@@ -109,11 +120,11 @@ func showNodes() {
 			allNodes = append(allNodes, nil)
 		}
 	}
-
+	Put(rss.NodeStates)
 	utils.PrintJsonArray("table",
-		[]string{"Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS",
+		[]string{"State", "Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS",
 			"UsedMemory", "Link", "Repl", "Keys", "NetIn", "NetOut"},
-		nodesToInterfaceSlice(allNodes))
+		nodesToInterfaceSlice(allNodes, rss.NodeStates))
 }
 
 /// Show Slots
