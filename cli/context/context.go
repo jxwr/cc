@@ -153,6 +153,11 @@ func GetLeaderWebSocketAddr() string {
 }
 
 func GetAppInfo() string {
+	err := SetApp(appContextName, ZkAddr)
+	if err != nil {
+		return "GetAppInfo failed"
+	}
+
 	var data []byte
 	data, _ = json.Marshal(appConfig)
 	var out bytes.Buffer
@@ -175,6 +180,7 @@ func CacheNodes() error {
 	if err != nil {
 		return err
 	}
+	nodesCache = []string{}
 	for _, rs := range rss.ReplicaSets {
 		nodes := rs.AllNodes()
 		for _, node := range nodes {
@@ -186,11 +192,26 @@ func CacheNodes() error {
 
 func GetId(shortid string) (string, error) {
 	var longid string
-	cnt := 0
-	for _, node := range nodesCache {
-		if strings.HasPrefix(node, shortid) {
-			longid = node
-			cnt = cnt + 1
+	var cnt int
+	updated := false
+	for {
+		cnt = 0
+		for _, node := range nodesCache {
+			if strings.HasPrefix(node, shortid) {
+				longid = node
+				cnt = cnt + 1
+			}
+		}
+		if updated == false && cnt != 1 {
+			err := CacheNodes()
+			if err != nil {
+				return "", err
+			}
+			updated = true
+			break
+		}
+		if cnt == 1 {
+			break
 		}
 	}
 	if cnt == 0 {
@@ -200,4 +221,5 @@ func GetId(shortid string) (string, error) {
 	} else {
 		return longid, nil
 	}
+
 }
