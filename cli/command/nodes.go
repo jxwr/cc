@@ -77,7 +77,6 @@ func toReadable(node *topo.Node, state string) *RNode {
 
 func nodesToInterfaceSlice(nodes []*topo.Node, stateMap map[string]string) []interface{} {
 	var interfaceSlice []interface{} = make([]interface{}, len(nodes))
-	Put(stateMap)
 	for i, node := range nodes {
 		state := ""
 		if node != nil {
@@ -120,7 +119,6 @@ func showNodes() {
 			allNodes = append(allNodes, nil)
 		}
 	}
-	Put(rss.NodeStates)
 	utils.PrintJsonArray("table",
 		[]string{"State", "Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS",
 			"UsedMemory", "Link", "Repl", "Keys", "NetIn", "NetOut"},
