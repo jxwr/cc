@@ -66,7 +66,7 @@ func toReadable(node *topo.Node, state string) *RNode {
 		n.Mode = "-w"
 	}
 	if node.IsMaster() {
-		n.Link = "up"
+		n.Link = "-"
 	}
 	n.UsedMemory = fmt.Sprintf("%0.2fG", float64(node.SummaryInfo.UsedMemory)/1024.0/1024.0/1024.0)
 	n.NetIn = fmt.Sprintf("%.2fKbps", node.SummaryInfo.InstantaneousInputKbps)
