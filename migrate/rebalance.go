@@ -31,7 +31,7 @@ func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []str
 	for _, rs := range rss {
 		master := rs.Master
 		// 忽略主挂掉和region覆盖不全的rs
-		if master.Fail || !rs.IsCoverAllRegions(regions) {
+		if master.Fail || !rs.IsCoverAllRegions(regions) || master.Free {
 			continue
 		}
 		if master.Empty() {
@@ -54,6 +54,10 @@ func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []str
 			}
 			ts = append(ts, tm[id])
 		}
+	}
+
+	if len(ts) == 0 {
+		return nil, fmt.Errorf("No available empty target replicasets.")
 	}
 
 	rebalancer := RebalancerTable[method]
