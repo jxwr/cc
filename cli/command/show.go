@@ -1,6 +1,7 @@
 package command
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -8,6 +9,7 @@ import (
 	"github.com/jxwr/cc/cli/context"
 	"github.com/jxwr/cc/controller/command"
 	"github.com/jxwr/cc/frontend/api"
+	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/utils"
 )
 
@@ -39,11 +41,51 @@ func showMigrationTasks() {
 	}
 }
 
+func FailoverRecords() ([]*meta.FailoverRecord, error) {
+	zconn, _, err := meta.DialZk(context.ZkAddr)
+	children, stat, err := zconn.Children("/r3/failover/history")
+	if err != nil {
+		return nil, err
+	}
+	if stat.NumChildren == 0 {
+		return nil, nil
+	}
+
+	var records []*meta.FailoverRecord
+	for _, file := range children {
+		data, _, err := zconn.Get("/r3/failover/history/" + file)
+		if err != nil {
+			return nil, err
+		}
+		var record meta.FailoverRecord
+		err = json.Unmarshal([]byte(data), &record)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, &record)
+	}
+	return records, nil
+}
+
+func showFailoverHistory() {
+	records, err := FailoverRecords()
+	if err != nil {
+		Put(err)
+		return
+	}
+	for _, r := range records {
+		Putf("%s %s %s %6s %17s %19s %s\n",
+			r.Timestamp.Format("2006/01/02 15:04:05"),
+			r.AppName, r.NodeId, r.Role, r.Tag, r.NodeAddr, r.Ranges)
+	}
+}
+
 func printShowUsage() {
 	Put("List of show subcommands:\n")
-	Put("show nodes -- Show the nodes info group by replicaset")
-	Put("show slots -- Show the ranges of master nodes")
-	Put("show tasks -- Show migrating tasks")
+	Put("show nodes    -- Show the nodes info group by replicaset")
+	Put("show slots    -- Show the ranges of master nodes")
+	Put("show tasks    -- Show migrating tasks")
+	Put("show failover -- Show failover history records")
 	Put()
 }
 
@@ -61,6 +103,8 @@ func showAction(c *cli.Context) {
 		showNodes()
 	case "slots":
 		showSlots()
+	case "failover":
+		showFailoverHistory()
 	default:
 		printShowUsage()
 	}

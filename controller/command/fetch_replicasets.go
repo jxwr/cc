@@ -15,6 +15,9 @@ type FetchReplicaSetsResult struct {
 func (self *FetchReplicaSetsCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	cs := c.ClusterState
 	snapshot := cs.GetClusterSnapshot()
+	if snapshot == nil {
+		return nil, nil
+	}
 	snapshot.BuildReplicaSets()
 
 	nodeStates := map[string]string{}
