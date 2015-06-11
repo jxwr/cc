@@ -50,7 +50,7 @@ func init() {
 func showHelp() {
 	fmt.Println("List of commands:")
 	for _, cmd := range cmds {
-		fmt.Println("  ", cmd.Name, "-", cmd.Usage)
+		fmt.Printf("%-3s%-14s  -  %-50s\n", "   ", cmd.Name, cmd.Usage)
 	}
 }
 
