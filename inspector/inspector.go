@@ -17,9 +17,12 @@ var (
 	ErrNoSeed           = errors.New("inspector: no seed node found")
 	ErrInvalidTag       = errors.New("inspector: invalid tag")
 	ErrEmptyTag         = errors.New("inspector: empty tag")
+	ErrNodeNoAddr       = errors.New("inspector: node flag contains noaddr")
+	ErrNodeInHandShake  = errors.New("inspector: node flag contains handshake")
 	ErrSeedIsFreeNode   = errors.New("inspector: seed is free node")
 	ErrNodeNotExist     = errors.New("inspector: node not exist")
 	ErrNodesInfoNotSame = errors.New("inspector: cluster nodes info of seeds are different")
+	ErrUnknown          = errors.New("inspector: unknown error")
 )
 
 type Inspector struct {
@@ -84,8 +87,14 @@ func (self *Inspector) buildNode(line string) (*topo.Node, bool, error) {
 	}
 	if strings.Contains(flags, "master") {
 		node.SetRole("master")
-	} else {
+	} else if strings.Contains(flags, "slave") {
 		node.SetRole("slave")
+	}
+	if strings.Contains(flags, "noaddr") {
+		return nil, myself, ErrNodeNoAddr
+	}
+	if strings.Contains(flags, "handshake") {
+		return nil, myself, ErrNodeInHandShake
 	}
 	if strings.Contains(flags, "fail?") {
 		node.SetPFail(true)
