@@ -2,6 +2,7 @@ package command
 
 import (
 	cc "github.com/jxwr/cc/controller"
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/redis"
 	"github.com/jxwr/cc/state"
@@ -41,6 +42,24 @@ func (self *UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
 		if node.IsMaster() && !node.Fail && !node.Writable {
 			if meta.GetAppConfig().AutoEnableMasterWrite {
 				redis.EnableWrite(node.Addr(), node.Id)
+			}
+		}
+		// Fix chained replication: slave's parent is slave.
+		if !node.IsMaster() {
+			parent := cs.FindNode(node.ParentId)
+			// Parent is not master?
+			if parent != nil && !parent.IsMaster() {
+				grandpa := cs.FindNode(parent.ParentId)
+				if grandpa != nil {
+					_, err := redis.ClusterReplicate(node.Addr(), grandpa.Addr())
+					if err == nil {
+						log.Warningf(node.Addr(), "Fix chained replication, (%s->%s->%s)=>(%s->%s)",
+							node, parent, grandpa, node, grandpa)
+					}
+				} else {
+					log.Warningf(node.Addr(), "Found chained replication, (%s->%s->nil), cannot fix.",
+						node, parent)
+				}
 			}
 		}
 		// 更新Region内Node的状态机
