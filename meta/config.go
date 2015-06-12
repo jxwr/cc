@@ -3,10 +3,10 @@ package meta
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/jxwr/cc/topo"
 	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
@@ -63,13 +63,13 @@ func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 					a.AutoFailoverInterval = DEFAULT_AUTOFAILOVER_INTERVAL
 				}
 				m.appConfig.Store(a)
-				log.Println("meta: app config changed.", a)
+				glog.Warning("meta: app config changed.", a)
 			} else {
-				log.Printf("meta: fetch app config failed, %v", err)
+				glog.Warningf("meta: fetch app config failed, %v", err)
 			}
 			watch = w
 		} else {
-			log.Printf("meta: unexpected event coming, %v", event)
+			glog.Warningf("meta: unexpected event coming, %v", event)
 			break
 		}
 	}
@@ -161,7 +161,7 @@ func (m *Meta) MarkFailoverDoing(record *FailoverRecord) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("meta: mark doing failover at %s", path)
+	glog.Warningf("meta: mark doing failover at %s", path)
 	return nil
 }
 
@@ -170,7 +170,7 @@ func (m *Meta) UnmarkFailoverDoing() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("meta: unmark doing failover")
+	glog.Warning("meta: unmark doing failover")
 	return nil
 }
 
@@ -204,6 +204,6 @@ func (m *Meta) AddFailoverRecord(record *FailoverRecord) error {
 		return err
 	}
 	path, err := m.zconn.Create(zkPath, data, zookeeper.FlagSequence, zookeeper.WorldACL(PERM_FILE))
-	log.Printf("meta: failover record created at %s", path)
+	glog.Warningf("meta: failover record created at %s", path)
 	return nil
 }

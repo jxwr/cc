@@ -2,11 +2,11 @@ package meta
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"path"
 	"strings"
 
+	"github.com/golang/glog"
 	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
 
@@ -36,7 +36,7 @@ func resolveZkAddr(zkAddr string) ([]string, error) {
 	for _, part := range parts {
 		// The zookeeper client cannot handle IPv6 addresses before version 3.4.x.
 		if r, err := resolveIPv4Addr(part); err != nil {
-			log.Printf("cannot resolve %v, will not use it: %v", part, err)
+			glog.Warningf("cannot resolve %v, will not use it: %v", part, err)
 		} else {
 			resolved = append(resolved, r)
 		}
