@@ -36,9 +36,16 @@ func toReadable(node *topo.Node, state string) *RNode {
 	if node == nil {
 		return nil
 	}
+
+	var id string
+	if context.Display == "simple" {
+		id = node.Id[:6]
+	} else {
+		id = node.Id
+	}
 	n := &RNode{
 		State:    state,
-		Id:       node.Id,
+		Id:       id,
 		ParentId: node.ParentId,
 		Tag:      node.Tag,
 		Role:     "S",

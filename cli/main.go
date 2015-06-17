@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	c "github.com/jxwr/cc/cli/command"
 	"github.com/jxwr/cc/cli/command/initialize"
 	"github.com/jxwr/cc/cli/context"
-	"gopkg.in/yaml.v1"
 )
 
 var cmds = []cli.Command{
@@ -36,7 +34,6 @@ var cmds = []cli.Command{
 
 const (
 	DEFAULT_HISTORY_FILE = "/.cc_cli_history"
-	DEFAULT_CONFIG_FILE  = "/.cc_cli_config"
 )
 
 var cmdmap = map[string]cli.Command{}
@@ -54,24 +51,6 @@ func showHelp() {
 	}
 }
 
-type CliConf struct {
-	Zkhosts     string `yaml:"zkhosts,omitempty"`
-	HistoryFile string `yaml:"historyfile,omitempty"`
-}
-
-func loadConfig(filename string) (*CliConf, error) {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	conf := &CliConf{}
-	err = yaml.Unmarshal(content, conf)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
 func main() {
 	//load config
 	user, err := user.Current()
@@ -79,12 +58,11 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	conf, err := loadConfig(user.HomeDir + DEFAULT_CONFIG_FILE)
+	conf, err := context.LoadConfig(user.HomeDir + context.DEFAULT_CONFIG_FILE)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	context.ZkAddr = conf.Zkhosts
 
 	if len(os.Args) > 1 {
 		app := cli.NewApp()
@@ -94,6 +72,7 @@ func main() {
 		app.Commands = []cli.Command{
 			initialize.Command,
 			c.AppAddCommand,
+			c.ConfigCommand,
 		}
 		arg := append(os.Args)
 		for _, cmd := range app.Commands {
@@ -106,6 +85,7 @@ func main() {
 	if (len(os.Args) == 2 && (string(os.Args[1]) == "-h" || string(os.Args[1]) == "--help")) || (len(os.Args) == 1) {
 		help := `Usage:
         cli init [options], -h for more details
+        cli config -k <key> -v <value>, -h for more details
         cli appadd [options], -h for more details
         cli <AppName> [<Command>] [options], -h for more details
         `

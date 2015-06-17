@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -14,7 +15,11 @@ import (
 	"github.com/jxwr/cc/meta"
 	"github.com/jxwr/cc/utils"
 	zookeeper "github.com/samuel/go-zookeeper/zk"
+
+	"gopkg.in/yaml.v1"
 )
+
+const DEFAULT_CONFIG_FILE = "/.cc_cli_config"
 
 var (
 	appConfig               meta.AppConfig
@@ -24,11 +29,19 @@ var (
 	ErrMoreThanOneNodeFound = errors.New("Command failed: more than one node found")
 	ZkAddr                  string
 	appContextName          string
+	Display                 string
 )
+
+type CliConf struct {
+	Zkhosts     string `yaml:"zkhosts,omitempty"`
+	HistoryFile string `yaml:"historyfile,omitempty"`
+	Display     string `yaml:"display,omitempty"`
+}
 
 func GetAppName() string {
 	return appContextName
 }
+
 func SetApp(appName string, zkAddr string) error {
 	appContextName = appName
 	zconn, _, err := meta.DialZk(zkAddr)
@@ -222,4 +235,38 @@ func GetId(shortid string) (string, error) {
 		return longid, nil
 	}
 
+}
+
+func LoadConfig(filePath string) (*CliConf, error) {
+	content, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	conf := &CliConf{}
+	err = yaml.Unmarshal(content, conf)
+	if err != nil {
+		return nil, err
+	}
+	//set for global use
+	ZkAddr = conf.Zkhosts
+	Display = conf.Display
+
+	return conf, nil
+}
+
+func SaveConfig(filePath string, config *CliConf) error {
+	var content []byte
+	content, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+	temp, err := ioutil.TempFile(".", "config")
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(temp.Name(), content, 0664)
+	if err != nil {
+		return err
+	}
+	return os.Rename(temp.Name(), filePath)
 }
