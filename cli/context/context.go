@@ -45,7 +45,11 @@ func GetAppName() string {
 func SetApp(appName string, zkAddr string) error {
 	appContextName = appName
 	zconn, _, err := meta.DialZk(zkAddr)
-	defer zconn.Close()
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("zk: can't connect: %v", err)
 	}
@@ -85,7 +89,11 @@ func SetApp(appName string, zkAddr string) error {
 
 func AddApp(appName string, config []byte) error {
 	zconn, _, err := meta.DialZk(ZkAddr)
-	defer zconn.Close()
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("zk: can't connect: %v", err)
 	}
@@ -108,7 +116,11 @@ func AddApp(appName string, config []byte) error {
 
 func ModApp(appName string, config []byte, version int32) error {
 	zconn, _, err := meta.DialZk(ZkAddr)
-	defer zconn.Close()
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("zk: can't connect: %v", err)
 	}
@@ -131,7 +143,11 @@ func ModApp(appName string, config []byte, version int32) error {
 
 func GetApp(appName string) ([]byte, int32, error) {
 	zconn, _, err := meta.DialZk(ZkAddr)
-	defer zconn.Close()
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
 	if err != nil {
 		return nil, 0, fmt.Errorf("zk: can't connect: %v", err)
 	}
@@ -145,7 +161,11 @@ func GetApp(appName string) ([]byte, int32, error) {
 
 func DelApp(appName string, version int32) error {
 	zconn, _, err := meta.DialZk(ZkAddr)
-	defer zconn.Close()
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("zk: can't connect: %v", err)
 	}
