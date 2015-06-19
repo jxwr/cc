@@ -23,13 +23,19 @@ func rebalanceAction(c *cli.Context) {
 	}
 	addr := context.GetLeaderAddr()
 
+	extraHeader := &utils.ExtraHeader{
+		User:  context.Config.User,
+		Role:  context.Config.Role,
+		Token: context.Config.Token,
+	}
+
 	url := "http://" + addr + api.RebalancePath
 
 	req := api.RebalanceParams{
 		Method:       "default",
 		ShowPlanOnly: false,
 	}
-	resp, err := utils.HttpPost(url, req, 5*time.Second)
+	resp, err := utils.HttpPostExtra(url, req, 5*time.Second, extraHeader)
 	if err != nil {
 		fmt.Println(err)
 		return

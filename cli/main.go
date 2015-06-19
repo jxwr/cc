@@ -63,6 +63,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	context.SetConfigContext(conf)
 
 	if len(os.Args) > 1 {
 		app := cli.NewApp()

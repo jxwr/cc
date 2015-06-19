@@ -23,6 +23,12 @@ func takeoverAction(c *cli.Context) {
 	}
 	addr := context.GetLeaderAddr()
 
+	extraHeader := &utils.ExtraHeader{
+		User:  context.Config.User,
+		Role:  context.Config.Role,
+		Token: context.Config.Token,
+	}
+
 	url := "http://" + addr + api.FailoverTakeoverPath
 	nodeid, err := context.GetId(c.Args()[0])
 	if err != nil {
@@ -33,7 +39,7 @@ func takeoverAction(c *cli.Context) {
 	req := api.FailoverTakeoverParams{
 		NodeId: nodeid,
 	}
-	resp, err := utils.HttpPost(url, req, 5*time.Second)
+	resp, err := utils.HttpPostExtra(url, req, 5*time.Second, extraHeader)
 	if err != nil {
 		fmt.Println(err)
 		return

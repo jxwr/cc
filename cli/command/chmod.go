@@ -30,6 +30,12 @@ func chmodAction(c *cli.Context) {
 
 	addr := context.GetLeaderAddr()
 
+	extraHeader := &utils.ExtraHeader{
+		User:  context.Config.User,
+		Role:  context.Config.Role,
+		Token: context.Config.Token,
+	}
+
 	url := "http://" + addr + api.NodePermPath
 	var act string
 	var nodeid string
@@ -89,7 +95,7 @@ func chmodAction(c *cli.Context) {
 		Action: action,
 		Perm:   perm,
 	}
-	resp, err := utils.HttpPost(url, req, 5*time.Second)
+	resp, err := utils.HttpPostExtra(url, req, 5*time.Second, extraHeader)
 	if err != nil {
 		fmt.Println(err)
 		return

@@ -10,13 +10,31 @@ import (
 	"github.com/jxwr/cc/frontend/api"
 )
 
-func do(method, url string, in interface{}, timeout time.Duration) (*api.Response, error) {
+type ExtraHeader struct {
+	User  string
+	Role  string
+	Token string
+}
+
+func do(method, url string, in interface{}, timeout time.Duration, extra *ExtraHeader) (*api.Response, error) {
 	reqJson, _ := json.Marshal(in)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(reqJson))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	if extra != nil {
+		if extra.User != "" {
+			req.Header.Set("User", extra.User)
+		}
+		if extra.Role != "" {
+			req.Header.Set("Role", extra.Role)
+		}
+		if extra.Token != "" {
+			req.Header.Set("Token", extra.Token)
+		}
+	}
 
 	client := http.DefaultClient
 	client.Timeout = timeout
@@ -40,13 +58,25 @@ func do(method, url string, in interface{}, timeout time.Duration) (*api.Respons
 }
 
 func HttpPost(url string, in interface{}, timeout time.Duration) (*api.Response, error) {
-	return do("POST", url, in, timeout)
+	return do("POST", url, in, timeout, nil)
 }
 
 func HttpPut(url string, in interface{}, timeout time.Duration) (*api.Response, error) {
-	return do("PUT", url, in, timeout)
+	return do("PUT", url, in, timeout, nil)
 }
 
 func HttpGet(url string, in interface{}, timeout time.Duration) (*api.Response, error) {
-	return do("GET", url, in, timeout)
+	return do("GET", url, in, timeout, nil)
+}
+
+func HttpPostExtra(url string, in interface{}, timeout time.Duration, extra *ExtraHeader) (*api.Response, error) {
+	return do("POST", url, in, timeout, extra)
+}
+
+func HttpPutExtra(url string, in interface{}, timeout time.Duration, extra *ExtraHeader) (*api.Response, error) {
+	return do("PUT", url, in, timeout, extra)
+}
+
+func HttpGetExtra(url string, in interface{}, timeout time.Duration, extra *ExtraHeader) (*api.Response, error) {
+	return do("GET", url, in, timeout, extra)
 }
