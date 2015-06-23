@@ -74,6 +74,9 @@ func main() {
 			initialize.Command,
 			c.AppAddCommand,
 			c.ConfigCommand,
+			c.UserAddCommand,
+			c.UserDelCommand,
+			c.UserGetCommand,
 		}
 		arg := append(os.Args)
 		for _, cmd := range app.Commands {
@@ -88,6 +91,8 @@ func main() {
         cli init [options], -h for more details
         cli config -k <key> -v <value>, -h for more details
         cli appadd [options], -h for more details
+        cli useradd [options], -h for more details
+        cli userdel -u <username>, -h  for more details
         cli <AppName> [<Command>] [options], -h for more details
         `
 		fmt.Println(help)

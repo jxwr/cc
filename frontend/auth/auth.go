@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/context"
 	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/meta"
 	"net/http"
@@ -18,7 +17,6 @@ type TokenAuth struct {
 
 type TokenGetter interface {
 	GetUserFromRequest(req *http.Request) string
-	GetRoleFromRequest(req *http.Request) string
 	GetTokenFromRequest(req *http.Request) string
 }
 
@@ -32,7 +30,6 @@ type ClaimGetter interface {
 
 type QueryStringTokenGetter struct {
 	User  string
-	Role  string
 	Token string
 }
 
@@ -41,20 +38,14 @@ func (q QueryStringTokenGetter) GetTokenFromRequest(req *http.Request) string {
 	return authStr
 }
 
-func (q QueryStringTokenGetter) GetRoleFromRequest(req *http.Request) string {
-	authStr := req.Header.Get(q.Role)
-	return authStr
-}
-
 func (q QueryStringTokenGetter) GetUserFromRequest(req *http.Request) string {
 	authStr := req.Header.Get(q.User)
 	return authStr
 }
 
-func NewQueryStringTokenGetter(user, role, token string) *QueryStringTokenGetter {
+func NewQueryStringTokenGetter(user, token string) *QueryStringTokenGetter {
 	return &QueryStringTokenGetter{
 		User:  user,
-		Role:  role,
 		Token: token,
 	}
 }
@@ -73,7 +64,7 @@ func NewTokenAuth(handler http.Handler, store *MemoryTokenStore, getter TokenGet
 		getter:  getter,
 	}
 	if t.getter == nil {
-		t.getter = NewQueryStringTokenGetter("User", "Role", "Token")
+		t.getter = NewQueryStringTokenGetter("User", "Token")
 	}
 	return t
 }
@@ -82,13 +73,11 @@ func NewTokenAuth(handler http.Handler, store *MemoryTokenStore, getter TokenGet
 func (t *TokenAuth) HandleFunc(handlerFunc gin.HandlerFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		req := c.Request
-		fmt.Println(req)
-		token, err := t.Authenticate(req)
+		_, err := t.Authenticate(req)
 		if err != nil {
 			c.JSON(200, api.MakeFailureResponse(err.Error()))
 			return
 		}
-		context.Set(req, "token", token)
 		handlerFunc(c)
 	}
 }
@@ -97,10 +86,6 @@ func (t *TokenAuth) Authenticate(req *http.Request) (*MemoryToken, error) {
 	strUser := t.getter.GetUserFromRequest(req)
 	if strUser == "" {
 		strUser = "Anonymous"
-	}
-	strRole := t.getter.GetRoleFromRequest(req)
-	if strRole == "" {
-		strRole = "readonly"
 	}
 	strToken := t.getter.GetTokenFromRequest(req)
 	if strToken == "" {
@@ -112,12 +97,14 @@ func (t *TokenAuth) Authenticate(req *http.Request) (*MemoryToken, error) {
 	token, exist, err := t.store.CheckIdToken(strUser, strToken)
 	if !exist {
 		//从zk获取后放入map
-		zkToken, err := meta.GetUserToken(strUser, strRole)
+		zkToken, err := meta.GetUserToken(strUser)
 		if err != nil {
+			//避免不一致，验证失败后从内存清除
+			t.store.DeleteIdToken(strUser)
 			return nil, err
 		}
-		fmt.Println(zkToken, strToken)
 		if zkToken != strToken {
+			t.store.DeleteIdToken(strUser)
 			return nil, errors.New("token invalid")
 		}
 		t.store.UpdateToken(strUser, strToken)
@@ -127,8 +114,4 @@ func (t *TokenAuth) Authenticate(req *http.Request) (*MemoryToken, error) {
 		}
 	}
 	return token, nil
-}
-
-func Get(req *http.Request) *MemoryToken {
-	return context.Get(req, "token").(*MemoryToken)
 }

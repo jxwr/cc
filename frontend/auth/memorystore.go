@@ -41,6 +41,16 @@ func (t *MemoryToken) Claims(key string) interface{} {
 	}
 }
 
+func GenerateToken(id string) string {
+	hash := sha1.New()
+	now := time.Now()
+	timeStr := now.Format(time.ANSIC)
+	hash.Write([]byte(timeStr))
+	hash.Write([]byte(id))
+	hash.Write([]byte("salt"))
+	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
+}
+
 func (s *MemoryTokenStore) generateToken(id string) []byte {
 	hash := sha1.New()
 	now := time.Now()
@@ -93,6 +103,14 @@ func NewTokenStore(salt string) *MemoryTokenStore {
 		idTokens: make(map[string]*MemoryToken),
 	}
 
+}
+
+func (s *MemoryTokenStore) DeleteIdToken(id string) {
+	_, ok := s.idTokens[id]
+	if !ok {
+		return
+	}
+	delete(s.idTokens, id)
 }
 
 func (s *MemoryTokenStore) CheckIdToken(id, strToken string) (*MemoryToken, bool, error) {
