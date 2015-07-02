@@ -114,6 +114,31 @@ func AddApp(appName string, config []byte) error {
 	}
 }
 
+func ListApp() ([]string, error) {
+	zconn, _, err := meta.DialZk(ZkAddr)
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("zk: can't connect: %v", err)
+	}
+	zkPath := "/r3/app"
+	exists, _, err := zconn.Exists(zkPath)
+	if err != nil {
+		return nil, fmt.Errorf("zk: call exist failed %v", err)
+	}
+	if exists {
+		apps, _, err := zconn.Children(zkPath)
+		if err != nil {
+			return nil, fmt.Errorf("zk: call children failed %v", err)
+		}
+		return apps, nil
+	}
+	return nil, err
+}
+
 func ModApp(appName string, config []byte, version int32) error {
 	zconn, _, err := meta.DialZk(ZkAddr)
 	defer func() {

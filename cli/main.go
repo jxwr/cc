@@ -72,6 +72,7 @@ func main() {
 		app.Commands = []cli.Command{
 			initialize.Command,
 			c.AppAddCommand,
+			c.AppListCommand,
 			c.ConfigCommand,
 		}
 		arg := append(os.Args)
@@ -87,6 +88,7 @@ func main() {
         cli init [options], -h for more details
         cli config -k <key> -v <value>, -h for more details
         cli appadd [options], -h for more details
+        cli applist, -h for more details
         cli <AppName> [<Command>] [options], -h for more details
         `
 		fmt.Println(help)
