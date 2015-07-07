@@ -42,6 +42,10 @@ func WriteFileHandler(i interface{}) bool {
 
 func WriteRingBufferHandler(i interface{}) bool {
 	msg := i.(*streams.LogStreamData)
+	if msg.Level == "VERBOSE" {
+		return true
+	}
+
 	line := fmt.Sprintf("%s %s: [%s] - %s\n", msg.Level,
 		msg.Time.Format("2006/01/02 15:04:05"), msg.Target, msg.Message)
 
