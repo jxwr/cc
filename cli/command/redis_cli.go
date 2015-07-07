@@ -11,7 +11,7 @@ import (
 
 var RedisCliCommand = cli.Command{
 	Name:   "do",
-	Usage:  "do <id> <redis command>, e.g. do 982146 info memory",
+	Usage:  "do <id> <redis command>, eval redis command in cli, eg. 'do 982146 info memory'",
 	Action: redisCliAction,
 }
 

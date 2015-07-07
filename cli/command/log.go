@@ -17,7 +17,7 @@ import (
 
 var LogCommand = cli.Command{
 	Name:   "log",
-	Usage:  "log [<num>], show last <num> log or tail",
+	Usage:  "log [<num>], same as 'tail -n' or 'tail -f'",
 	Action: logAction,
 }
 
