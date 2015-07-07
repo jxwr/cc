@@ -30,6 +30,7 @@ var cmds = []cli.Command{
 	c.AppModCommand,
 	c.WebCommand,
 	c.TaskCommand,
+	c.RedisCliCommand,
 }
 
 const (

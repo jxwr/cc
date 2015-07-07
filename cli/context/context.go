@@ -24,7 +24,7 @@ const DEFAULT_CONFIG_FILE = "/.cc_cli_config"
 var (
 	appConfig               meta.AppConfig
 	controllerConfig        meta.ControllerConfig
-	nodesCache              []string
+	nodesCache              map[string]string // id => address
 	ErrNoNodesFound         = errors.New("Command failed: no nodes found")
 	ErrMoreThanOneNodeFound = errors.New("Command failed: more than one node found")
 	ZkAddr                  string
@@ -238,11 +238,11 @@ func CacheNodes() error {
 	if err != nil {
 		return err
 	}
-	nodesCache = []string{}
+	nodesCache = map[string]string{}
 	for _, rs := range rss.ReplicaSets {
 		nodes := rs.AllNodes()
 		for _, node := range nodes {
-			nodesCache = append(nodesCache, node.Id)
+			nodesCache[node.Id] = node.Addr()
 		}
 	}
 	return nil
@@ -254,7 +254,7 @@ func GetId(shortid string) (string, error) {
 	updated := false
 	for {
 		cnt = 0
-		for _, node := range nodesCache {
+		for node, _ := range nodesCache {
 			if strings.HasPrefix(node, shortid) {
 				longid = node
 				cnt = cnt + 1
@@ -279,7 +279,14 @@ func GetId(shortid string) (string, error) {
 	} else {
 		return longid, nil
 	}
+}
 
+func GetNodeAddr(nodeId string) (string, error) {
+	nid, err := GetId(nodeId)
+	if err != nil {
+		return "", err
+	}
+	return nodesCache[nid], nil
 }
 
 func LoadConfig(filePath string) (*CliConf, error) {
