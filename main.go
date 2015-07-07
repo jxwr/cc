@@ -62,6 +62,7 @@ func main() {
 
 	streams.StartAllStreams()
 	streams.LogStream.Sub(log.WriteFileHandler)
+	streams.LogStream.Sub(log.WriteRingBufferHandler)
 
 	sp := inspector.NewInspector()
 	go sp.Run()

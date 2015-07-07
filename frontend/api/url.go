@@ -20,4 +20,5 @@ const (
 	FetchReplicaSetsPath    = "/replicasets"
 	MakeReplicaSetPath      = "/replicaset/make"
 	FailoverTakeoverPath    = "/failover/takeover"
+	LogSlicePath            = "/log/slice"
 )

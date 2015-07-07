@@ -15,6 +15,12 @@ import (
 // - FATAL
 // - EVENT
 
+var LogRingBuffer []string
+
+func init() {
+	LogRingBuffer = make([]string, 40000)
+}
+
 func WriteFileHandler(i interface{}) bool {
 	data := i.(*streams.LogStreamData)
 	switch data.Level {
@@ -31,6 +37,19 @@ func WriteFileHandler(i interface{}) bool {
 	case "EVENT":
 		glog.Infof("[E] [%s] %s", data.Target, data.Message)
 	}
+	return true
+}
+
+func WriteRingBufferHandler(i interface{}) bool {
+	msg := i.(*streams.LogStreamData)
+	line := fmt.Sprintf("%s %s: [%s] - %s\n", msg.Level,
+		msg.Time.Format("2006/01/02 15:04:05"), msg.Target, msg.Message)
+
+	if len(LogRingBuffer) >= cap(LogRingBuffer)-1 {
+		LogRingBuffer = LogRingBuffer[1:]
+	}
+	LogRingBuffer = append(LogRingBuffer, line)
+
 	return true
 }
 

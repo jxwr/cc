@@ -2,18 +2,22 @@ package command
 
 import (
 	"io"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codegangsta/cli"
 	"golang.org/x/net/websocket"
 
 	"github.com/jxwr/cc/cli/context"
+	"github.com/jxwr/cc/frontend/api"
 	"github.com/jxwr/cc/streams"
+	"github.com/jxwr/cc/utils"
 )
 
 var LogCommand = cli.Command{
 	Name:   "log",
-	Usage:  "log",
+	Usage:  "log [<num>], show last <num> log or tail",
 	Action: logAction,
 }
 
@@ -25,6 +29,38 @@ func LevelGE(level, base string) bool {
 }
 
 func logAction(c *cli.Context) {
+	// tail -n
+	if len(c.Args()) == 1 {
+		n, err := strconv.Atoi(c.Args()[0])
+		if err != nil {
+			Put(err)
+			return
+		}
+		addr := context.GetLeaderAddr()
+		url := "http://" + addr + api.LogSlicePath
+		req := api.LogSliceParams{
+			Pos:   0,
+			Count: n,
+		}
+		resp, err := utils.HttpPost(url, req, 5*time.Second)
+		if err != nil {
+			Put(err)
+			return
+		}
+
+		var lines []string
+		err = utils.InterfaceToStruct(resp.Body, &lines)
+		if err != nil {
+			Put(err)
+			return
+		}
+		for _, line := range lines {
+			Putf(line)
+		}
+		return
+	}
+
+	// blocking tail
 	addr := context.GetLeaderWebSocketAddr()
 	url := "ws://" + addr + "/log"
 

@@ -10,6 +10,7 @@ import (
 	cc "github.com/jxwr/cc/controller"
 	"github.com/jxwr/cc/controller/command"
 	"github.com/jxwr/cc/frontend/api"
+	"github.com/jxwr/cc/log"
 	"github.com/jxwr/cc/topo"
 )
 
@@ -31,6 +32,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.Static("/ui", "./public")
 	fe.Router.GET(api.AppInfoPath, fe.HandleAppInfo)
 	fe.Router.GET(api.FetchReplicaSetsPath, fe.HandleFetchReplicaSets)
+	fe.Router.POST(api.LogSlicePath, fe.HandleLogSlice)
 	fe.Router.POST(api.RegionSnapshotPath, fe.HandleRegionSnapshot)
 	fe.Router.POST(api.MigrateCreatePath, fe.HandleMigrateCreate)
 	fe.Router.POST(api.MigratePausePath, fe.HandleMigratePause)
@@ -345,4 +347,14 @@ func (fe *FrontEnd) HandleMergeSeeds(c *gin.Context) {
 	}
 
 	c.JSON(200, api.MakeSuccessResponse(result))
+}
+
+func (fe *FrontEnd) HandleLogSlice(c *gin.Context) {
+	var params api.LogSliceParams
+	c.Bind(&params)
+
+	n := len(log.LogRingBuffer)
+	lines := log.LogRingBuffer[n-params.Pos-params.Count : n-params.Pos]
+
+	c.JSON(200, api.MakeSuccessResponse(lines))
 }

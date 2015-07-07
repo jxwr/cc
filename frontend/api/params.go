@@ -82,3 +82,9 @@ type MergeSeedsParams struct {
 	Region string       `json:"region"`
 	Seeds  []*topo.Node `json:"seeds"`
 }
+
+type LogSliceParams struct {
+	// Example: to impl 'tail -n 100', use Pos=0, Count=100
+	Pos   int // Pos is the position of the last log, last log position is 0
+	Count int // how many lines to return before Pos
+}
