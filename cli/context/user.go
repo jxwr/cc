@@ -3,8 +3,8 @@ package context
 import (
 	"fmt"
 
-	"github.com/jxwr/cc/frontend/auth"
-	"github.com/jxwr/cc/meta"
+	"github.com/ksarch-saas/cc/frontend/auth"
+	"github.com/ksarch-saas/cc/meta"
 	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
 

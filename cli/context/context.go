@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jxwr/cc/controller/command"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/utils"
+	"github.com/ksarch-saas/cc/controller/command"
+	"github.com/ksarch-saas/cc/frontend/api"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/utils"
 	zookeeper "github.com/samuel/go-zookeeper/zk"
 
 	"gopkg.in/yaml.v1"

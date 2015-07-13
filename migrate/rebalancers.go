@@ -3,7 +3,7 @@ package migrate
 import (
 	"math"
 
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 func ManyToOne(sNodes []*topo.Node, tNode *topo.Node) (plans []*MigratePlan) {

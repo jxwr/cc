@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/topo"
 	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
 

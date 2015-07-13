@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/migrate"
-	"github.com/jxwr/cc/state"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/migrate"
+	"github.com/ksarch-saas/cc/state"
 )
 
 var (

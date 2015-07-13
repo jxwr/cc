@@ -6,9 +6,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/jxwr/cc/log"
-	"github.com/jxwr/cc/redis"
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/redis"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 var (

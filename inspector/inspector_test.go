@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 func TestBuildClusterTopo(t *testing.T) {

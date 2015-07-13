@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/jxwr/cc/streams"
+	"github.com/ksarch-saas/cc/streams"
 )
 
 // Levels:

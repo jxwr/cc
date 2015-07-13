@@ -7,8 +7,8 @@ import (
 	"github.com/codegangsta/cli"
 	"golang.org/x/net/websocket"
 
-	"github.com/jxwr/cc/cli/context"
-	"github.com/jxwr/cc/streams"
+	"github.com/ksarch-saas/cc/cli/context"
+	"github.com/ksarch-saas/cc/streams"
 )
 
 var LogCommand = cli.Command{

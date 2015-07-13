@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/meta"
+	"github.com/ksarch-saas/cc/frontend/api"
+	"github.com/ksarch-saas/cc/meta"
 	"net/http"
 )
 

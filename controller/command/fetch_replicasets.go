@@ -1,8 +1,8 @@
 package command
 
 import (
-	cc "github.com/jxwr/cc/controller"
-	"github.com/jxwr/cc/topo"
+	cc "github.com/ksarch-saas/cc/controller"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 type FetchReplicaSetsCommand struct{}

@@ -9,9 +9,9 @@ import (
 	"github.com/GeertJohan/go.linenoise"
 	"github.com/codegangsta/cli"
 
-	c "github.com/jxwr/cc/cli/command"
-	"github.com/jxwr/cc/cli/command/initialize"
-	"github.com/jxwr/cc/cli/context"
+	c "github.com/ksarch-saas/cc/cli/command"
+	"github.com/ksarch-saas/cc/cli/command/initialize"
+	"github.com/ksarch-saas/cc/cli/context"
 )
 
 var cmds = []cli.Command{
