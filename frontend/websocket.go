@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jxwr/cc/streams"
+	"github.com/ksarch-saas/cc/streams"
 	"golang.org/x/net/websocket"
 )
 

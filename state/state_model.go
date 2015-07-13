@@ -3,10 +3,10 @@ package state
 import (
 	"time"
 
-	"github.com/jxwr/cc/fsm"
-	"github.com/jxwr/cc/log"
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/redis"
+	"github.com/ksarch-saas/cc/fsm"
+	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/redis"
 )
 
 const (

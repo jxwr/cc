@@ -6,7 +6,7 @@ import (
 	"os/user"
 
 	"github.com/codegangsta/cli"
-	"github.com/jxwr/cc/cli/context"
+	"github.com/ksarch-saas/cc/cli/context"
 )
 
 var ConfigCommand = cli.Command{

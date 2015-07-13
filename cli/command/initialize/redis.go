@@ -2,7 +2,7 @@ package initialize
 
 import (
 	"fmt"
-	"github.com/jxwr/cc/redis"
+	"github.com/ksarch-saas/cc/redis"
 	"strconv"
 	"time"
 )

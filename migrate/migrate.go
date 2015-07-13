@@ -6,11 +6,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jxwr/cc/log"
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/redis"
-	"github.com/jxwr/cc/streams"
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/redis"
+	"github.com/ksarch-saas/cc/streams"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 const (

@@ -1,7 +1,7 @@
 package command
 
 import (
-	cc "github.com/jxwr/cc/controller"
+	cc "github.com/ksarch-saas/cc/controller"
 )
 
 /// Command types

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
-	"github.com/jxwr/cc/log"
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 var (

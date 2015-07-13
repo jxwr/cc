@@ -6,11 +6,11 @@ import (
 
 	"github.com/codegangsta/cli"
 
-	"github.com/jxwr/cc/cli/context"
-	"github.com/jxwr/cc/controller/command"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/utils"
+	"github.com/ksarch-saas/cc/cli/context"
+	"github.com/ksarch-saas/cc/controller/command"
+	"github.com/ksarch-saas/cc/frontend/api"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/utils"
 )
 
 var ShowCommand = cli.Command{

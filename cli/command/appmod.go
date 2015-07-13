@@ -7,8 +7,8 @@ import (
 
 	"encoding/json"
 	"github.com/codegangsta/cli"
-	"github.com/jxwr/cc/cli/context"
-	"github.com/jxwr/cc/meta"
+	"github.com/ksarch-saas/cc/cli/context"
+	"github.com/ksarch-saas/cc/meta"
 )
 
 var AppModCommand = cli.Command{

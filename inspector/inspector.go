@@ -8,9 +8,9 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/redis"
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/redis"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 var (
