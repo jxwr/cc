@@ -18,6 +18,7 @@ var (
 	ErrPingFailed  = errors.New("redis: ping error")
 	ErrServer      = errors.New("redis: server error")
 	ErrInvalidAddr = errors.New("redis: invalid address string")
+	poolMap        map[string]*redis.Pool //redis connection pool for each server
 )
 
 const (
@@ -33,18 +34,39 @@ const (
 )
 
 func dial(addr string) (redis.Conn, error) {
-	inner := func(addr string) (redis.Conn, error) {
-		return redis.DialTimeout("tcp", addr, CONN_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT)
+	if poolMap == nil {
+		poolMap = make(map[string]*redis.Pool)
 	}
-	retry := NUM_RETRY
-	var err error
-	var resp redis.Conn
-	for retry > 0 {
-		resp, err = inner(addr)
-		if err == nil {
-			return resp, nil
+
+	inner := func(addr string) (redis.Conn, error) {
+		if _, ok := poolMap[addr]; !ok {
+			//not exist in map
+			poolMap[addr] = &redis.Pool{
+				MaxIdle:     3,
+				IdleTimeout: 240 * time.Second,
+				Dial: func() (redis.Conn, error) {
+					c, err := redis.DialTimeout("tcp", addr, CONN_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT)
+					if err != nil {
+						return nil, err
+					}
+					return c, nil
+				},
+				TestOnBorrow: func(c redis.Conn, t time.Time) error {
+					_, err := c.Do("PING")
+					return err
+				},
+			}
 		}
-		retry--
+		pool, ok := poolMap[addr]
+		if ok {
+			return pool.Get(), nil
+		} else {
+			return nil, ErrConnFailed
+		}
+	}
+	resp, err := inner(addr)
+	if err == nil {
+		return resp, nil
 	}
 	return nil, err
 }
