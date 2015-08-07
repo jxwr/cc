@@ -111,7 +111,7 @@ func action(c *cli.Context) {
 	/* build cluster */
 	masterNodes, err := buildCluster(allnodes, replicas, masterRooms, rooms)
 	if err != nil {
-		fmt.Printf("%s buildCluster failed\n", red("Error"))
+		fmt.Printf("%v buildCluster failed\n", red(err))
 		os.Exit(-1)
 	}
 
