@@ -29,8 +29,8 @@ const (
 
 	NUM_RETRY     = 3
 	CONN_TIMEOUT  = 1 * time.Second
-	READ_TIMEOUT  = 2 * time.Second
-	WRITE_TIMEOUT = 2 * time.Second
+	READ_TIMEOUT  = 120 * time.Second
+	WRITE_TIMEOUT = 120 * time.Second
 )
 
 func dial(addr string) (redis.Conn, error) {

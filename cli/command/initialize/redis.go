@@ -24,22 +24,27 @@ func isMaster(node *Node) bool {
 }
 
 func resetNodes(nodes []*Node) (string, error) {
-	var resp string
-	var err error
+	var ChanErr chan error = make(chan error)
+	var ret_err error = nil
 	for _, node := range nodes {
-		addr := fmt.Sprintf("%s:%s", node.Ip, node.Port)
-		if isMaster(node) {
-			resp, err = redis.FlushAll(addr)
-			if err != nil {
-				return resp, err
+		inner := func(node *Node) {
+			var err error
+			addr := fmt.Sprintf("%s:%s", node.Ip, node.Port)
+			if isMaster(node) {
+				_, err = redis.FlushAll(addr)
 			}
+			_, err = redis.ClusterReset(addr, false)
+			ChanErr <- err
 		}
-		resp, err = redis.ClusterReset(addr, false)
+		go inner(node)
+	}
+	for i := 0; i < len(nodes); i++ {
+		err := <-ChanErr
 		if err != nil {
-			return resp, err
+			ret_err = err
 		}
 	}
-	return resp, nil
+	return "", ret_err
 }
 
 func clusterNodes(node *Node) (string, error) {
