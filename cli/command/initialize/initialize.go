@@ -23,10 +23,53 @@ var (
 		Action: action,
 		Flags:  flags,
 	}
+
+	flags_node = []cli.Flag{
+		cli.StringFlag{"i,ip", "127.0.0.1", "node ip"},
+		cli.StringFlag{"p,port", "", "node port"},
+		cli.StringFlag{"r,range", "", "slot range to assign. format '0-100'"},
+	}
+
+	Command_node = cli.Command{
+		Name:   "assign",
+		Usage:  "assign slot to a empty node mannually",
+		Action: node_action,
+		Flags:  flags_node,
+	}
 )
 
+func node_action(c *cli.Context) {
+	red := color.New(color.FgRed).SprintFunc()
+	ip := c.String("ip")
+	port := c.String("port")
+	if port == "" {
+		fmt.Println(red("-p,port mmust be assigned"))
+		os.Exit(-1)
+	}
+	slot_range := c.String("range")
+	if slot_range == "" {
+		fmt.Println(red("-r,range must be assigned"))
+		os.Exit(-1)
+	}
+	slots := strings.Split(slot_range, "-")
+	if len(slots) != 2 {
+		fmt.Println(red("range must be in start-end format"))
+		os.Exit(-1)
+	}
+	node := &Node{
+		Ip:         ip,
+		Port:       port,
+		SlotsRange: slot_range,
+	}
+	resp, err := addSlotRange(node)
+	if err != nil {
+		fmt.Println(red(err))
+		os.Exit(-1)
+	}
+	fmt.Println(resp)
+}
+
 func action(c *cli.Context) {
-	fmt.Println(c.Args())
 	red := color.New(color.FgRed).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()

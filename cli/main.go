@@ -72,6 +72,7 @@ func main() {
 
 		app.Commands = []cli.Command{
 			initialize.Command,
+			initialize.Command_node,
 			c.AppAddCommand,
 			c.AppListCommand,
 			c.ConfigCommand,
@@ -87,6 +88,7 @@ func main() {
 	if (len(os.Args) == 2 && (string(os.Args[1]) == "-h" || string(os.Args[1]) == "--help")) || (len(os.Args) == 1) {
 		help := `Usage:
         cli init [options], -h for more details
+        cli assign slot_range, -h for more details
         cli config -k <key> -v <value>, -h for more details
         cli appadd [options], -h for more details
         cli applist, -h for more details
