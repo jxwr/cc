@@ -64,6 +64,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	context.SetConfigContext(conf)
 
 	if len(os.Args) > 1 {
 		app := cli.NewApp()
@@ -76,6 +77,9 @@ func main() {
 			c.AppAddCommand,
 			c.AppListCommand,
 			c.ConfigCommand,
+			c.UserAddCommand,
+			c.UserDelCommand,
+			c.UserGetCommand,
 		}
 		arg := append(os.Args)
 		for _, cmd := range app.Commands {
@@ -92,6 +96,8 @@ func main() {
         cli config -k <key> -v <value>, -h for more details
         cli appadd [options], -h for more details
         cli applist, -h for more details
+        cli useradd [options], -h for more details
+        cli userdel -u <username>, -h  for more details
         cli <AppName> [<Command>] [options], -h for more details
         `
 		fmt.Println(help)

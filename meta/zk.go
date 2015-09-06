@@ -85,3 +85,12 @@ func CreateRecursive(zconn *zookeeper.Conn, zkPath, value string, flags int32, a
 	}
 	return
 }
+
+func GetUserToken(user string) (string, error) {
+	tokenPath := "/r3/users/" + user
+	token, _, err := meta.zconn.Get(tokenPath)
+	if err != nil {
+		return "", fmt.Errorf("zk get %s failed", tokenPath)
+	}
+	return string(token), nil
+}

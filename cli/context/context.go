@@ -30,16 +30,24 @@ var (
 	ZkAddr                  string
 	appContextName          string
 	Display                 string
+	Config                  *CliConf
 )
 
 type CliConf struct {
 	Zkhosts     string `yaml:"zkhosts,omitempty"`
 	HistoryFile string `yaml:"historyfile,omitempty"`
 	Display     string `yaml:"display,omitempty"`
+	User        string `yaml:"user,omitempty"`
+	Role        string `yaml:"role,omitempty"`
+	Token       string `yaml:"token,omitempty"`
 }
 
 func GetAppName() string {
 	return appContextName
+}
+
+func SetConfigContext(conf *CliConf) {
+	Config = conf
 }
 
 func SetApp(appName string, zkAddr string) error {

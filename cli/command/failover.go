@@ -23,6 +23,11 @@ func failoverAction(c *cli.Context) {
 		return
 	}
 	addr := context.GetLeaderAddr()
+	extraHeader := &utils.ExtraHeader{
+		User:  context.Config.User,
+		Role:  context.Config.Role,
+		Token: context.Config.Token,
+	}
 
 	url := "http://" + addr + api.NodeSetAsMasterPath
 	nodeid, err := context.GetId(c.Args()[0])
@@ -34,7 +39,7 @@ func failoverAction(c *cli.Context) {
 	req := api.FailoverTakeoverParams{
 		NodeId: nodeid,
 	}
-	resp, err := utils.HttpPost(url, req, 5*time.Second)
+	resp, err := utils.HttpPostExtra(url, req, 5*time.Second, extraHeader)
 	if err != nil {
 		fmt.Println(err)
 		return

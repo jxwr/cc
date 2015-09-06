@@ -7,16 +7,18 @@ import (
 	"github.com/ksarch-saas/cc/cli/context"
 )
 
-var AppDelCommand = cli.Command{
-	Name:   "appdel",
-	Usage:  "appdel",
-	Action: appDelAction,
+var UserDelCommand = cli.Command{
+	Name:   "userdel",
+	Usage:  "userdel",
+	Action: userDelAction,
+	Flags: []cli.Flag{
+		cli.StringFlag{"u,username", "", "username"},
+	},
 	Description: `
-    [Warning]
-    delete the app from zookeeper`,
+    delete user from zookeeper`,
 }
 
-func appDelAction(c *cli.Context) {
+func userDelAction(c *cli.Context) {
 	super, err := context.CheckSuperPerm(context.Config.User)
 	if err != nil {
 		fmt.Println(err)
@@ -26,7 +28,8 @@ func appDelAction(c *cli.Context) {
 		fmt.Println("You have no permission to this operation")
 		return
 	}
-	appname := context.GetAppName()
+
+	username := c.String("u")
 
 	fmt.Printf("Type %s to continue: ", "yes")
 	var cmd string
@@ -34,16 +37,16 @@ func appDelAction(c *cli.Context) {
 	if cmd != "yes" {
 		return
 	}
-	_, version, err := context.GetApp(appname)
+	_, version, err := context.GetUser(username)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	err = context.DelApp(appname, version)
+	err = context.DelUser(username, version)
 	if err != nil {
 		fmt.Println(err)
 		return
 	} else {
-		fmt.Printf("Delete %s success\n", appname)
+		fmt.Printf("Delete %s success\n", username)
 	}
 }

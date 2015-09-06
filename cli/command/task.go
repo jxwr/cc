@@ -30,7 +30,12 @@ func doTaskAction(path, sourceId string) {
 	req := api.MigrateActionParams{
 		SourceId: nodeid,
 	}
-	resp, err := utils.HttpPost(url, req, 5*time.Second)
+	extraHeader := &utils.ExtraHeader{
+		User:  context.Config.User,
+		Role:  context.Config.Role,
+		Token: context.Config.Token,
+	}
+	resp, err := utils.HttpPostExtra(url, req, 5*time.Second, extraHeader)
 	if err != nil {
 		Put(err)
 		return
