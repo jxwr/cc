@@ -54,8 +54,8 @@ func clusterNodes(node *Node) (string, error) {
 }
 
 func meetEach(nodes []*Node) {
-	for _, n1 := range nodes {
-		for _, n2 := range nodes {
+	for _, n1 := range nodes[:len(nodes)/2] {
+		for _, n2 := range nodes[len(nodes)/2:] {
 			if n1 != n2 {
 				addr := fmt.Sprintf("%s:%s", n1.Ip, n1.Port)
 				newPort, _ := strconv.Atoi(n2.Port)
