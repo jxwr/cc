@@ -591,3 +591,16 @@ func FlushAll(addr string) (string, error) {
 	}
 	return resp, nil
 }
+
+func Slot2Node(addr string, slot int, dest string) (string, error) {
+	conn, err := dial(addr)
+	if err != nil {
+		return "connect failed", ErrConnFailed
+	}
+	defer conn.Close()
+	resp, err := redis.String(conn.Do("slot2node", slot, dest))
+	if err != nil {
+		return resp, nil
+	}
+	return resp, nil
+}
