@@ -122,6 +122,50 @@ func AddApp(appName string, config []byte) error {
 	}
 }
 
+func ListFailoverRecord() ([]string, error) {
+	zconn, _, err := meta.DialZk(ZkAddr)
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("zk: can't connect: %v", err)
+	}
+	zkPath := "/r3/failover/history"
+	exists, _, err := zconn.Exists(zkPath)
+	if err != nil {
+		return nil, fmt.Errorf("zk: call exist failed %v", err)
+	}
+	if exists {
+		apps, stat, err := zconn.Children(zkPath)
+		fmt.Println(*stat)
+		if err != nil {
+			return nil, fmt.Errorf("zk: call children failed %v", err)
+		}
+		return apps, nil
+	}
+	return nil, err
+}
+
+func GetFailoverRecord(record string) (string, int32, error) {
+	zconn, _, err := meta.DialZk(ZkAddr)
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
+	if err != nil {
+		return "", 0, fmt.Errorf("zk: can't connect: %v", err)
+	}
+	zkPath := "/r3/failover/history/" + record
+	config, stat, err := zconn.Get(zkPath)
+	if err != nil {
+		return "", 0, fmt.Errorf("zk: get: %v", err)
+	}
+	return string(config), stat.Version, nil
+}
+
 func ListApp() ([]string, error) {
 	zconn, _, err := meta.DialZk(ZkAddr)
 	defer func() {

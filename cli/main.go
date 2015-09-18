@@ -81,6 +81,8 @@ func main() {
 			c.UserAddCommand,
 			c.UserDelCommand,
 			c.UserGetCommand,
+			c.ListFailoverRecordCommand,
+			c.GetFailoverRecordCommand,
 		}
 		arg := append(os.Args)
 		for _, cmd := range app.Commands {
@@ -99,6 +101,8 @@ func main() {
         cli applist, -h for more details
         cli useradd [options], -h for more details
         cli userdel -u <username>, -h  for more details
+        cli listfailover, -h for more details
+        cli getfailover, -h for more details
         cli <AppName> [<Command>] [options], -h for more details
         `
 		fmt.Println(help)
