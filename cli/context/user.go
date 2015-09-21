@@ -46,7 +46,7 @@ func ModUser(userName, role string, config []byte, version int32) error {
 	if err != nil {
 		return fmt.Errorf("zk: can't connect: %v", err)
 	}
-	zkPath := "/r3/uses/" + userName
+	zkPath := "/r3/users/" + userName
 	exists, _, err := zconn.Exists(zkPath)
 	if err != nil {
 		return fmt.Errorf("zk: call exist failed %v", err)
