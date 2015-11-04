@@ -1,9 +1,9 @@
 package meta
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang/glog"
 	zookeeper "github.com/samuel/go-zookeeper/zk"
@@ -39,14 +39,16 @@ func (m *Meta) CheckLeaders(watch bool) (string, string, <-chan zookeeper.Event,
 		xs := strings.Split(child, "_")
 		seq, _ := strconv.Atoi(xs[2])
 		region := xs[1]
-		// Cluster Leader
-		if clusterMinSeq < 0 {
-			clusterMinSeq = seq
-			clusterLeader = child
-		}
-		if seq < clusterMinSeq {
-			clusterMinSeq = seq
-			clusterLeader = child
+		// Cluster Leader, should be in MasterRegion
+		if MasterRegion() == region {
+			if clusterMinSeq < 0 {
+				clusterMinSeq = seq
+				clusterLeader = child
+			}
+			if seq < clusterMinSeq {
+				clusterMinSeq = seq
+				clusterLeader = child
+			}
 		}
 		// Region Leader
 		if m.localRegion == region {
@@ -127,7 +129,14 @@ func (m *Meta) ElectLeader() (<-chan zookeeper.Event, error) {
 		return watcher, err
 	}
 	if clusterLeader == "" || regionLeader == "" {
-		return watcher, fmt.Errorf("meta: get leaders failed.")
+		for {
+			glog.Info("meta: get leaders failed. will retry")
+			time.Sleep(1 * time.Second)
+			clusterLeader, regionLeader, watcher, err = m.CheckLeaders(true)
+			if clusterLeader != "" {
+				break
+			}
+		}
 	}
 
 	glog.Infof("meta: clusterleader:%s, regionleader:%s", clusterLeader, regionLeader)

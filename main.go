@@ -57,7 +57,7 @@ func main() {
 	go meta.Run(appName, localRegion, httpPort, wsPort, zkHosts, seedNodes, initCh)
 	err := <-initCh
 	if err != nil {
-		glog.Fatal(err)
+		glog.Warning(err)
 	}
 
 	streams.StartAllStreams()
