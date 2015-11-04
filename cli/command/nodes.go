@@ -98,7 +98,7 @@ func nodesToInterfaceSlice(nodes []*topo.Node, stateMap map[string]string) []int
 	return interfaceSlice
 }
 
-func showNodes() {
+func showNodes(format string) {
 	addr := context.GetLeaderAddr()
 	url := "http://" + addr + api.FetchReplicaSetsPath
 
@@ -126,7 +126,7 @@ func showNodes() {
 			allNodes = append(allNodes, nil)
 		}
 	}
-	utils.PrintJsonArray("table",
+	utils.PrintJsonArray(format,
 		[]string{"State", "Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS",
 			"UsedMemory", "Link", "Repl", "Keys", "NetIn", "NetOut"},
 		nodesToInterfaceSlice(allNodes, rss.NodeStates))
