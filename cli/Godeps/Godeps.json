@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/jxwr/cc/cli",
+	"ImportPath": "github.com/ksarch-saas/cc/cli",
 	"GoVersion": "go1.4.1",
 	"Deps": [
 		{
@@ -35,8 +35,21 @@
 			"Rev": "535138d7bcd717d6531c701ef5933d98b1866257"
 		},
 		{
+			"ImportPath": "github.com/gin-gonic/gin",
+			"Comment": "v0.6",
+			"Rev": "e2fa89777e344782ef5d31929f095f4589c35dcc"
+		},
+		{
 			"ImportPath": "github.com/golang/glog",
 			"Rev": "d1c4472bf2efd3826f2b5bdcc02d8416798d678c"
+		},
+		{
+			"ImportPath": "github.com/julienschmidt/httprouter",
+			"Rev": "b428fda53bb0a764fea9c76c9413512eda291dec"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-colorable",
+			"Rev": "043ae16291351db8465272edf465c9f388161627"
 		},
 		{
 			"ImportPath": "github.com/samuel/go-zookeeper/zk",
