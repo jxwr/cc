@@ -76,7 +76,7 @@ func (h handlerStruct) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestRouterAPI(t *testing.T) {
-	var get, head, options, post, put, patch, delete, handler, handlerFunc bool
+	var get, head, post, put, patch, delete, handler, handlerFunc bool
 
 	httpHandler := handlerStruct{&handler}
 
@@ -86,9 +86,6 @@ func TestRouterAPI(t *testing.T) {
 	})
 	router.HEAD("/GET", func(w http.ResponseWriter, r *http.Request, _ Params) {
 		head = true
-	})
-	router.OPTIONS("/GET", func(w http.ResponseWriter, r *http.Request, _ Params) {
-		options = true
 	})
 	router.POST("/POST", func(w http.ResponseWriter, r *http.Request, _ Params) {
 		post = true
@@ -119,12 +116,6 @@ func TestRouterAPI(t *testing.T) {
 	router.ServeHTTP(w, r)
 	if !head {
 		t.Error("routing HEAD failed")
-	}
-
-	r, _ = http.NewRequest("OPTIONS", "/GET", nil)
-	router.ServeHTTP(w, r)
-	if !options {
-		t.Error("routing OPTIONS failed")
 	}
 
 	r, _ = http.NewRequest("POST", "/POST", nil)

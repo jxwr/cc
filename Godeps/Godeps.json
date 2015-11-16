@@ -21,7 +21,7 @@
 		},
 		{
 			"ImportPath": "github.com/julienschmidt/httprouter",
-			"Rev": "b59a38004596b696aca7aa2adccfa68760864d86"
+			"Rev": "b428fda53bb0a764fea9c76c9413512eda291dec"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-colorable",

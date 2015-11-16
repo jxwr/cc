@@ -78,7 +78,6 @@ func (n *node) incrementChildPrio(pos int) int {
 // addRoute adds a node with the given handle to the path.
 // Not concurrency-safe!
 func (n *node) addRoute(path string, handle Handle) {
-	fullPath := path
 	n.priority++
 	numParams := countParams(path)
 
@@ -119,8 +118,7 @@ func (n *node) addRoute(path string, handle Handle) {
 				}
 
 				n.children = []*node{&child}
-				// []byte for proper unicode char conversion, see #65
-				n.indices = string([]byte{n.path[i]})
+				n.indices = string(n.path[i])
 				n.path = path[:i]
 				n.handle = nil
 				n.wildChild = false
@@ -148,9 +146,7 @@ func (n *node) addRoute(path string, handle Handle) {
 						}
 					}
 
-					panic("path segment '" + path +
-						"' conflicts with existing wildcard '" + n.path +
-						"' in path '" + fullPath + "'")
+					panic("conflict with wildcard route")
 				}
 
 				c := path[0]
@@ -173,8 +169,7 @@ func (n *node) addRoute(path string, handle Handle) {
 
 				// Otherwise insert it
 				if c != ':' && c != '*' {
-					// []byte for proper unicode char conversion, see #65
-					n.indices += string([]byte{c})
+					n.indices += string(c)
 					child := &node{
 						maxParams: numParams,
 					}
@@ -182,23 +177,23 @@ func (n *node) addRoute(path string, handle Handle) {
 					n.incrementChildPrio(len(n.indices) - 1)
 					n = child
 				}
-				n.insertChild(numParams, path, fullPath, handle)
+				n.insertChild(numParams, path, handle)
 				return
 
 			} else if i == len(path) { // Make node a (in-path) leaf
 				if n.handle != nil {
-					panic("a handle is already registered for path ''" + fullPath + "'")
+					panic("a Handle is already registered for this path")
 				}
 				n.handle = handle
 			}
 			return
 		}
 	} else { // Empty tree
-		n.insertChild(numParams, path, fullPath, handle)
+		n.insertChild(numParams, path, handle)
 	}
 }
 
-func (n *node) insertChild(numParams uint8, path, fullPath string, handle Handle) {
+func (n *node) insertChild(numParams uint8, path string, handle Handle) {
 	var offset int // already handled bytes of the path
 
 	// find prefix until first wildcard (beginning with ':'' or '*'')
@@ -208,29 +203,27 @@ func (n *node) insertChild(numParams uint8, path, fullPath string, handle Handle
 			continue
 		}
 
+		// check if this Node existing children which would be
+		// unreachable if we insert the wildcard here
+		if len(n.children) > 0 {
+			panic("wildcard route conflicts with existing children")
+		}
+
 		// find wildcard end (either '/' or path end)
 		end := i + 1
 		for end < max && path[end] != '/' {
 			switch path[end] {
 			// the wildcard name must not contain ':' and '*'
 			case ':', '*':
-				panic("only one wildcard per path segment is allowed, has: '" +
-					path[i:] + "' in path '" + fullPath + "'")
+				panic("only one wildcard per path segment is allowed")
 			default:
 				end++
 			}
 		}
 
-		// check if this Node existing children which would be
-		// unreachable if we insert the wildcard here
-		if len(n.children) > 0 {
-			panic("wildcard route '" + path[i:end] +
-				"' conflicts with existing children in path '" + fullPath + "'")
-		}
-
 		// check if the wildcard has a name
 		if end-i < 2 {
-			panic("wildcards must be named with a non-empty name in path '" + fullPath + "'")
+			panic("wildcards must be named with a non-empty name")
 		}
 
 		if c == ':' { // param
@@ -266,17 +259,17 @@ func (n *node) insertChild(numParams uint8, path, fullPath string, handle Handle
 
 		} else { // catchAll
 			if end != max || numParams > 1 {
-				panic("catch-all routes are only allowed at the end of the path in path '" + fullPath + "'")
+				panic("catch-all routes are only allowed at the end of the path")
 			}
 
 			if len(n.path) > 0 && n.path[len(n.path)-1] == '/' {
-				panic("catch-all conflicts with existing handle for the path segment root in path '" + fullPath + "'")
+				panic("catch-all conflicts with existing handle for the path segment root")
 			}
 
 			// currently fixed width 1 for '/'
 			i--
 			if path[i] != '/' {
-				panic("no / before catch-all in path '" + fullPath + "'")
+				panic("no / before catch-all")
 			}
 
 			n.path = path[offset:i]
@@ -401,7 +394,7 @@ walk: // Outer loop for walking the tree
 					return
 
 				default:
-					panic("invalid node type")
+					panic("Invalid node type")
 				}
 			}
 		} else if path == n.path {
@@ -512,7 +505,7 @@ func (n *node) findCaseInsensitivePath(path string, fixTrailingSlash bool) (ciPa
 				return append(ciPath, path...), true
 
 			default:
-				panic("invalid node type")
+				panic("Invalid node type")
 			}
 		} else {
 			// We should have reached the node containing the handle.

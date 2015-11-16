@@ -178,11 +178,6 @@ func (r *Router) HEAD(path string, handle Handle) {
 	r.Handle("HEAD", path, handle)
 }
 
-// OPTIONS is a shortcut for router.Handle("OPTIONS", path, handle)
-func (r *Router) OPTIONS(path string, handle Handle) {
-	r.Handle("OPTIONS", path, handle)
-}
-
 // POST is a shortcut for router.Handle("POST", path, handle)
 func (r *Router) POST(path string, handle Handle) {
 	r.Handle("POST", path, handle)
@@ -213,7 +208,7 @@ func (r *Router) DELETE(path string, handle Handle) {
 // communication with a proxy).
 func (r *Router) Handle(method, path string, handle Handle) {
 	if path[0] != '/' {
-		panic("path must begin with '/' in path '" + path + "'")
+		panic("path must begin with '/'")
 	}
 
 	if r.trees == nil {
@@ -242,7 +237,11 @@ func (r *Router) Handler(method, path string, handler http.Handler) {
 // HandlerFunc is an adapter which allows the usage of an http.HandlerFunc as a
 // request handle.
 func (r *Router) HandlerFunc(method, path string, handler http.HandlerFunc) {
-	r.Handler(method, path, handler)
+	r.Handle(method, path,
+		func(w http.ResponseWriter, req *http.Request, _ Params) {
+			handler(w, req)
+		},
+	)
 }
 
 // ServeFiles serves files from the given file system root.
@@ -257,7 +256,7 @@ func (r *Router) HandlerFunc(method, path string, handler http.HandlerFunc) {
 //     router.ServeFiles("/src/*filepath", http.Dir("/var/www"))
 func (r *Router) ServeFiles(path string, root http.FileSystem) {
 	if len(path) < 10 || path[len(path)-10:] != "/*filepath" {
-		panic("path must end with /*filepath in path '" + path + "'")
+		panic("path must end with /*filepath")
 	}
 
 	fileServer := http.FileServer(root)
