@@ -148,7 +148,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 					log.Warningf(t.TaskName(), "Failed to clean MIGRATING state of target server.")
 					return 0, err, ""
 				}
-				return 0, nil, ""
+				return 0, fmt.Errorf("mig: %s is not the owner of hash slot %d", sourceNode.Id, slot), ""
 			}
 			return 0, err, ""
 		}
@@ -288,20 +288,18 @@ func (t *MigrateTask) Run() {
 				log.Warningf(t.TaskName(),
 					"Migrate slot %d error, %d keys done, total %d keys, remains %d keys, %v",
 					t.currSlot, nkeys, t.totalKeysInSlot, remains, err)
-				if strings.HasPrefix(err.Error(), "READONLY") {
+				if err != nil && strings.HasPrefix(err.Error(), "READONLY") {
 					log.Warningf(t.TaskName(), "Migrating across slaves nodes. "+
 						"Maybe a manual failover just happened, "+
 						"if cluster marks down after this point, "+
 						"we need recover it by ourself using cli commands.")
 					t.SetState(StateCancelled)
 					goto quit
-				}
-				if strings.HasPrefix(err.Error(), "CLUSTERDOWN") {
+				} else if err != nil && strings.HasPrefix(err.Error(), "CLUSTERDOWN") {
 					log.Warningf(t.TaskName(), "The cluster is down, please check it yourself, migrating task cancelled.")
 					t.SetState(StateCancelled)
 					goto quit
-				}
-				if strings.HasPrefix(err.Error(), "IOERR") {
+				} else if err != nil && strings.HasPrefix(err.Error(), "IOERR") {
 					log.Warningf(t.TaskName(), "Migrating key:%s timeout", key)
 					if timeout_cnt > 10 {
 						log.Warningf(t.TaskName(), "Migrating key:%s timeout too frequently, task cancelled")
