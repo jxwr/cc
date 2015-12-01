@@ -76,6 +76,7 @@ func main() {
 			initialize.Command,
 			initialize.Command_node,
 			c.AppAddCommand,
+			c.AppModCommand,
 			c.AppListCommand,
 			c.ConfigCommand,
 			c.UserAddCommand,
@@ -98,6 +99,7 @@ func main() {
         cli assign slot_range, -h for more details
         cli config -k <key> -v <value>, -h for more details
         cli appadd [options], -h for more details
+        cli appmod [options], -h for more details
         cli applist, -h for more details
         cli useradd [options], -h for more details
         cli userdel -u <username>, -h  for more details

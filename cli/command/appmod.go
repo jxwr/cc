@@ -16,6 +16,7 @@ var AppModCommand = cli.Command{
 	Usage:  "appmod",
 	Action: appModAction,
 	Flags: []cli.Flag{
+		cli.StringFlag{"d,appname", "", "appname"},
 		cli.StringFlag{"s,enableslaveread", "", "AutoEnableSlaveRead <true> or <false>"},
 		cli.StringFlag{"m,enablemasterwrite", "", "AutoEnableMasterWrite <true> or <false>"},
 		cli.StringFlag{"f,failover", "", "AutoFailover <true> or <false>"},
@@ -31,7 +32,10 @@ var AppModCommand = cli.Command{
 }
 
 func appModAction(c *cli.Context) {
-	appname := context.GetAppName()
+	appname := c.String("d")
+	if appname == "" {
+		appname = context.GetAppName()
+	}
 	s := c.String("s")
 	m := c.String("m")
 	f := c.String("f")
