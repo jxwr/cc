@@ -6,11 +6,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jxwr/cc/log"
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/redis"
-	"github.com/jxwr/cc/streams"
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/redis"
+	"github.com/ksarch-saas/cc/streams"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 const (
@@ -97,7 +97,7 @@ func (t *MigrateTask) ToPlan() *MigratePlan {
 /// 5. <Target Master> setslot $slot node $targetId
 /// 6. <Source Slaves> setslot $slot node $targetId
 /// 7. <Source Master> setslot $slot node $targetId
-func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
+func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 	rs := t.SourceReplicaSet()
 	sourceNode := t.SourceNode()
 	targetNode := t.TargetNode()
@@ -112,21 +112,21 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 			srs := t.SourceReplicaSet()
 			err = SetSlotToNode(srs, slot, targetNode.Id)
 			if err != nil {
-				return 0, err
+				return 0, err, ""
 			}
 			err = SetSlotStable(srs, slot)
 			if err != nil {
-				return 0, err
+				return 0, err, ""
 			}
 			trs := t.TargetReplicaSet()
 			err = SetSlotToNode(trs, slot, targetNode.Id)
 			if err != nil {
-				return 0, err
+				return 0, err, ""
 			}
 			err = SetSlotStable(trs, slot)
-			return 0, err
+			return 0, err, ""
 		}
-		return 0, err
+		return 0, err, ""
 	}
 
 	// 需要将Source分片的所有节点标记为MIGRATING，最大限度避免从地域的读造成的数据不一致
@@ -140,17 +140,17 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 				err = SetSlotStable(srs, slot)
 				if err != nil {
 					log.Warningf(t.TaskName(), "Failed to clean MIGRATING state of source server.")
-					return 0, err
+					return 0, err, ""
 				}
 				trs := t.TargetReplicaSet()
 				err = SetSlotStable(trs, slot)
 				if err != nil {
 					log.Warningf(t.TaskName(), "Failed to clean MIGRATING state of target server.")
-					return 0, err
+					return 0, err, ""
 				}
-				return 0, nil
+				return 0, fmt.Errorf("mig: %s is not the owner of hash slot %d", sourceNode.Id, slot), ""
 			}
-			return 0, err
+			return 0, err, ""
 		}
 	}
 
@@ -162,30 +162,30 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 	for {
 		keys, err := redis.GetKeysInSlot(sourceNode.Addr(), slot, keysPer)
 		if err != nil {
-			return nkeys, err
+			return nkeys, err, ""
 		}
 		for _, key := range keys {
 			_, err := redis.Migrate(sourceNode.Addr(), targetNode.Ip, targetNode.Port, key, app.MigrateTimeout)
 			if err != nil {
-				return nkeys, err
+				return nkeys, err, key
 			}
 			nkeys++
 		}
 		if len(keys) == 0 {
-			// 迁移完成，需要等SourceSlavess同步(DEL)完成，即SourceSlaves节点中该slot内已无key
+			// 迁移完成，需要等SourceSlaves同步(DEL)完成，即SourceSlaves节点中该slot内已无key
 			slaveSyncDone := true
 			srs := t.SourceReplicaSet()
 			for _, node := range srs.AllNodes() {
 				nkeys, err := redis.CountKeysInSlot(node.Addr(), slot)
 				if err != nil {
-					return nkeys, err
+					return nkeys, err, ""
 				}
 				if nkeys > 0 {
 					slaveSyncDone = false
 				}
 			}
 			if !slaveSyncDone {
-				return nkeys, fmt.Errorf("mig: source nodes not all empty, will retry.")
+				return nkeys, fmt.Errorf("mig: source nodes not all empty, will retry."), ""
 			}
 			// 设置slot归属到新节点，该操作自动清理IMPORTING和MIGRATING状态
 			// 如果设置的是Source节点，设置slot归属时，Redis会确保该slot中已无剩余的key
@@ -197,13 +197,13 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 				}
 				err = redis.SetSlot(node.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 				if err != nil {
-					return nkeys, err
+					return nkeys, err, ""
 				}
 			}
 			// 该操作增加Epoch并广播出去
 			err = redis.SetSlot(trs.Master.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 			if err != nil {
-				return nkeys, err
+				return nkeys, err, ""
 			}
 			// 更新节点上slot的归属
 			for _, rs := range t.cluster.ReplicaSets() {
@@ -212,14 +212,14 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error) {
 				}
 				err = SetSlotToNode(rs, slot, targetNode.Id)
 				if err != nil {
-					return nkeys, err
+					return nkeys, err, ""
 				}
 			}
 			break
 		}
 	}
 
-	return nkeys, nil
+	return nkeys, nil, ""
 }
 
 func (t *MigrateTask) streamPub(careSpeed bool) {
@@ -243,6 +243,8 @@ func (t *MigrateTask) streamPub(careSpeed bool) {
 }
 
 func (t *MigrateTask) Run() {
+	prev_key := ""
+	timeout_cnt := 0
 	for i, r := range t.ranges {
 		if r.Left < 0 {
 			r.Left = 0
@@ -274,7 +276,7 @@ func (t *MigrateTask) Run() {
 
 			// 正常运行
 			app := meta.GetAppConfig()
-			nkeys, err := t.migrateSlot(t.currSlot, app.MigrateKeysEachTime)
+			nkeys, err, key := t.migrateSlot(t.currSlot, app.MigrateKeysEachTime)
 			t.totalKeysInSlot += nkeys
 			// Check remains again
 			seed := t.SourceNode()
@@ -286,18 +288,30 @@ func (t *MigrateTask) Run() {
 				log.Warningf(t.TaskName(),
 					"Migrate slot %d error, %d keys done, total %d keys, remains %d keys, %v",
 					t.currSlot, nkeys, t.totalKeysInSlot, remains, err)
-				if strings.HasPrefix(err.Error(), "READONLY") {
+				if err != nil && strings.HasPrefix(err.Error(), "READONLY") {
 					log.Warningf(t.TaskName(), "Migrating across slaves nodes. "+
 						"Maybe a manual failover just happened, "+
 						"if cluster marks down after this point, "+
 						"we need recover it by ourself using cli commands.")
 					t.SetState(StateCancelled)
 					goto quit
-				}
-				if strings.HasPrefix(err.Error(), "CLUSTERDOWN") {
+				} else if err != nil && strings.HasPrefix(err.Error(), "CLUSTERDOWN") {
 					log.Warningf(t.TaskName(), "The cluster is down, please check it yourself, migrating task cancelled.")
 					t.SetState(StateCancelled)
 					goto quit
+				} else if err != nil && strings.HasPrefix(err.Error(), "IOERR") {
+					log.Warningf(t.TaskName(), "Migrating key:%s timeout", key)
+					if timeout_cnt > 10 {
+						log.Warningf(t.TaskName(), "Migrating key:%s timeout too frequently, task cancelled")
+						t.SetState(StateCancelled)
+						goto quit
+					}
+					if prev_key == key {
+						timeout_cnt++
+					} else {
+						timeout_cnt = 0
+						prev_key = key
+					}
 				}
 				time.Sleep(500 * time.Millisecond)
 			} else {

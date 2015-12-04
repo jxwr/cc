@@ -42,6 +42,12 @@ var StateColorMap = {
   "WAIT_FAILOVER_END": "red",
 };
 
+var username = getCookie("username")
+var token = getCookie("token")
+$.ajaxSetup({
+    headers: { 'User':username, 'Token':token }
+});
+
 var MigrationTask = React.createClass({
   render: function() {
     var obj = this.props.obj;

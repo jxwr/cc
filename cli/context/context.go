@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jxwr/cc/controller/command"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/utils"
+	"github.com/ksarch-saas/cc/controller/command"
+	"github.com/ksarch-saas/cc/frontend/api"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/utils"
 	zookeeper "github.com/samuel/go-zookeeper/zk"
 
 	"gopkg.in/yaml.v1"
@@ -30,16 +30,24 @@ var (
 	ZkAddr                  string
 	appContextName          string
 	Display                 string
+	Config                  *CliConf
 )
 
 type CliConf struct {
 	Zkhosts     string `yaml:"zkhosts,omitempty"`
 	HistoryFile string `yaml:"historyfile,omitempty"`
 	Display     string `yaml:"display,omitempty"`
+	User        string `yaml:"user,omitempty"`
+	Role        string `yaml:"role,omitempty"`
+	Token       string `yaml:"token,omitempty"`
 }
 
 func GetAppName() string {
 	return appContextName
+}
+
+func SetConfigContext(conf *CliConf) {
+	Config = conf
 }
 
 func SetApp(appName string, zkAddr string) error {
@@ -112,6 +120,50 @@ func AddApp(appName string, config []byte) error {
 		}
 		return nil
 	}
+}
+
+func ListFailoverRecord() ([]string, error) {
+	zconn, _, err := meta.DialZk(ZkAddr)
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("zk: can't connect: %v", err)
+	}
+	zkPath := "/r3/failover/history"
+	exists, _, err := zconn.Exists(zkPath)
+	if err != nil {
+		return nil, fmt.Errorf("zk: call exist failed %v", err)
+	}
+	if exists {
+		apps, stat, err := zconn.Children(zkPath)
+		fmt.Println(*stat)
+		if err != nil {
+			return nil, fmt.Errorf("zk: call children failed %v", err)
+		}
+		return apps, nil
+	}
+	return nil, err
+}
+
+func GetFailoverRecord(record string) (string, int32, error) {
+	zconn, _, err := meta.DialZk(ZkAddr)
+	defer func() {
+		if zconn != nil {
+			zconn.Close()
+		}
+	}()
+	if err != nil {
+		return "", 0, fmt.Errorf("zk: can't connect: %v", err)
+	}
+	zkPath := "/r3/failover/history/" + record
+	config, stat, err := zconn.Get(zkPath)
+	if err != nil {
+		return "", 0, fmt.Errorf("zk: get: %v", err)
+	}
+	return string(config), stat.Version, nil
 }
 
 func ListApp() ([]string, error) {

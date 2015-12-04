@@ -6,11 +6,11 @@ import (
 
 	"github.com/codegangsta/cli"
 
-	"github.com/jxwr/cc/cli/context"
-	"github.com/jxwr/cc/controller/command"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/utils"
+	"github.com/ksarch-saas/cc/cli/context"
+	"github.com/ksarch-saas/cc/controller/command"
+	"github.com/ksarch-saas/cc/frontend/api"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/utils"
 )
 
 var ShowCommand = cli.Command{
@@ -82,10 +82,12 @@ func showFailoverHistory() {
 
 func printShowUsage() {
 	Put("List of show subcommands:\n")
-	Put("show nodes    -- Show the nodes info group by replicaset")
-	Put("show slots    -- Show the ranges of master nodes")
-	Put("show tasks    -- Show migrating tasks")
-	Put("show failover -- Show failover history records")
+	Put("show nodes         -- Show the nodes info group by replicaset in table format")
+	Put("show nodes-simple  -- Show the nodes info group by replicaset in raw format")
+	Put("show nodes-json  -- Show the nodes info group by replicaset in json format")
+	Put("show slots         -- Show the ranges of master nodes")
+	Put("show tasks         -- Show migrating tasks")
+	Put("show failover      -- Show failover history records")
 	Put()
 }
 
@@ -100,7 +102,11 @@ func showAction(c *cli.Context) {
 	case "tasks", "task":
 		showMigrationTasks()
 	case "nodes":
-		showNodes()
+		showNodes("table")
+	case "nodes-simple":
+		showNodes("")
+	case "nodes-json":
+		showNodes("json")
 	case "slots":
 		showSlots()
 	case "failover":

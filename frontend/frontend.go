@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	cc "github.com/jxwr/cc/controller"
-	"github.com/jxwr/cc/controller/command"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/log"
-	"github.com/jxwr/cc/topo"
+	cc "github.com/ksarch-saas/cc/controller"
+	"github.com/ksarch-saas/cc/controller/command"
+	"github.com/ksarch-saas/cc/frontend/api"
+	"github.com/ksarch-saas/cc/frontend/auth"
+	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 type FrontEnd struct {
@@ -28,25 +29,27 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 		HttpBindAddr: fmt.Sprintf(":%d", httpPort),
 		WsBindAddr:   fmt.Sprintf(":%d", wsPort),
 	}
+	store := auth.NewTokenStore("r3")
+	tokenAuth := auth.NewTokenAuth(nil, store, nil)
 
 	fe.Router.Static("/ui", "./public")
 	fe.Router.GET(api.AppInfoPath, fe.HandleAppInfo)
 	fe.Router.GET(api.FetchReplicaSetsPath, fe.HandleFetchReplicaSets)
 	fe.Router.POST(api.LogSlicePath, fe.HandleLogSlice)
 	fe.Router.POST(api.RegionSnapshotPath, fe.HandleRegionSnapshot)
-	fe.Router.POST(api.MigrateCreatePath, fe.HandleMigrateCreate)
-	fe.Router.POST(api.MigratePausePath, fe.HandleMigratePause)
-	fe.Router.POST(api.MigrateResumePath, fe.HandleMigrateResume)
-	fe.Router.POST(api.MigrateCancelPath, fe.HandleMigrateCancel)
+	fe.Router.POST(api.MigrateCreatePath, tokenAuth.HandleFunc(fe.HandleMigrateCreate))
+	fe.Router.POST(api.MigratePausePath, tokenAuth.HandleFunc(fe.HandleMigratePause))
+	fe.Router.POST(api.MigrateResumePath, tokenAuth.HandleFunc(fe.HandleMigrateResume))
+	fe.Router.POST(api.MigrateCancelPath, tokenAuth.HandleFunc(fe.HandleMigrateCancel))
 	fe.Router.GET(api.FetchMigrationTasksPath, fe.HandleFetchMigrationTasks)
-	fe.Router.POST(api.RebalancePath, fe.HandleRebalance)
-	fe.Router.POST(api.NodePermPath, fe.HandleToggleMode)
-	fe.Router.POST(api.NodeMeetPath, fe.HandleMeetNode)
-	fe.Router.POST(api.NodeSetAsMasterPath, fe.HandleSetAsMaster)
-	fe.Router.POST(api.NodeForgetAndResetPath, fe.HandleForgetAndResetNode)
-	fe.Router.POST(api.NodeReplicatePath, fe.HandleReplicate)
-	fe.Router.POST(api.MakeReplicaSetPath, fe.HandleMakeReplicaSet)
-	fe.Router.POST(api.FailoverTakeoverPath, fe.HandleFailoverTakeover)
+	fe.Router.POST(api.RebalancePath, tokenAuth.HandleFunc(fe.HandleRebalance))
+	fe.Router.POST(api.NodePermPath, tokenAuth.HandleFunc(fe.HandleToggleMode))
+	fe.Router.POST(api.NodeMeetPath, tokenAuth.HandleFunc(fe.HandleMeetNode))
+	fe.Router.POST(api.NodeSetAsMasterPath, tokenAuth.HandleFunc(fe.HandleSetAsMaster))
+	fe.Router.POST(api.NodeForgetAndResetPath, tokenAuth.HandleFunc(fe.HandleForgetAndResetNode))
+	fe.Router.POST(api.NodeReplicatePath, tokenAuth.HandleFunc(fe.HandleReplicate))
+	fe.Router.POST(api.MakeReplicaSetPath, tokenAuth.HandleFunc(fe.HandleMakeReplicaSet))
+	fe.Router.POST(api.FailoverTakeoverPath, tokenAuth.HandleFunc(fe.HandleFailoverTakeover))
 	fe.Router.POST(api.MergeSeedsPath, fe.HandleMergeSeeds)
 
 	return fe

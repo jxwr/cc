@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jxwr/cc/controller"
-	"github.com/jxwr/cc/controller/command"
-	"github.com/jxwr/cc/inspector"
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/controller"
+	"github.com/ksarch-saas/cc/controller/command"
+	"github.com/ksarch-saas/cc/inspector"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 func TestUpdateRegion(t *testing.T) {

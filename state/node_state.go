@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jxwr/cc/fsm"
-	"github.com/jxwr/cc/streams"
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/fsm"
+	"github.com/ksarch-saas/cc/streams"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 type NodeState struct {

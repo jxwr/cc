@@ -1,8 +1,8 @@
 package command
 
 import (
-	cc "github.com/jxwr/cc/controller"
-	"github.com/jxwr/cc/meta"
+	cc "github.com/ksarch-saas/cc/controller"
+	"github.com/ksarch-saas/cc/meta"
 )
 
 type AppInfoCommand struct{}

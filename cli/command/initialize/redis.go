@@ -2,7 +2,7 @@ package initialize
 
 import (
 	"fmt"
-	"github.com/jxwr/cc/redis"
+	"github.com/ksarch-saas/cc/redis"
 	"strconv"
 	"time"
 )
@@ -24,22 +24,27 @@ func isMaster(node *Node) bool {
 }
 
 func resetNodes(nodes []*Node) (string, error) {
-	var resp string
-	var err error
+	var ChanErr chan error = make(chan error)
+	var ret_err error = nil
 	for _, node := range nodes {
-		addr := fmt.Sprintf("%s:%s", node.Ip, node.Port)
-		if isMaster(node) {
-			resp, err = redis.FlushAll(addr)
-			if err != nil {
-				return resp, err
+		inner := func(node *Node) {
+			var err error
+			addr := fmt.Sprintf("%s:%s", node.Ip, node.Port)
+			if isMaster(node) {
+				_, err = redis.FlushAll(addr)
 			}
+			_, err = redis.ClusterReset(addr, false)
+			ChanErr <- err
 		}
-		resp, err = redis.ClusterReset(addr, false)
+		go inner(node)
+	}
+	for i := 0; i < len(nodes); i++ {
+		err := <-ChanErr
 		if err != nil {
-			return resp, err
+			ret_err = err
 		}
 	}
-	return resp, nil
+	return "", ret_err
 }
 
 func clusterNodes(node *Node) (string, error) {
@@ -49,8 +54,8 @@ func clusterNodes(node *Node) (string, error) {
 }
 
 func meetEach(nodes []*Node) {
-	for _, n1 := range nodes {
-		for _, n2 := range nodes {
+	for _, n1 := range nodes[:len(nodes)/2] {
+		for _, n2 := range nodes[len(nodes)/2:] {
 			if n1 != n2 {
 				addr := fmt.Sprintf("%s:%s", n1.Ip, n1.Port)
 				newPort, _ := strconv.Atoi(n2.Port)

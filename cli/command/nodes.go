@@ -5,11 +5,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/jxwr/cc/cli/context"
-	"github.com/jxwr/cc/controller/command"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/topo"
-	"github.com/jxwr/cc/utils"
+	"github.com/ksarch-saas/cc/cli/context"
+	"github.com/ksarch-saas/cc/controller/command"
+	"github.com/ksarch-saas/cc/frontend/api"
+	"github.com/ksarch-saas/cc/topo"
+	"github.com/ksarch-saas/cc/utils"
 )
 
 /// Show Nodes
@@ -98,7 +98,7 @@ func nodesToInterfaceSlice(nodes []*topo.Node, stateMap map[string]string) []int
 	return interfaceSlice
 }
 
-func showNodes() {
+func showNodes(format string) {
 	addr := context.GetLeaderAddr()
 	url := "http://" + addr + api.FetchReplicaSetsPath
 
@@ -126,7 +126,7 @@ func showNodes() {
 			allNodes = append(allNodes, nil)
 		}
 	}
-	utils.PrintJsonArray("table",
+	utils.PrintJsonArray(format,
 		[]string{"State", "Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS",
 			"UsedMemory", "Link", "Repl", "Keys", "NetIn", "NetOut"},
 		nodesToInterfaceSlice(allNodes, rss.NodeStates))

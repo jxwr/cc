@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	cc "github.com/jxwr/cc/controller"
-	"github.com/jxwr/cc/log"
-	"github.com/jxwr/cc/redis"
+	cc "github.com/ksarch-saas/cc/controller"
+	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/redis"
 )
 
 type ForgetAndResetNodeCommand struct {

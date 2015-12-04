@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
-	"github.com/jxwr/cc/log"
-	"github.com/jxwr/cc/topo"
+	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 var (
@@ -18,6 +18,7 @@ var (
 	ErrPingFailed  = errors.New("redis: ping error")
 	ErrServer      = errors.New("redis: server error")
 	ErrInvalidAddr = errors.New("redis: invalid address string")
+	poolMap        map[string]*redis.Pool //redis connection pool for each server
 )
 
 const (
@@ -28,23 +29,44 @@ const (
 
 	NUM_RETRY     = 3
 	CONN_TIMEOUT  = 1 * time.Second
-	READ_TIMEOUT  = 2 * time.Second
-	WRITE_TIMEOUT = 2 * time.Second
+	READ_TIMEOUT  = 120 * time.Second
+	WRITE_TIMEOUT = 120 * time.Second
 )
 
 func dial(addr string) (redis.Conn, error) {
-	inner := func(addr string) (redis.Conn, error) {
-		return redis.DialTimeout("tcp", addr, CONN_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT)
+	if poolMap == nil {
+		poolMap = make(map[string]*redis.Pool)
 	}
-	retry := NUM_RETRY
-	var err error
-	var resp redis.Conn
-	for retry > 0 {
-		resp, err = inner(addr)
-		if err == nil {
-			return resp, nil
+
+	inner := func(addr string) (redis.Conn, error) {
+		if _, ok := poolMap[addr]; !ok {
+			//not exist in map
+			poolMap[addr] = &redis.Pool{
+				MaxIdle:     3,
+				IdleTimeout: 240 * time.Second,
+				Dial: func() (redis.Conn, error) {
+					c, err := redis.DialTimeout("tcp", addr, CONN_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT)
+					if err != nil {
+						return nil, err
+					}
+					return c, nil
+				},
+				TestOnBorrow: func(c redis.Conn, t time.Time) error {
+					_, err := c.Do("PING")
+					return err
+				},
+			}
 		}
-		retry--
+		pool, ok := poolMap[addr]
+		if ok {
+			return pool.Get(), nil
+		} else {
+			return nil, ErrConnFailed
+		}
+	}
+	resp, err := inner(addr)
+	if err == nil {
+		return resp, nil
 	}
 	return nil, err
 }
@@ -566,6 +588,19 @@ func FlushAll(addr string) (string, error) {
 	resp, err := redis.String(conn.Do("flushall"))
 	if err != nil {
 		return resp, err
+	}
+	return resp, nil
+}
+
+func Slot2Node(addr string, slot int, dest string) (string, error) {
+	conn, err := dial(addr)
+	if err != nil {
+		return "connect failed", ErrConnFailed
+	}
+	defer conn.Close()
+	resp, err := redis.String(conn.Do("slot2node", slot, dest))
+	if err != nil {
+		return resp, nil
 	}
 	return resp, nil
 }

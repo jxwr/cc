@@ -9,10 +9,10 @@ import (
 	"github.com/codegangsta/cli"
 	"golang.org/x/net/websocket"
 
-	"github.com/jxwr/cc/cli/context"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/streams"
-	"github.com/jxwr/cc/utils"
+	"github.com/ksarch-saas/cc/cli/context"
+	"github.com/ksarch-saas/cc/frontend/api"
+	"github.com/ksarch-saas/cc/streams"
+	"github.com/ksarch-saas/cc/utils"
 )
 
 var LogCommand = cli.Command{

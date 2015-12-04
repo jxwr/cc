@@ -1,12 +1,12 @@
 package command
 
 import (
-	cc "github.com/jxwr/cc/controller"
-	"github.com/jxwr/cc/log"
-	"github.com/jxwr/cc/meta"
-	"github.com/jxwr/cc/redis"
-	"github.com/jxwr/cc/state"
-	"github.com/jxwr/cc/topo"
+	cc "github.com/ksarch-saas/cc/controller"
+	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/meta"
+	"github.com/ksarch-saas/cc/redis"
+	"github.com/ksarch-saas/cc/state"
+	"github.com/ksarch-saas/cc/topo"
 )
 
 type UpdateRegionCommand struct {

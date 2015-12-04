@@ -5,9 +5,9 @@ import (
 
 	"github.com/codegangsta/cli"
 
-	"github.com/jxwr/cc/cli/context"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/utils"
+	"github.com/ksarch-saas/cc/cli/context"
+	"github.com/ksarch-saas/cc/frontend/api"
+	"github.com/ksarch-saas/cc/utils"
 )
 
 const taskCommandUsage = "task <pause|resume|cancel> <sourceId>"
@@ -30,7 +30,12 @@ func doTaskAction(path, sourceId string) {
 	req := api.MigrateActionParams{
 		SourceId: nodeid,
 	}
-	resp, err := utils.HttpPost(url, req, 5*time.Second)
+	extraHeader := &utils.ExtraHeader{
+		User:  context.Config.User,
+		Role:  context.Config.Role,
+		Token: context.Config.Token,
+	}
+	resp, err := utils.HttpPostExtra(url, req, 5*time.Second, extraHeader)
 	if err != nil {
 		Put(err)
 		return

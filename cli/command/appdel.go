@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/codegangsta/cli"
-	"github.com/jxwr/cc/cli/context"
+	"github.com/ksarch-saas/cc/cli/context"
 )
 
 var AppDelCommand = cli.Command{
@@ -17,6 +17,15 @@ var AppDelCommand = cli.Command{
 }
 
 func appDelAction(c *cli.Context) {
+	super, err := context.CheckSuperPerm(context.Config.User)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if !super {
+		fmt.Println("You have no permission to this operation")
+		return
+	}
 	appname := context.GetAppName()
 
 	fmt.Printf("Type %s to continue: ", "yes")

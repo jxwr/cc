@@ -9,9 +9,9 @@ import (
 	"github.com/GeertJohan/go.linenoise"
 	"github.com/codegangsta/cli"
 
-	c "github.com/jxwr/cc/cli/command"
-	"github.com/jxwr/cc/cli/command/initialize"
-	"github.com/jxwr/cc/cli/context"
+	c "github.com/ksarch-saas/cc/cli/command"
+	"github.com/ksarch-saas/cc/cli/command/initialize"
+	"github.com/ksarch-saas/cc/cli/context"
 )
 
 var cmds = []cli.Command{
@@ -31,6 +31,7 @@ var cmds = []cli.Command{
 	c.WebCommand,
 	c.TaskCommand,
 	c.RedisCliCommand,
+	c.Slot2NodeCommand,
 }
 
 const (
@@ -64,6 +65,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	context.SetConfigContext(conf)
 
 	if len(os.Args) > 1 {
 		app := cli.NewApp()
@@ -72,9 +74,16 @@ func main() {
 
 		app.Commands = []cli.Command{
 			initialize.Command,
+			initialize.Command_node,
 			c.AppAddCommand,
+			c.AppModCommand,
 			c.AppListCommand,
 			c.ConfigCommand,
+			c.UserAddCommand,
+			c.UserDelCommand,
+			c.UserGetCommand,
+			c.ListFailoverRecordCommand,
+			c.GetFailoverRecordCommand,
 		}
 		arg := append(os.Args)
 		for _, cmd := range app.Commands {
@@ -87,9 +96,15 @@ func main() {
 	if (len(os.Args) == 2 && (string(os.Args[1]) == "-h" || string(os.Args[1]) == "--help")) || (len(os.Args) == 1) {
 		help := `Usage:
         cli init [options], -h for more details
+        cli assign slot_range, -h for more details
         cli config -k <key> -v <value>, -h for more details
         cli appadd [options], -h for more details
+        cli appmod [options], -h for more details
         cli applist, -h for more details
+        cli useradd [options], -h for more details
+        cli userdel -u <username>, -h  for more details
+        cli listfailover, -h for more details
+        cli getfailover, -h for more details
         cli <AppName> [<Command>] [options], -h for more details
         `
 		fmt.Println(help)

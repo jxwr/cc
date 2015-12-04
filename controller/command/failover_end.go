@@ -1,8 +1,8 @@
 package command
 
 import (
-	cc "github.com/jxwr/cc/controller"
-	"github.com/jxwr/cc/state"
+	cc "github.com/ksarch-saas/cc/controller"
+	"github.com/ksarch-saas/cc/state"
 )
 
 type FailoverEndCommand struct {

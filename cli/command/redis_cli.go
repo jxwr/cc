@@ -6,7 +6,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/garyburd/redigo/redis"
 
-	"github.com/jxwr/cc/cli/context"
+	"github.com/ksarch-saas/cc/cli/context"
 )
 
 var RedisCliCommand = cli.Command{
